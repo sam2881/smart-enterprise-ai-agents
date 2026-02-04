@@ -1,0 +1,143 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- APEX v2.1.0 Template Changelog
+-- Date: 2026-01-28
+-- Description: Gap analysis remediation - Phase 1 (Critical) + Phase 2 (High)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Phase 1: Critical Fixes
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- G04: Fixed P07 phantom Spark job reference
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) VALUES (
+    (SELECT template_id FROM dag_template WHERE pattern_id = 'P07'),
+    'MODIFICATION',
+    'G04: Fixed phantom spark_jobs/check_source.py reference. Replaced with existing pipeline_tasks.check_source_file matching P01 pattern.',
+    'Gap Analysis - Phase 1 Critical: Template referenced non-existent Spark job file',
+    'APEX Agent v2.1.0',
+    true
+);
+
+-- G06: Added 4 missing file format readers to raw_to_bronze.py
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) VALUES (
+    (SELECT template_id FROM dag_template WHERE pattern_id = 'P01'),
+    'EXTENSION',
+    'G06: Added 4 missing file format readers to raw_to_bronze.py: ORC, XML, EXCEL, FIXED_WIDTH. Registry now supports all 9 declared formats.',
+    'Gap Analysis - Phase 1 Critical: Spark job did not implement all file formats declared in registry',
+    'APEX Agent v2.1.0',
+    true
+);
+
+-- G07: Added mandatory system fields to all Spark jobs and ExecutionContext
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) VALUES (
+    (SELECT template_id FROM dag_template WHERE pattern_id = 'P01'),
+    'EXTENSION',
+    'G07: Added 4 mandatory system fields to all zones: _run_id (UUID per execution), _record_uuid (UUID per row), _reporting_date (business date), _load_timestamp. Applied to raw_to_bronze.py, bronze_to_silver.py, silver_to_gold.py, and ExecutionContext.',
+    'Gap Analysis - Phase 1 Critical: APEX principle "System fields mandatory on ALL tables" was not enforced',
+    'APEX Agent v2.1.0',
+    true
+);
+
+-- Phase 2: High Priority Enhancements
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- G01: Added send_notifications task to P02-P09
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) SELECT
+    template_id,
+    'EXTENSION',
+    'G01: Added send_notifications task to template. Task fires on ALL_DONE trigger rule for both success and failure paths. Matches P01 reference pattern.',
+    'Gap Analysis - Phase 2 High: Only P01 had notification task; P02-P09 lacked stakeholder alerting',
+    'APEX Agent v2.1.0',
+    true
+FROM dag_template
+WHERE pattern_id IN ('P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09');
+
+-- G02: Added run_quality_checks task to P02-P08
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) SELECT
+    template_id,
+    'EXTENSION',
+    'G02: Added run_quality_checks BranchPythonOperator task between last zone processing and finalize. Branches to handle_validation_failure on quality rule violations.',
+    'Gap Analysis - Phase 2 High: Only P01 and P09 had quality checks; P02-P08 lacked metadata-driven quality validation',
+    'APEX Agent v2.1.0',
+    true
+FROM dag_template
+WHERE pattern_id IN ('P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08');
+
+-- G08: Implemented reject record handling in raw_to_bronze.py
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) VALUES (
+    (SELECT template_id FROM dag_template WHERE pattern_id = 'P01'),
+    'EXTENSION',
+    'G08: Implemented reject record path in raw_to_bronze.py. Records with _corrupt_record IS NOT NULL are filtered to reject path (bronze_path_rejects/{execution_id}) with _reject_reason, _reject_execution_id, _reject_ts. records_rejected metric now accurate.',
+    'Gap Analysis - Phase 2 High: Corrupt records were silently dropped without tracking or storage',
+    'APEX Agent v2.1.0',
+    true
+);
+
+-- G12: Created watermark_tracking DDL table
+INSERT INTO template_change_log (
+    template_id,
+    change_type,
+    change_description,
+    change_reason,
+    changed_by,
+    rollback_available
+) VALUES (
+    (SELECT template_id FROM dag_template WHERE pattern_id = 'P03'),
+    'EXTENSION',
+    'G12: Created watermark_tracking table in 02_core_tables.sql. Tracks incremental load watermarks: feed_id, contract_id, column_name, column_type, last_value, last_execution_id, last_execution_date. Unique constraint on (feed_id, contract_id, column_name).',
+    'Gap Analysis - Phase 2 High: Incremental loads lacked persistent watermark state tracking mechanism',
+    'APEX Agent v2.1.0',
+    true
+);
+
+-- Summary Metrics
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Total Changes: 7 gap remediations
+-- Templates Modified: 9 (all patterns P01-P09)
+-- Spark Jobs Modified: 3 (raw_to_bronze, bronze_to_silver, silver_to_gold)
+-- New DDL Tables: 1 (watermark_tracking)
+-- New File Formats: 4 (ORC, XML, EXCEL, FIXED_WIDTH)
+-- New System Fields: 4 (_run_id, _record_uuid, _reporting_date, _load_timestamp)
+-- Registry Version: 2.0.0 → 2.1.0
+-- Last Synced: 2026-01-28T00:00:00Z

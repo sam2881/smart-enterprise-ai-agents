@@ -1,0 +1,283 @@
+-- =============================================================================
+-- UPDATE PIPELINE METADATA
+-- Generated for: {{ dag_id }}
+-- Generated at: {{ generated_at | default('NOW()') }}
+-- Update Type: {{ update_type }}
+-- =============================================================================
+-- This template is used when:
+--   1. Schema evolves (new columns, type changes)
+--   2. Business logic changes (transformations)
+--   3. SLA/DQ rules change
+--   4. Configuration updates (schedule, alerts)
+-- =============================================================================
+
+BEGIN;
+
+{% if update_type == 'schema_evolution' %}
+-- =============================================================================
+-- SCHEMA EVOLUTION UPDATE
+-- =============================================================================
+
+-- 1. Record the schema change for audit
+INSERT INTO schema_changes (
+    schema_id,
+    pipeline_id,
+    change_type,
+    change_description,
+    previous_schema_version,
+    new_schema_version,
+    column_name,
+    previous_definition,
+    new_definition,
+    is_breaking_change,
+    affected_pipelines,
+    requested_by,
+    approval_status
+)
+SELECT
+    ps.schema_id,
+    pr.pipeline_id,
+    '{{ change_type }}',  -- add_column, drop_column, modify_type, rename_column
+    '{{ change_description | replace("'", "''") }}',
+    ps.schema_version,
+    ps.schema_version + 1,
+    {{ "'" ~ column_name ~ "'" if column_name else 'NULL' }},
+    {{ "'" ~ previous_definition | tojson ~ "'::jsonb" if previous_definition else 'NULL' }},
+    {{ "'" ~ new_definition | tojson ~ "'::jsonb" if new_definition else 'NULL' }},
+    {{ is_breaking_change | default(false) | lower }},
+    '{{ affected_pipelines | default([]) | tojson }}'::jsonb,
+    '{{ requested_by | default("system") }}',
+    {% if requires_approval %}'pending'{% else %}'approved'{% endif %}
+FROM pipeline_registry pr
+JOIN pipeline_schemas ps ON ps.pipeline_id = pr.pipeline_id AND ps.is_current = TRUE
+WHERE pr.dag_id = '{{ dag_id }}' AND pr.environment = '{{ environment | default("dev") }}';
+
+{% if not requires_approval %}
+-- 2. Mark current schema as not current
+UPDATE pipeline_schemas
+SET is_current = FALSE, updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
+  AND is_current = TRUE;
+
+-- 3. Insert new schema version
+INSERT INTO pipeline_schemas (
+    pipeline_id,
+    schema_version,
+    is_current,
+    columns,
+    primary_keys,
+    partition_columns,
+    cluster_columns
+)
+SELECT
+    pipeline_id,
+    (SELECT COALESCE(MAX(schema_version), 0) + 1 FROM pipeline_schemas ps2 WHERE ps2.pipeline_id = pr.pipeline_id),
+    TRUE,
+    '{{ new_columns | tojson }}'::jsonb,
+    {{ "'" ~ primary_keys | tojson ~ "'::jsonb" if primary_keys else "'[]'::jsonb" }},
+    {{ "'" ~ partition_columns | tojson ~ "'::jsonb" if partition_columns else "'[]'::jsonb" }},
+    {{ "'" ~ cluster_columns | tojson ~ "'::jsonb" if cluster_columns else "'[]'::jsonb" }}
+FROM pipeline_registry pr
+WHERE pr.dag_id = '{{ dag_id }}' AND pr.environment = '{{ environment | default("dev") }}';
+{% endif %}
+
+{% elif update_type == 'transformation_update' %}
+-- =============================================================================
+-- TRANSFORMATION RULES UPDATE
+-- =============================================================================
+
+{% for transform in transformations %}
+-- Update or insert transformation rule: {{ transform.rule_name }}
+INSERT INTO transformation_rules (
+    pipeline_id,
+    rule_name,
+    layer,
+    execution_order,
+    rule_type,
+    input_format,
+    source_columns,
+    target_column,
+    structured_config,
+    sql_expression,
+    nl_description,
+    generated_pyspark,
+    is_active,
+    created_by
+)
+SELECT
+    pipeline_id,
+    '{{ transform.rule_name }}',
+    '{{ transform.layer | default("silver") }}',
+    {{ transform.execution_order | default(loop.index) }},
+    '{{ transform.rule_type }}',
+    '{{ transform.input_format | default("structured") }}',
+    '{{ transform.source_columns | default([]) | tojson }}'::jsonb,
+    {{ "'" ~ transform.target_column ~ "'" if transform.target_column else 'NULL' }},
+    {{ "'" ~ transform.structured_config | tojson ~ "'::jsonb" if transform.structured_config else 'NULL' }},
+    {{ "'" ~ transform.sql_expression | replace("'", "''") ~ "'" if transform.sql_expression else 'NULL' }},
+    {{ "'" ~ transform.nl_description | replace("'", "''") ~ "'" if transform.nl_description else 'NULL' }},
+    {{ "'" ~ transform.generated_pyspark | replace("'", "''") ~ "'" if transform.generated_pyspark else 'NULL' }},
+    TRUE,
+    '{{ updated_by | default("system") }}'
+FROM pipeline_registry
+WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
+ON CONFLICT (pipeline_id, layer, execution_order) DO UPDATE SET
+    rule_name = EXCLUDED.rule_name,
+    rule_type = EXCLUDED.rule_type,
+    source_columns = EXCLUDED.source_columns,
+    target_column = EXCLUDED.target_column,
+    structured_config = EXCLUDED.structured_config,
+    sql_expression = EXCLUDED.sql_expression,
+    nl_description = EXCLUDED.nl_description,
+    generated_pyspark = EXCLUDED.generated_pyspark,
+    updated_at = NOW();
+
+{% endfor %}
+
+{% elif update_type == 'quality_rules_update' %}
+-- =============================================================================
+-- QUALITY RULES UPDATE
+-- =============================================================================
+
+-- Deactivate existing rules (soft delete)
+UPDATE pipeline_quality_rules
+SET is_active = FALSE, updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+
+{% for rule in quality_rules %}
+-- Insert updated quality rule: {{ rule.rule_name }}
+INSERT INTO pipeline_quality_rules (
+    pipeline_id,
+    rule_name,
+    rule_type,
+    column_name,
+    config,
+    severity,
+    threshold_pct,
+    is_active
+)
+SELECT
+    pipeline_id,
+    '{{ rule.rule_name }}',
+    '{{ rule.rule_type }}',
+    {{ "'" ~ rule.column_name ~ "'" if rule.column_name else 'NULL' }},
+    '{{ rule.config | default({}) | tojson }}'::jsonb,
+    '{{ rule.severity | default("warning") }}',
+    {{ rule.threshold_pct | default(100.0) }},
+    TRUE
+FROM pipeline_registry
+WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
+
+{% endfor %}
+
+{% elif update_type == 'execution_policy_update' %}
+-- =============================================================================
+-- EXECUTION POLICY UPDATE
+-- =============================================================================
+
+UPDATE pipeline_execution_policies
+SET
+    {% if schedule_interval is defined %}schedule_interval = '{{ schedule_interval }}',{% endif %}
+    {% if processing_mode is defined %}processing_mode = '{{ processing_mode }}',{% endif %}
+    {% if retry_count is defined %}retry_count = {{ retry_count }},{% endif %}
+    {% if retry_delay_minutes is defined %}retry_delay_minutes = {{ retry_delay_minutes }},{% endif %}
+    {% if sla_seconds is defined %}sla_seconds = {{ sla_seconds }},{% endif %}
+    {% if alert_emails is defined %}alert_emails = '{{ alert_emails | tojson }}'::jsonb,{% endif %}
+    {% if approval_groups is defined %}approval_groups = '{{ approval_groups | tojson }}'::jsonb,{% endif %}
+    {% if requires_human_approval is defined %}requires_human_approval = {{ requires_human_approval | lower }},{% endif %}
+    updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+
+{% elif update_type == 'data_contract_update' %}
+-- =============================================================================
+-- DATA CONTRACT UPDATE
+-- =============================================================================
+
+UPDATE data_contracts
+SET
+    {% if freshness_sla_hours is defined %}freshness_sla_hours = {{ freshness_sla_hours }},{% endif %}
+    {% if completeness_threshold_pct is defined %}completeness_threshold_pct = {{ completeness_threshold_pct }},{% endif %}
+    {% if quality_score_min is defined %}quality_score_min = {{ quality_score_min }},{% endif %}
+    updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
+  AND status = 'active';
+
+{% elif update_type == 'source_update' %}
+-- =============================================================================
+-- SOURCE CONFIGURATION UPDATE
+-- =============================================================================
+
+UPDATE pipeline_sources
+SET
+    {% if source_bucket is defined %}source_bucket = '{{ source_bucket }}',{% endif %}
+    {% if source_prefix is defined %}source_prefix = '{{ source_prefix }}',{% endif %}
+    {% if file_pattern is defined %}file_pattern = '{{ file_pattern }}',{% endif %}
+    {% if extraction_mode is defined %}extraction_mode = '{{ extraction_mode }}',{% endif %}
+    {% if watermark_column is defined %}watermark_column = '{{ watermark_column }}',{% endif %}
+    {% if connection_id is defined %}connection_id = '{{ connection_id }}',{% endif %}
+    updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+
+{% elif update_type == 'target_update' %}
+-- =============================================================================
+-- TARGET CONFIGURATION UPDATE
+-- =============================================================================
+
+UPDATE pipeline_targets
+SET
+    {% if target_zone is defined %}target_zone = '{{ target_zone }}',{% endif %}
+    {% if bq_dataset is defined %}bq_dataset = '{{ bq_dataset }}',{% endif %}
+    {% if bq_table is defined %}bq_table = '{{ bq_table }}',{% endif %}
+    {% if write_mode is defined %}write_mode = '{{ write_mode }}',{% endif %}
+    {% if merge_keys is defined %}merge_keys = '{{ merge_keys | tojson }}'::jsonb,{% endif %}
+    {% if partition_field is defined %}partition_field = '{{ partition_field }}',{% endif %}
+    updated_at = NOW()
+WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+
+{% elif update_type == 'pipeline_status_update' %}
+-- =============================================================================
+-- PIPELINE STATUS UPDATE
+-- =============================================================================
+
+UPDATE pipeline_registry
+SET
+    status = '{{ new_status }}',
+    {% if version is defined %}version = '{{ version }}',{% endif %}
+    updated_at = NOW()
+WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
+
+{% endif %}
+
+-- =============================================================================
+-- LOG UPDATE EVENT
+-- =============================================================================
+
+INSERT INTO pipeline_events (
+    dag_id,
+    event_type,
+    event_data,
+    jira_ticket,
+    environment
+)
+VALUES (
+    '{{ dag_id }}',
+    'pipeline_updated',
+    '{
+        "update_type": "{{ update_type }}",
+        "updated_by": "{{ updated_by | default('system') }}",
+        "changes": {{ changes | default({}) | tojson }}
+    }'::jsonb,
+    {{ "'" ~ jira_ticket ~ "'" if jira_ticket else 'NULL' }},
+    '{{ environment | default("dev") }}'
+);
+
+-- Update pipeline registry timestamp
+UPDATE pipeline_registry
+SET updated_at = NOW()
+WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
+
+COMMIT;
+
+-- =============================================================================
+-- END OF UPDATE METADATA
+-- =============================================================================

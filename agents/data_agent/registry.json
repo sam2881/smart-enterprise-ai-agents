@@ -1,0 +1,445 @@
+{
+  "$schema": "APEX Component Registry v1.0.0",
+  "description": "Local manifest of all APEX components. Auto-synced with PostgreSQL. Agent checks this before generating any code.",
+  "last_synced": "2026-01-28T00:00:00Z",
+  "version": "2.1.0",
+
+  "templates": {
+    "dag_patterns": {
+      "P01": {
+        "name": "File Medallion Pipeline",
+        "path": "src/templates/patterns/p01_file_medallion.py.jinja2",
+        "source_types": ["FILE"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["FULL", "APPEND"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 100,
+        "selection_rules": {},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_SEMANTIC_VALIDATION", "SILVER_TO_GOLD"],
+        "description": "Standard file ingestion with full medallion architecture (Bronze → Silver → Gold)"
+      },
+      "P02": {
+        "name": "Big Data File Pipeline",
+        "path": "src/templates/patterns/p02_bigdata_file.py.jinja2",
+        "source_types": ["FILE"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["FULL", "APPEND"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 90,
+        "selection_rules": {"min_file_size_gb": 10},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Large file processing with partitioned reads and dynamic cluster scaling"
+      },
+      "P03": {
+        "name": "Database Lakehouse Pipeline",
+        "path": "src/templates/patterns/p03_database_lakehouse.py.jinja2",
+        "source_types": ["DATABASE", "NOSQL"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["FULL", "INCREMENTAL", "CDC"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 100,
+        "selection_rules": {},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "source_connection_id", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_SEMANTIC_VALIDATION", "SILVER_TO_GOLD"],
+        "description": "Database to lakehouse with JDBC extraction, CDC, and incremental merge"
+      },
+      "P04": {
+        "name": "Legacy Migration Pipeline",
+        "path": "src/templates/patterns/p04_legacy_migration.py.jinja2",
+        "source_types": ["LEGACY"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["FULL"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 100,
+        "selection_rules": {"legacy_types": ["DTSX", "COBOL", "AS400", "EBCDIC", "MAINFRAME"]},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "legacy_source_type", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Legacy system migration: DTSX, COBOL copybook, AS400, EBCDIC with Cobrix"
+      },
+      "P05": {
+        "name": "Streaming Batch Pipeline",
+        "path": "src/templates/patterns/p05_streaming_batch.py.jinja2",
+        "source_types": ["STREAMING"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["APPEND"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 100,
+        "selection_rules": {"streaming_sources": ["KAFKA", "PUBSUB", "KINESIS", "EVENTHUB"]},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "streaming_source", "topic_name", "checkpoint_location", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Micro-batch from Kafka/Pub/Sub/Kinesis with offset management"
+      },
+      "P06": {
+        "name": "API SaaS Pipeline",
+        "path": "src/templates/patterns/p06_api_saas.py.jinja2",
+        "source_types": ["API"],
+        "contract_types": ["STANDARD"],
+        "load_types": ["FULL", "INCREMENTAL"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 100,
+        "selection_rules": {"api_types": ["REST", "GRAPHQL", "SALESFORCE", "SAP", "WORKDAY"]},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "api_type", "api_connection_id", "api_endpoint", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_SCHEMA_VALIDATION", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "REST API and SaaS ingestion with pagination, rate limiting, and OAuth"
+      },
+      "P07": {
+        "name": "SCD Type 2 Pipeline",
+        "path": "src/templates/patterns/p07_scd2.py.jinja2",
+        "source_types": ["FILE", "DATABASE"],
+        "contract_types": ["SCD2"],
+        "load_types": ["FULL", "INCREMENTAL"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 80,
+        "selection_rules": {},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "business_keys", "tracked_columns", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Slowly Changing Dimensions Type 2 with hash-based change detection"
+      },
+      "P08": {
+        "name": "Data Vault Pipeline",
+        "path": "src/templates/patterns/p08_data_vault.py.jinja2",
+        "source_types": ["FILE", "DATABASE"],
+        "contract_types": ["DATA_VAULT"],
+        "load_types": ["FULL", "INCREMENTAL"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 80,
+        "selection_rules": {},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "record_source", "hubs", "links", "satellites", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Data Vault 2.0 with Hub, Link, and Satellite loading"
+      },
+      "P09": {
+        "name": "Star Schema Pipeline",
+        "path": "src/templates/patterns/p09_star_schema.py.jinja2",
+        "source_types": ["FILE", "DATABASE"],
+        "contract_types": ["STAR_SCHEMA"],
+        "load_types": ["FULL", "INCREMENTAL"],
+        "zones": ["BRONZE", "SILVER", "GOLD"],
+        "selection_priority": 80,
+        "selection_rules": {},
+        "required_variables": ["feed_id", "contract_id", "dag_id", "domain", "dimensions", "fact_table", "start_date"],
+        "spark_jobs_used": ["RAW_TO_BRONZE", "BRONZE_TO_SILVER", "SILVER_TO_GOLD"],
+        "description": "Star schema dimensional modeling with fact and dimension loading"
+      }
+    },
+    "v2_templates": {
+      "file_ingest": {
+        "name": "V2 File Ingest",
+        "path": "src/templates/v2/file_ingest.py.jinja2",
+        "source_types": ["gcs_file"],
+        "description": "Multi-feed file DAG with TaskGroups, GE validation, Data Vault/Star Schema modeling"
+      },
+      "database_ingest": {
+        "name": "V2 Database Ingest",
+        "path": "src/templates/v2/database_ingest.py.jinja2",
+        "source_types": ["jdbc"],
+        "description": "JDBC extraction with watermark/CDC, full medallion + modeling"
+      },
+      "streaming_ingest": {
+        "name": "V2 Streaming Ingest",
+        "path": "src/templates/v2/streaming_ingest.py.jinja2",
+        "source_types": ["streaming"],
+        "description": "Pub/Sub and Kafka micro-batch ingestion"
+      },
+      "api_ingest": {
+        "name": "V2 API Ingest",
+        "path": "src/templates/v2/api_ingest.py.jinja2",
+        "source_types": ["api"],
+        "description": "REST/GraphQL/SaaS API polling with pagination"
+      },
+      "legacy_ingest": {
+        "name": "V2 Legacy Ingest",
+        "path": "src/templates/v2/legacy_ingest.py.jinja2",
+        "source_types": ["legacy_ebcdic"],
+        "description": "EBCDIC, COBOL copybook, DTSX, AS400 migration"
+      }
+    }
+  },
+
+  "spark_jobs": {
+    "RAW_TO_BRONZE": {
+      "name": "Raw to Bronze Ingestion",
+      "path": "src/spark_jobs/raw_to_bronze.py",
+      "source_zone": "RAW",
+      "target_zone": "BRONZE",
+      "operations": ["INGEST", "TYPE_CAST", "AUDIT_COLUMNS", "PARTITION"],
+      "file_formats": ["CSV", "PARQUET", "JSON", "AVRO", "ORC", "XML", "EXCEL", "FIXED_WIDTH", "EBCDIC"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--execution-date", "--metadata-db"]
+    },
+    "BRONZE_SCHEMA_VALIDATION": {
+      "name": "Bronze Schema Validation",
+      "path": "src/spark_jobs/bronze_schema_validation.py",
+      "source_zone": "BRONZE",
+      "target_zone": "BRONZE",
+      "operations": ["COLUMN_PRESENCE", "NOT_NULL", "PRIMARY_KEY", "DATA_TYPE", "CUSTOM_RULES"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
+    },
+    "BRONZE_TO_SILVER": {
+      "name": "Bronze to Silver Transform",
+      "path": "src/spark_jobs/bronze_to_silver.py",
+      "source_zone": "BRONZE",
+      "target_zone": "SILVER",
+      "operations": ["VIEW_TRANSFORM", "DEDUPLICATE", "BUSINESS_KEY", "CLEAN", "HASH_GENERATE"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--execution-date", "--metadata-db"]
+    },
+    "SILVER_SEMANTIC_VALIDATION": {
+      "name": "Silver Semantic Validation",
+      "path": "src/spark_jobs/silver_semantic_validation.py",
+      "source_zone": "SILVER",
+      "target_zone": "SILVER",
+      "operations": ["BUSINESS_RULES", "REFERENTIAL_INTEGRITY", "CROSS_FIELD", "RANGE_CHECK", "SCD2_VALIDATION", "DATA_VAULT_VALIDATION"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
+    },
+    "SILVER_TO_GOLD": {
+      "name": "Silver to Gold Transform",
+      "path": "src/spark_jobs/silver_to_gold.py",
+      "source_zone": "SILVER",
+      "target_zone": "GOLD",
+      "operations": ["AGGREGATE", "SCD2", "MERGE", "DIMENSION_LOAD", "FACT_LOAD", "SURROGATE_KEY", "HUB_LOAD", "LINK_LOAD", "SATELLITE_LOAD", "DETECT_CHANGES"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--execution-date", "--metadata-db"]
+    },
+    "V2_GE_SCHEMA_VALIDATOR": {
+      "name": "V2 GE Schema Validator",
+      "path": "src/spark_jobs/v2/ge_schema_validator.py",
+      "operations": ["SCHEMA_VALIDATION", "GE_CHECKPOINT"],
+      "required_args": ["feed_id", "batch_identifier", "data_asset_name", "pg_host", "pg_schema"]
+    },
+    "V2_GE_SEMANTIC_VALIDATOR": {
+      "name": "V2 GE Semantic Validator",
+      "path": "src/spark_jobs/v2/ge_semantic_validator.py",
+      "operations": ["SEMANTIC_VALIDATION", "BUSINESS_RULES", "REFERENTIAL_INTEGRITY"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
+    },
+    "V2_SOURCE_TO_LANDING": {
+      "name": "V2 Source to Landing",
+      "path": "src/spark_jobs/v2/source_to_landing.py",
+      "operations": ["RAW_INGEST", "FORMAT_DETECTION", "STRING_CAST"],
+      "required_args": ["--feed-id", "--batch-id", "--source-type", "--source-path", "--target-path"]
+    },
+    "V2_LANDING_TO_BRONZE": {
+      "name": "V2 Landing to Bronze",
+      "path": "src/spark_jobs/v2/landing_to_bronze.py",
+      "operations": ["TYPE_CAST", "SCHEMA_ENFORCEMENT", "AUDIT_COLUMNS"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
+    },
+    "V2_BRONZE_TO_SILVER": {
+      "name": "V2 Bronze to Silver",
+      "path": "src/spark_jobs/v2/bronze_to_silver.py",
+      "operations": ["DEDUP", "CLEAN", "TRANSFORM", "STANDARDIZE"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
+    },
+    "V2_SILVER_TO_GOLD": {
+      "name": "V2 Silver to Gold",
+      "path": "src/spark_jobs/v2/silver_to_gold.py",
+      "operations": ["BUSINESS_LOGIC", "SCD2", "DATA_VAULT", "STAR_SCHEMA"],
+      "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db", "--model-type"]
+    },
+    "V2_LOAD_HUB": {
+      "name": "V2 Data Vault Hub Loader",
+      "path": "src/spark_jobs/v2/load_hub.py",
+      "operations": ["HASH_KEY", "HUB_INSERT"],
+      "required_args": ["--feed-id", "--execution-id", "--hub-name", "--business-keys"]
+    },
+    "V2_LOAD_SATELLITE": {
+      "name": "V2 Data Vault Satellite Loader",
+      "path": "src/spark_jobs/v2/load_satellite.py",
+      "operations": ["HASH_DIFF", "CHANGE_DETECT", "SATELLITE_INSERT"],
+      "required_args": ["--feed-id", "--execution-id", "--satellite-name", "--hub-hash-key-col"]
+    },
+    "V2_LOAD_DIMENSION": {
+      "name": "V2 Star Schema Dimension Loader",
+      "path": "src/spark_jobs/v2/load_dimension.py",
+      "operations": ["SCD0", "SCD1", "SCD2", "SCD3", "SURROGATE_KEY"],
+      "required_args": ["--feed-id", "--execution-id", "--dimension-name", "--scd-type"]
+    },
+    "V2_LOAD_FACT": {
+      "name": "V2 Star Schema Fact Loader",
+      "path": "src/spark_jobs/v2/load_fact.py",
+      "operations": ["DIMENSION_LOOKUP", "SURROGATE_RESOLVE", "FACT_INSERT"],
+      "required_args": ["--feed-id", "--execution-id", "--fact-name", "--grain-columns"]
+    }
+  },
+
+  "dag_utilities": {
+    "core": {
+      "path": "src/dag_utilities/core/",
+      "classes": {
+        "MetadataClient": {
+          "file": "metadata_client.py",
+          "methods": ["get_feed_config", "get_contract", "get_spark_config", "get_validation_rules", "create_execution", "update_execution_status", "get_last_successful_execution", "update_execution_watermark"],
+          "description": "Central PostgreSQL metadata client for all runtime config"
+        },
+        "ExecutionContext": {
+          "file": "execution_context.py",
+          "methods": ["initialize", "get_context", "update_status"],
+          "description": "Pipeline execution context management and XCom state sharing"
+        },
+        "APEXConfig": {
+          "file": "config_loader.py",
+          "methods": ["from_environment", "get_metadata_db_url"],
+          "description": "Configuration loading from environment and metadata"
+        }
+      },
+      "exceptions": {
+        "file": "exceptions.py",
+        "classes": ["APEXError", "MetadataError", "ValidationError", "SparkJobError", "StorageError", "NotificationError", "TemplateError"]
+      }
+    },
+    "spark": {
+      "path": "src/dag_utilities/spark/",
+      "classes": {
+        "SparkJobSubmitter": {
+          "file": "job_submitter.py",
+          "methods": ["submit_job", "get_job_status", "cancel_job"],
+          "description": "Submits Spark jobs to Dataproc/EMR/local"
+        },
+        "ClusterManager": {
+          "file": "cluster_manager.py",
+          "methods": ["scale_cluster", "scale_down", "get_cluster_status"],
+          "description": "Dynamic Spark cluster scaling"
+        },
+        "SparkConfigBuilder": {
+          "file": "config_builder.py",
+          "methods": ["with_shuffle_partitions", "with_memory", "with_adaptive_query_execution", "with_dynamic_allocation", "with_package", "build"],
+          "description": "Fluent builder for Spark configurations"
+        }
+      }
+    },
+    "storage": {
+      "path": "src/dag_utilities/storage/",
+      "classes": {
+        "FileOperations": {
+          "file": "file_operations.py",
+          "methods": ["get_file_info", "read_json", "write_json", "list_files", "copy_file", "move_file"],
+          "description": "File operations for GCS/S3/local storage"
+        },
+        "GCSClient": {
+          "file": "gcs_client.py",
+          "methods": ["upload", "download", "list_blobs", "exists"],
+          "description": "Google Cloud Storage client"
+        }
+      }
+    },
+    "validation": {
+      "path": "src/dag_utilities/validation/",
+      "classes": {
+        "SchemaValidator": {
+          "file": "schema_validator.py",
+          "methods": ["validate", "validate_column_presence", "validate_data_types", "validate_primary_keys"],
+          "description": "Bronze zone schema validation"
+        },
+        "SemanticValidator": {
+          "file": "semantic_validator.py",
+          "methods": ["validate", "validate_business_rules", "validate_referential_integrity", "validate_cross_field"],
+          "description": "Silver zone semantic/business rule validation"
+        },
+        "QualityChecker": {
+          "file": "quality_checker.py",
+          "methods": ["run_all_checks", "check_completeness", "check_freshness", "check_accuracy"],
+          "description": "Data quality checks across all zones"
+        }
+      }
+    },
+    "notification": {
+      "path": "src/dag_utilities/notification/",
+      "classes": {
+        "EmailNotifier": {
+          "file": "email_notifier.py",
+          "methods": ["send_success_alert", "send_failure_alert", "send_sla_breach_alert"],
+          "description": "Email notifications for pipeline events"
+        },
+        "SlackNotifier": {
+          "file": "slack_notifier.py",
+          "methods": ["send_success_alert", "send_failure_alert", "send_sla_breach_alert"],
+          "description": "Slack notifications for pipeline events"
+        }
+      }
+    },
+    "logging": {
+      "path": "src/dag_utilities/logging/",
+      "classes": {
+        "AuditLogger": {
+          "file": "audit_logger.py",
+          "methods": ["log_event", "log_validation", "log_error", "log_agent_decision"],
+          "description": "Audit logging to PostgreSQL"
+        },
+        "MetricsCollector": {
+          "file": "metrics_collector.py",
+          "methods": ["record_metric", "record_duration", "record_record_count"],
+          "description": "Pipeline metrics collection"
+        },
+        "LineageTracker": {
+          "file": "lineage_tracker.py",
+          "methods": ["track_pipeline_lineage", "track_database_to_lakehouse", "track_streaming_lineage", "track_api_lineage", "track_scd2_lineage", "track_data_vault_lineage", "track_star_schema_lineage", "track_legacy_migration"],
+          "description": "Data lineage tracking across zones"
+        }
+      }
+    },
+    "sources": {
+      "path": "src/dag_utilities/sources/",
+      "classes": {
+        "file_source": {"file": "file_source.py", "description": "GCS file sensor, schema detection"},
+        "database_source": {"file": "database_source.py", "description": "JDBC connectivity, watermark, incremental extract"},
+        "streaming_source": {"file": "streaming_source.py", "description": "Pub/Sub and Kafka consumers"},
+        "api_source": {"file": "api_source.py", "description": "REST/GraphQL polling with pagination and OAuth"},
+        "legacy_source": {"file": "legacy_source.py", "description": "COBOL copybook parsing, EBCDIC conversion"}
+      }
+    },
+    "common": {
+      "path": "src/dag_utilities/common/",
+      "classes": {
+        "zone_transition": {"file": "zone_transition.py", "description": "Dataproc job submission for zone transitions"},
+        "sql_executor": {"file": "sql_executor.py", "description": "BigQuery, Snowflake, PostgreSQL SQL execution"}
+      }
+    },
+    "remediation": {
+      "path": "src/dag_utilities/remediation/",
+      "classes": {
+        "SelfHealer": {
+          "file": "self_healer.py",
+          "methods": ["on_task_failure", "classify_error", "apply_remediation"],
+          "description": "Self-healing with automatic error classification and remediation"
+        },
+        "RetryHandler": {
+          "file": "retry_handler.py",
+          "methods": ["get_airflow_retry_args", "should_retry", "get_backoff_delay"],
+          "description": "Exponential backoff retry with circuit breaker"
+        },
+        "IncidentManager": {
+          "file": "incident_manager.py",
+          "methods": ["create_incident", "escalate", "track_sla"],
+          "description": "Incident creation and SLA tracking"
+        }
+      }
+    },
+    "pipeline": {
+      "path": "src/dag_utilities/pipeline/",
+      "classes": {
+        "pipeline_tasks": {
+          "file": "pipeline_tasks.py",
+          "methods": ["initialize_execution", "finalize_execution", "handle_validation_failure", "submit_zone_job", "run_schema_validation", "run_semantic_validation", "get_watermark", "update_watermark", "check_source_file", "run_quality_checks", "skip_processing", "send_notifications"],
+          "description": "Common task functions shared across all 9 pipeline patterns"
+        },
+        "pattern_tasks": {
+          "file": "pattern_tasks.py",
+          "methods": ["analyze_source_file", "scale_cluster", "scale_down_cluster", "extract_from_database", "apply_delta_merge", "validate_legacy_source", "parse_legacy_schema", "legacy_to_bronze", "generate_migration_report", "get_checkpoint_offsets", "consume_streaming_batch", "commit_offsets", "process_late_data", "extract_from_api", "detect_changes", "apply_scd2", "validate_dimension", "no_changes", "generate_hash_keys", "load_hubs", "load_links", "load_satellites", "validate_data_vault", "load_date_dimension", "load_dimensions", "load_fact_table", "handle_late_arriving_dimensions", "load_aggregates"],
+          "description": "Pattern-specific task functions for P02-P09 pipelines"
+        }
+      }
+    }
+  },
+
+  "ddl": {
+    "path": "ddl/apex/",
+    "files": [
+      {"name": "01_extensions_and_types.sql", "description": "PostgreSQL extensions and ENUM types"},
+      {"name": "02_core_tables.sql", "description": "Registry tables: connection, domain, source, template, feed, spark_config"},
+      {"name": "03_contract_and_schema.sql", "description": "Contract, schema, view, transformation tables"},
+      {"name": "04_validation_and_quality.sql", "description": "Validation rules, quality expectations, SLA, dependencies"},
+      {"name": "05_execution_and_logging.sql", "description": "Execution tracking, audit logs, lineage, errors"},
+      {"name": "06_component_registry.sql", "description": "Template registry, utility registry, spark job registry, change log"}
+    ]
+  }
+}

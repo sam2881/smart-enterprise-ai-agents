@@ -1,0 +1,221 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Sync DAG Templates from Registry to PostgreSQL
+-- Version: 2.1.0
+-- Last Updated: 2026-01-28
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- P01: File Medallion Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'FILE_MEDALLION', 'File Medallion Pipeline', 'BATCH', 'P01',
+    'Standard file ingestion with full medallion architecture',
+    'Standard file ingestion with full medallion architecture (Bronze → Silver → Gold)',
+    ARRAY['FILE'], ARRAY['FULL', 'APPEND'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, false, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_SEMANTIC_VALIDATION', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p01_file_medallion.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P02: Big Data File Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'BIGDATA_FILE', 'Big Data File Pipeline', 'BATCH', 'P02',
+    'Large file processing with partitioned reads and dynamic cluster scaling',
+    'Large file processing (>10GB) with partitioned reads and dynamic cluster scaling',
+    ARRAY['FILE'], ARRAY['FULL', 'APPEND'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, false, false, true, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p02_bigdata_file.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P03: Database Lakehouse Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'DATABASE_LAKEHOUSE', 'Database Lakehouse Pipeline', 'CDC', 'P03',
+    'Database to lakehouse with JDBC extraction, CDC, and incremental merge',
+    'Database to lakehouse with JDBC extraction, CDC, and incremental merge using Delta Lake',
+    ARRAY['DATABASE', 'NOSQL'], ARRAY['FULL', 'INCREMENTAL', 'CDC'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, true, false, false, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_SEMANTIC_VALIDATION', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p03_database_lakehouse.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P04: Legacy Migration Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'LEGACY_MIGRATION', 'Legacy Migration Pipeline', 'BATCH', 'P04',
+    'Legacy system migration: DTSX, COBOL copybook, AS400, EBCDIC with Cobrix',
+    'Legacy system migration: DTSX, COBOL copybook, AS400, EBCDIC, Mainframe with Cobrix',
+    ARRAY['LEGACY'], ARRAY['FULL'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, false, false, false, true,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p04_legacy_migration.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P05: Streaming Batch Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'STREAMING_BATCH', 'Streaming Batch Pipeline', 'STREAMING', 'P05',
+    'Micro-batch from Kafka/Pub/Sub/Kinesis with offset management',
+    'Micro-batch from Kafka/Pub/Sub/Kinesis/EventHub with checkpoint offset management and late data handling',
+    ARRAY['STREAMING'], ARRAY['APPEND'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    true, false, false, false, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p05_streaming_batch.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P06: API SaaS Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'API_SAAS', 'API SaaS Pipeline', 'BATCH', 'P06',
+    'REST API and SaaS ingestion with pagination, rate limiting, and OAuth',
+    'REST API and SaaS ingestion (Salesforce, SAP, Workday) with pagination, rate limiting, and OAuth authentication',
+    ARRAY['API'], ARRAY['FULL', 'INCREMENTAL'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, false, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_SCHEMA_VALIDATION', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p06_api_saas.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P07: SCD Type 2 Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'SCD_TYPE_2', 'SCD Type 2 Pipeline', 'BATCH', 'P07',
+    'Slowly Changing Dimensions Type 2 with hash-based change detection',
+    'Slowly Changing Dimensions Type 2 with hash-based change detection, tracking historical changes to dimension attributes',
+    ARRAY['FILE', 'DATABASE'], ARRAY['FULL', 'INCREMENTAL'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, true, false, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p07_scd2.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P08: Data Vault Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'DATA_VAULT', 'Data Vault Pipeline', 'BATCH', 'P08',
+    'Data Vault 2.0 with Hub, Link, and Satellite loading',
+    'Data Vault 2.0 with Hub, Link, and Satellite loading for enterprise data warehouse modeling',
+    ARRAY['FILE', 'DATABASE'], ARRAY['FULL', 'INCREMENTAL'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, true, false, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p08_data_vault.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- P09: Star Schema Pipeline
+INSERT INTO dag_template (
+    template_code, template_name, template_type, pattern_id,
+    short_description, detailed_description,
+    source_types_supported, load_types_supported,
+    target_models_supported,
+    supports_streaming, supports_cdc, supports_scd, supports_data_vault, supports_star_schema,
+    supports_large_files, supports_legacy_migration,
+    required_spark_jobs, jinja_template, is_active
+) VALUES (
+    'STAR_SCHEMA', 'Star Schema Pipeline', 'BATCH', 'P09',
+    'Star schema dimensional modeling with fact and dimension loading',
+    'Star schema dimensional modeling with fact and dimension loading, including date dimension and aggregate tables',
+    ARRAY['FILE', 'DATABASE'], ARRAY['FULL', 'INCREMENTAL'],
+    ARRAY['BRONZE', 'SILVER', 'GOLD'],
+    false, false, false, false, true, false, false,
+    ARRAY['RAW_TO_BRONZE', 'BRONZE_TO_SILVER', 'SILVER_TO_GOLD'],
+    'src/templates/patterns/p09_star_schema.py.jinja2',
+    true
+) ON CONFLICT (template_code) DO UPDATE SET
+    template_name = EXCLUDED.template_name,
+    short_description = EXCLUDED.short_description,
+    updated_at = CURRENT_TIMESTAMP;

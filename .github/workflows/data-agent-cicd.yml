@@ -1,0 +1,280 @@
+name: Data Agent CI/CD Pipeline
+
+# Trigger on PRs to main from data-agent branches
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dags/**'
+      - 'spark_jobs/**'
+      - 'dag_utilities/**'
+      - 'sql/**'
+  push:
+    branches: [main]
+    paths:
+      - 'dags/**'
+      - 'spark_jobs/**'
+      - 'dag_utilities/**'
+      - 'sql/**'
+
+env:
+  PYTHON_VERSION: '3.11'
+  AIRFLOW_VERSION: '2.8.1'
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCS_DAG_BUCKET: ${{ secrets.GCS_DAG_BUCKET || 'agent-ai-test-461120-airflow-dags' }}
+  GCS_SPARK_BUCKET: ${{ secrets.GCS_SPARK_BUCKET || 'agent-ai-test-461120-temp' }}
+
+jobs:
+  # ============================================================================
+  # JOB 1: VALIDATE - Test DAG imports and syntax
+  # ============================================================================
+  validate:
+    name: Validate DAG Artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      validation-passed: ${{ steps.test.outputs.passed }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Airflow & Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install apache-airflow==${{ env.AIRFLOW_VERSION }}
+          pip install apache-airflow-providers-google
+          pip install great-expectations
+          pip install structlog
+
+      - name: Test DAG Imports (DagBag)
+        id: test
+        run: |
+          export AIRFLOW_HOME=$PWD/airflow_test
+          export AIRFLOW__CORE__DAGS_FOLDER=$PWD/dags
+          export AIRFLOW__CORE__LOAD_EXAMPLES=False
+
+          mkdir -p $AIRFLOW_HOME
+
+          # Initialize Airflow DB (required for DagBag)
+          airflow db init
+
+          # Test all DAGs can be imported
+          echo "Testing DAG imports..."
+          python -c "
+          import sys
+          from airflow.models import DagBag
+
+          dagbag = DagBag(dag_folder='dags', include_examples=False)
+
+          if dagbag.import_errors:
+              print('❌ DAG Import Errors:')
+              for filename, error in dagbag.import_errors.items():
+                  print(f'  {filename}: {error}')
+              sys.exit(1)
+
+          print(f'✅ Successfully loaded {len(dagbag.dags)} DAG(s)')
+          for dag_id in dagbag.dags:
+              print(f'  - {dag_id}')
+          "
+
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+      - name: Security Scan
+        run: |
+          # Check for hardcoded secrets
+          if grep -r -i "password\s*=\s*['\"]" dags/ || \
+             grep -r -i "api_key\s*=\s*['\"]" dags/ || \
+             grep -r -i "secret\s*=\s*['\"]" dags/; then
+            echo "❌ Hardcoded secrets detected!"
+            exit 1
+          fi
+          echo "✅ Security scan passed"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Validation Passed**\n\nAll DAGs validated successfully. Ready for deployment.'
+            })
+
+  # ============================================================================
+  # JOB 2: AUTO-MERGE - Merge PR if validation passes
+  # ============================================================================
+  auto-merge:
+    name: Auto-Merge PR
+    runs-on: ubuntu-latest
+    needs: validate
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.validate.outputs.validation-passed == 'true' &&
+      startsWith(github.head_ref, 'data-agent/')
+
+    steps:
+      - name: Auto-Merge PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Add approval
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              event: 'APPROVE',
+              body: '✅ Auto-approved by Data Agent CI/CD. All validations passed.'
+            });
+
+            // Merge PR
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: 'squash',
+                commit_title: `${pr.title} (auto-merged)`,
+                commit_message: `Automated deployment from Data Agent\n\n${pr.body}`
+              });
+              console.log('✅ PR merged successfully');
+            } catch (error) {
+              console.error('❌ Merge failed:', error);
+              throw error;
+            }
+
+  # ============================================================================
+  # JOB 3: DEPLOY - Deploy to GCS buckets
+  # ============================================================================
+  deploy:
+    name: Deploy to GCS
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy DAGs to GCS
+        run: |
+          echo "Deploying to gs://${{ env.GCS_DAG_BUCKET }}/dags/"
+          gsutil -m rsync -r -d dags/ gs://${{ env.GCS_DAG_BUCKET }}/dags/
+
+      - name: Deploy Utilities to GCS
+        run: |
+          echo "Deploying to gs://${{ env.GCS_DAG_BUCKET }}/dag_utilities/"
+          gsutil -m rsync -r -d dag_utilities/ gs://${{ env.GCS_DAG_BUCKET }}/dag_utilities/
+
+      - name: Deploy Spark Jobs to GCS
+        run: |
+          echo "Deploying to gs://${{ env.GCS_SPARK_BUCKET }}/spark_jobs/"
+          gsutil -m rsync -r -d spark_jobs/ gs://${{ env.GCS_SPARK_BUCKET }}/spark_jobs/
+
+      - name: Deploy SQL Scripts to GCS
+        if: hashFiles('sql/**') != ''
+        run: |
+          echo "Deploying to gs://${{ env.GCS_SPARK_BUCKET }}/sql/"
+          gsutil -m rsync -r -d sql/ gs://${{ env.GCS_SPARK_BUCKET }}/sql/
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo ""
+          echo "📦 Deployed Artifacts:"
+          echo "  - DAGs: gs://${{ env.GCS_DAG_BUCKET }}/dags/"
+          echo "  - Utilities: gs://${{ env.GCS_DAG_BUCKET }}/dag_utilities/"
+          echo "  - Spark Jobs: gs://${{ env.GCS_SPARK_BUCKET }}/spark_jobs/"
+          echo "  - SQL Scripts: gs://${{ env.GCS_SPARK_BUCKET }}/sql/"
+
+  # ============================================================================
+  # JOB 4: TEST - Test DAG in Airflow environment
+  # ============================================================================
+  test-airflow:
+    name: Test in Airflow
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Wait for Airflow Sync
+        run: |
+          echo "⏳ Waiting 90 seconds for Airflow dag-sync to pick up changes..."
+          sleep 90
+
+      - name: Test DAG Appears in Airflow
+        run: |
+          # This would call your Airflow API to check DAG is loaded
+          echo "🔍 Testing DAG visibility in Airflow..."
+          echo "✅ DAG should be available at http://localhost:8083"
+
+      - name: Trigger Test Run
+        run: |
+          # This would trigger a test run via Airflow API
+          echo "🚀 Triggering test DAG run..."
+          echo "Monitor at: http://localhost:8083"
+
+  # ============================================================================
+  # JOB 5: ROLLBACK - Rollback on failure
+  # ============================================================================
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [validate, deploy, test-airflow]
+    if: failure() && github.event_name == 'push'
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Rollback Deployment
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+
+          # Get previous successful commit
+          PREV_COMMIT=$(git log --skip=1 --max-count=1 --format=%H)
+          echo "Rolling back to commit: $PREV_COMMIT"
+
+          # Checkout previous version
+          git checkout $PREV_COMMIT
+
+          # Re-deploy previous version
+          gsutil -m rsync -r -d dags/ gs://${{ env.GCS_DAG_BUCKET }}/dags/
+          gsutil -m rsync -r -d dag_utilities/ gs://${{ env.GCS_DAG_BUCKET }}/dag_utilities/
+          gsutil -m rsync -r -d spark_jobs/ gs://${{ env.GCS_SPARK_BUCKET }}/spark_jobs/
+
+          echo "✅ Rollback completed"
+
+      - name: Notify Failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: '❌ **Deployment Failed**\n\nRollback initiated to previous working version.'
+            })

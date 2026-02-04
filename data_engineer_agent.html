@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APEX Data Engineering Agent — Complete Architecture Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg-primary:#0a0a0f;--bg-secondary:#12121a;--bg-tertiary:#1a1a24;--bg-card:#16161f;--accent-blue:#3b82f6;--accent-cyan:#06b6d4;--accent-purple:#8b5cf6;--accent-green:#10b981;--accent-orange:#f59e0b;--accent-pink:#ec4899;--accent-red:#ef4444;--accent-yellow:#eab308;--text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;--border-color:#2a2a3a;--glow-blue:rgba(59,130,246,0.3);--glow-cyan:rgba(6,182,212,0.3);--glow-purple:rgba(139,92,246,0.3)}
+        *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}body{font-family:'Outfit',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.7;overflow-x:hidden}
+        .bg-pattern{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(59,130,246,0.15),transparent),radial-gradient(ellipse 60% 40% at 80% 50%,rgba(139,92,246,0.1),transparent),radial-gradient(ellipse 60% 40% at 20% 80%,rgba(6,182,212,0.1),transparent)}
+        .grid-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:60px 60px}
+        nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-color);padding:0.75rem 2rem}
+        .nav-content{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{display:flex;align-items:center;gap:0.75rem}
+        .nav-logo{width:36px;height:36px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem}
+        .nav-title{font-weight:700;font-size:1.1rem;background:linear-gradient(90deg,var(--text-primary),var(--accent-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .nav-links{display:flex;gap:0.5rem;list-style:none;flex-wrap:wrap}
+        .nav-links a{color:var(--text-secondary);text-decoration:none;font-size:0.8rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:all 0.2s}
+        .nav-links a:hover{color:var(--text-primary);background:var(--bg-tertiary)}
+        .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8rem 2rem 4rem}
+        .hero-badge{display:inline-flex;align-items:center;gap:0.5rem;background:var(--bg-tertiary);border:1px solid var(--border-color);padding:0.5rem 1rem;border-radius:50px;font-size:0.85rem;color:var(--accent-cyan);margin-bottom:2rem;animation:fadeInUp 0.6s ease-out}
+        .hero-badge::before{content:'';width:8px;height:8px;background:var(--accent-green);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.2)}}
+        .hero h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:800;line-height:1.1;margin-bottom:1.5rem;animation:fadeInUp 0.6s ease-out 0.1s both}
+        .hero h1 .gradient{background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan),var(--accent-purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero-subtitle{font-size:1.25rem;color:var(--text-secondary);max-width:750px;margin-bottom:3rem;animation:fadeInUp 0.6s ease-out 0.2s both}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        .quick-stats{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;animation:fadeInUp 0.6s ease-out 0.3s both}
+        .stat{text-align:center;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;min-width:140px}
+        .stat-value{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .stat-label{font-size:0.85rem;color:var(--text-muted);margin-top:0.25rem}
+        .container{max-width:1400px;margin:0 auto;padding:0 2rem}
+        section{padding:6rem 0;position:relative}
+        .section-header{text-align:center;margin-bottom:4rem}
+        .section-number{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:600;color:var(--accent-cyan);background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);padding:0.25rem 0.75rem;border-radius:50px;margin-bottom:1rem}
+        .section-title{font-size:clamp(2rem,4vw,3rem);font-weight:700;margin-bottom:1rem}
+        .section-desc{color:var(--text-secondary);font-size:1.1rem;max-width:700px;margin:0 auto}
+        .callout{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:1.5rem;margin:1.5rem 0;display:flex;gap:1rem}
+        .callout-icon{font-size:1.5rem;flex-shrink:0}
+        .callout-content{flex:1}
+        .callout-title{font-weight:600;margin-bottom:0.5rem}
+        .callout-text{color:var(--text-secondary);font-size:0.9rem}
+        .callout.warning{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3)}
+        .callout.success{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3)}
+        .callout.llm{background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(236,72,153,0.15));border-color:rgba(139,92,246,0.3)}
+        .input-modes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin:2rem 0}
+        @media(max-width:900px){.input-modes-grid{grid-template-columns:1fr}}
+        .input-mode-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;padding:2rem;position:relative;overflow:hidden;transition:all 0.3s}
+        .input-mode-card:hover{border-color:var(--accent-blue);transform:translateY(-2px)}
+        .input-mode-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+        .input-mode-card.structured::before{background:linear-gradient(90deg,var(--accent-blue),var(--accent-cyan))}
+        .input-mode-card.nl::before{background:linear-gradient(90deg,var(--accent-purple),var(--accent-pink))}
+        .input-mode-card.dtsx::before{background:linear-gradient(90deg,var(--accent-orange),var(--accent-yellow))}
+        .input-mode-icon{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:1.25rem}
+        .input-mode-title{font-size:1.25rem;font-weight:700;margin-bottom:0.75rem}
+        .input-mode-desc{color:var(--text-secondary);font-size:0.9rem;margin-bottom:1rem}
+        .input-mode-features{list-style:none}
+        .input-mode-features li{display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem}
+        .input-mode-features li::before{content:'✓';color:var(--accent-green);font-weight:bold}
+        .ui-form-section{background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px;margin-bottom:1.5rem;overflow:hidden}
+        .ui-form-header{background:var(--bg-tertiary);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1rem;border-bottom:1px solid var(--border-color)}
+        .ui-form-number{width:32px;height:32px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem}
+        .ui-form-title{font-size:1.1rem;font-weight:600}
+        .ui-form-body{padding:1.5rem}
+        .ui-field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+        .ui-field{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:1rem}
+        .ui-field-name{font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:600;color:var(--accent-cyan);margin-bottom:0.5rem}
+        .ui-field-type{font-size:0.75rem;color:var(--text-muted);margin-bottom:0.5rem}
+        .ui-field-desc{font-size:0.85rem;color:var(--text-secondary)}
+        .ui-field-required{color:var(--accent-red)}
+        .ui-field-optional{color:var(--text-muted)}
+        .llm-step{display:flex;gap:1.5rem;align-items:flex-start;margin-bottom:2rem}
+        .llm-step-icon{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.75rem;flex-shrink:0}
+        .llm-step-content{flex:1}
+        .llm-step-title{font-size:1.15rem;font-weight:600;margin-bottom:0.5rem}
+        .llm-step-desc{color:var(--text-secondary);font-size:0.9rem;margin-bottom:0.75rem}
+        .llm-step-detail{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:1rem;font-size:0.85rem}
+        .timeline{position:relative;padding-left:3rem}
+        .timeline::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--accent-blue),var(--accent-purple),var(--accent-cyan))}
+        .timeline-item{position:relative;padding-bottom:2rem}
+        .timeline-item::before{content:'';position:absolute;left:-3rem;top:0.25rem;width:14px;height:14px;background:var(--bg-primary);border:3px solid var(--accent-cyan);border-radius:50%}
+        .timeline-title{font-size:1.1rem;font-weight:600;margin-bottom:0.5rem}
+        .timeline-desc{color:var(--text-secondary);font-size:0.9rem}
+        .workflow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:2rem}
+        @media(max-width:900px){.workflow-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:600px){.workflow-grid{grid-template-columns:1fr}}
+        .workflow-node{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:1.5rem;position:relative;overflow:hidden;transition:all 0.3s}
+        .workflow-node:hover{border-color:var(--accent-cyan);transform:translateY(-2px)}
+        .workflow-node::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+        .workflow-node.node-1::before,.workflow-node.node-7::before{background:var(--accent-blue)}
+        .workflow-node.node-2::before,.workflow-node.node-8::before{background:var(--accent-cyan)}
+        .workflow-node.node-3::before,.workflow-node.node-9::before{background:var(--accent-purple)}
+        .workflow-node.node-4::before{background:var(--accent-green)}
+        .workflow-node.node-5::before{background:var(--accent-orange)}
+        .workflow-node.node-6::before{background:var(--accent-pink)}
+        .workflow-number{font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem}
+        .workflow-title{font-size:1rem;font-weight:600;margin-bottom:0.5rem}
+        .workflow-desc{font-size:0.85rem;color:var(--text-secondary)}
+        .badge{display:inline-block;padding:0.2rem 0.4rem;border-radius:4px;font-size:0.7rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+        .badge-purple{background:rgba(139,92,246,0.2);color:var(--accent-purple)}
+        .badge-orange{background:rgba(245,158,11,0.2);color:var(--accent-orange)}
+        .badge-green{background:rgba(16,185,129,0.2);color:var(--accent-green)}
+        .badge-blue{background:rgba(59,130,246,0.2);color:var(--accent-blue)}
+        .badge-red{background:rgba(239,68,68,0.2);color:var(--accent-red)}
+        .pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+        @media(max-width:900px){.pattern-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:600px){.pattern-grid{grid-template-columns:1fr}}
+        .pattern-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:1.5rem;transition:all 0.3s}
+        .pattern-card:hover{border-color:var(--accent-purple);transform:translateY(-2px)}
+        .pattern-code{font-family:'JetBrains Mono',monospace;font-size:0.85rem;font-weight:600;color:var(--accent-cyan);background:rgba(6,182,212,0.1);padding:0.25rem 0.5rem;border-radius:4px;display:inline-block;margin-bottom:0.75rem}
+        .pattern-name{font-size:1.1rem;font-weight:600;margin-bottom:0.5rem}
+        .pattern-when{font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem}
+        .pattern-spark{font-size:0.8rem;color:var(--text-muted)}
+        .code-block{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;overflow:hidden;margin:1.5rem 0}
+        .code-header{background:var(--bg-tertiary);padding:0.75rem 1rem;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--text-muted);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:0.5rem}
+        .code-dot{width:8px;height:8px;border-radius:50%}
+        .code-dot.red{background:#ef4444}.code-dot.yellow{background:#f59e0b}.code-dot.green{background:#10b981}
+        .code-content{padding:1.5rem;font-family:'JetBrains Mono',monospace;font-size:0.85rem;line-height:1.8;overflow-x:auto;white-space:pre}
+        .code-content .keyword{color:var(--accent-purple)}
+        .code-content .string{color:var(--accent-green)}
+        .code-content .comment{color:var(--text-muted)}
+        .code-content .function{color:var(--accent-cyan)}
+        .code-content .variable{color:var(--accent-orange)}
+        table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:12px;overflow:hidden;margin:1rem 0}
+        th,td{padding:1rem 1.25rem;text-align:left;border-bottom:1px solid var(--border-color)}
+        th{background:var(--bg-tertiary);font-weight:600;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)}
+        td{font-size:0.9rem;color:var(--text-secondary)}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:rgba(59,130,246,0.05)}
+        code{font-family:'JetBrains Mono',monospace;background:var(--bg-tertiary);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.85em}
+        .fade-in{opacity:0;transform:translateY(30px);transition:all 0.6s ease-out}
+        .fade-in.visible{opacity:1;transform:translateY(0)}
+        .medallion-flow{display:flex;align-items:center;justify-content:center;gap:0.5rem;flex-wrap:wrap;margin:2rem 0;padding:2rem;background:var(--bg-card);border:1px solid var(--border-color);border-radius:16px}
+        .medallion-zone{padding:1rem 1.5rem;border-radius:12px;text-align:center;min-width:120px}
+        .medallion-zone .zone-name{font-weight:700;font-size:0.95rem;margin-bottom:0.25rem}
+        .medallion-zone .zone-desc{font-size:0.75rem;opacity:0.8}
+        .medallion-arrow{font-size:1.5rem;color:var(--text-muted)}
+        .zone-raw{background:rgba(100,116,139,0.2);color:#94a3b8;border:1px solid rgba(100,116,139,0.3)}
+        .zone-bronze{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)}
+        .zone-silver{background:rgba(148,163,184,0.15);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3)}
+        .zone-gold{background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3)}
+        .zone-trusted{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)}
+        .feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem;margin:2rem 0}
+        .feature-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:1.5rem;transition:all 0.3s}
+        .feature-card:hover{border-color:var(--accent-cyan);transform:translateY(-2px)}
+        .feature-card-icon{font-size:2rem;margin-bottom:0.75rem}
+        .feature-card-title{font-size:1.1rem;font-weight:600;margin-bottom:0.5rem}
+        .feature-card-desc{font-size:0.85rem;color:var(--text-secondary)}
+        .source-category{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+        .source-category-header{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem}
+        .source-category-letter{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:white}
+        .source-category-name{font-weight:600;font-size:1rem}
+        .source-category-count{font-size:0.8rem;color:var(--text-muted);margin-left:auto}
+        .source-tags{display:flex;flex-wrap:wrap;gap:0.5rem}
+        .source-tag{font-size:0.75rem;padding:0.25rem 0.5rem;border-radius:4px;background:var(--bg-tertiary);color:var(--text-secondary);border:1px solid var(--border-color)}
+        footer{background:var(--bg-secondary);border-top:1px solid var(--border-color);padding:4rem 2rem;text-align:center}
+        .footer-logo{font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:1rem}
+        .footer-text{color:var(--text-muted);font-size:0.9rem;max-width:500px;margin:0 auto}
+        .ddl-table{font-size:0.85rem}
+        .ddl-table td:first-child{font-family:'JetBrains Mono',monospace;color:var(--accent-cyan);white-space:nowrap}
+        @media(max-width:768px){nav{padding:0.75rem 1rem}.nav-links{display:none}.hero{padding:6rem 1rem 3rem}.container{padding:0 1rem}section{padding:4rem 0}}
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    <div class="grid-overlay"></div>
+
+    <nav>
+        <div class="nav-content">
+            <div class="nav-brand">
+                <div class="nav-logo">A</div>
+                <span class="nav-title">APEX Data Agent</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#input-modes">Input Modes</a></li>
+                <li><a href="#ui-components">UI Components</a></li>
+                <li><a href="#source-types">70+ Sources</a></li>
+                <li><a href="#workflow">Workflow</a></li>
+                <li><a href="#patterns">9 Patterns</a></li>
+                <li><a href="#spark-jobs">Spark Jobs</a></li>
+                <li><a href="#llm-usage">LLM Usage</a></li>
+                <li><a href="#metadata">Metadata</a></li>
+                <li><a href="#governance">Governance</a></li>
+                <li><a href="#runtime">Runtime</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <span class="hero-badge">APEX v2.1 &bull; Metadata-Driven Pipeline Compiler</span>
+        <h1><span class="gradient">Data Engineering Agent</span><br>Complete Architecture Guide</h1>
+        <p class="hero-subtitle">A compiler that converts metadata into production-ready Airflow DAGs. 9 patterns, 70+ sources, 5 Spark jobs, 13 DDL files &mdash; all orchestrated by a 9-node LangGraph workflow.</p>
+        <div class="quick-stats">
+            <div class="stat"><div class="stat-value">9</div><div class="stat-label">DAG Patterns</div></div>
+            <div class="stat"><div class="stat-value">70+</div><div class="stat-label">Source Types</div></div>
+            <div class="stat"><div class="stat-value">13</div><div class="stat-label">DDL Files</div></div>
+            <div class="stat"><div class="stat-value">5</div><div class="stat-label">Spark Jobs</div></div>
+            <div class="stat"><div class="stat-value">3</div><div class="stat-label">Input Modes</div></div>
+            <div class="stat"><div class="stat-value">9</div><div class="stat-label">Workflow Nodes</div></div>
+        </div>
+    </section>
+
+    <!-- Core Principle -->
+    <section id="architecture" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2 class="section-title">Core Architecture</h2>
+                <p class="section-desc">APEX is a <strong>compiler</strong>, not an ETL tool. Business logic lives in metadata, not code. Generated artifacts are deterministic.</p>
+            </div>
+
+            <div class="callout fade-in">
+                <div class="callout-icon">&#9889;</div>
+                <div class="callout-content">
+                    <div class="callout-title">The Compiler Principle</div>
+                    <div class="callout-text">Traditional ETL hardcodes business logic in Python DAGs. APEX stores everything in <strong>PostgreSQL metadata tables</strong> (13 DDL files). Generated DAGs are thin wrappers that fetch config at runtime. Same DAG file, different behavior based on metadata.</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">Medallion Architecture (Data Zones)</h3>
+            <div class="medallion-flow fade-in">
+                <div class="medallion-zone zone-raw"><div class="zone-name">Landing / Raw</div><div class="zone-desc">STRING columns, no schema</div></div>
+                <div class="medallion-arrow">&rarr;</div>
+                <div class="medallion-zone zone-bronze"><div class="zone-name">Bronze</div><div class="zone-desc">Schema enforcement, typed</div></div>
+                <div class="medallion-arrow">&rarr;</div>
+                <div class="medallion-zone zone-silver"><div class="zone-name">Silver</div><div class="zone-desc">Cleaned, validated, deduped</div></div>
+                <div class="medallion-arrow">&rarr;</div>
+                <div class="medallion-zone zone-gold"><div class="zone-name">Gold</div><div class="zone-desc">Business logic, joins, aggs</div></div>
+                <div class="medallion-arrow">&rarr;</div>
+                <div class="medallion-zone zone-trusted"><div class="zone-name">Trusted</div><div class="zone-desc">Curated for analytics</div></div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">End-to-End Data Flow</h3>
+            <div class="code-block fade-in">
+                <div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span>Complete Pipeline Flow</div>
+                <div class="code-content"><span class="comment">## DESIGN TIME (Agent generates artifacts)</span>
+
+User Input (UI / NL / DTSX)
+    &darr;
+<span class="function">InputDispatcher</span> &rarr; routes to UIInputNormalizer | NLInputNormalizer | DTSXNormalizer
+    &darr;
+<span class="variable">PipelineMetadata</span> (canonical model &mdash; all 3 modes produce identical structure)
+    &darr;
+<span class="function">RegistryManager</span> &rarr; selects P01-P09 pattern (or LLM creates new)
+    &darr;
+<span class="function">APEXDAGGenerator</span> &rarr; renders Jinja2 template &rarr; Python DAG file
+    &darr;
+<span class="function">Validator</span> &rarr; syntax + imports + security scan
+    &darr;
+<span class="function">Human Approval</span> (required for PROD)
+    &darr;
+<span class="function">Git Deploy</span> &rarr; feature branch &rarr; PR &rarr; CI/CD &rarr; Airflow
+
+<span class="comment">## RUNTIME (Airflow executes generated DAG)</span>
+
+Airflow Scheduler triggers DAG
+    &darr;
+initialize_execution &rarr; create pipeline_execution record
+    &darr;
+wait_upstream (ExternalTaskSensor for cross-DAG dependencies)
+    &darr;
+<span class="keyword">raw_to_bronze</span> (PySpark) &rarr; ingest, type cast, audit columns, DLQ
+    &darr;
+<span class="keyword">bronze_schema_validation</span> (Great Expectations) &rarr; PASS/FAIL branch
+    &darr;
+<span class="keyword">bronze_to_silver</span> (PySpark) &rarr; clean, transform, PII detect + mask, dedup
+    &darr;
+<span class="keyword">silver_semantic_validation</span> (Great Expectations) &rarr; business rules
+    &darr;
+<span class="keyword">silver_to_gold</span> (PySpark) &rarr; joins, aggregations, SCD2, surrogate keys
+    &darr;
+run_quality_checks &rarr; weighted score (0&ndash;100)
+    &darr;
+finalize_execution &rarr; metrics, lineage, catalog registration, notifications</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Three Input Modes -->
+    <section id="input-modes">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">02</span>
+                <h2 class="section-title">Three Input Modes</h2>
+                <p class="section-desc">Choose how you define your pipeline. All three normalizers produce the identical canonical <code>PipelineMetadata</code> object.</p>
+            </div>
+
+            <div class="input-modes-grid fade-in">
+                <div class="input-mode-card structured">
+                    <div class="input-mode-icon" style="background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));">&#128221;</div>
+                    <div class="input-mode-title">Mode 1: UI Structured</div>
+                    <div class="input-mode-desc">Fill a comprehensive form via <code>UnifiedPipelineForm</code>. Direct 1:1 mapping to metadata. No LLM required.</div>
+                    <ul class="input-mode-features">
+                        <li>9 form sections (identity, source, schema, target, joins, etc.)</li>
+                        <li>70+ source type picker with 9 categories</li>
+                        <li>Dynamic forms based on source type</li>
+                        <li>Pattern auto-recommendation</li>
+                        <li>Type-safe validation at every step</li>
+                    </ul>
+                </div>
+
+                <div class="input-mode-card nl">
+                    <div class="input-mode-icon" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));">&#129302;</div>
+                    <div class="input-mode-title">Mode 2: Natural Language</div>
+                    <div class="input-mode-desc">Describe in plain English. LLM converts to structured config. User must preview and approve before execution.</div>
+                    <ul class="input-mode-features">
+                        <li>LLM-powered NL &rarr; structured conversion</li>
+                        <li>Join extraction with fuzzy catalog matching</li>
+                        <li>Transform intent detection (9 types)</li>
+                        <li>Confidence scoring (&gt;80% required)</li>
+                        <li>NL is NEVER executed directly</li>
+                    </ul>
+                </div>
+
+                <div class="input-mode-card dtsx">
+                    <div class="input-mode-icon" style="background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));">&#128230;</div>
+                    <div class="input-mode-title">Mode 3: DTSX Migration</div>
+                    <div class="input-mode-desc">Upload SSIS .dtsx packages. Parser extracts connections, data flows, and T-SQL transformations automatically.</div>
+                    <ul class="input-mode-features">
+                        <li>XML parser for SSIS packages</li>
+                        <li>OLEDB/ADO.NET &rarr; JDBC mapping</li>
+                        <li>T-SQL &rarr; PySpark conversion</li>
+                        <li>Variable &amp; expression translation</li>
+                        <li>Auto-selects P04 (Legacy Migration) pattern</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout success fade-in">
+                <div class="callout-icon">&#10004;</div>
+                <div class="callout-content">
+                    <div class="callout-title">Normalizer Architecture</div>
+                    <div class="callout-text"><code>InputDispatcher</code> routes input to the correct normalizer: <code>UIInputNormalizer</code> (direct mapping), <code>NLInputNormalizer</code> (LLM-powered), or <code>DTSXNormalizer</code> (XML parsing). All three produce identical <code>PipelineMetadata</code>. The rest of the workflow is uniform.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- UI Components -->
+    <section id="ui-components" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">03</span>
+                <h2 class="section-title">UI Components (9 Sections)</h2>
+                <p class="section-desc">The <code>UnifiedPipelineForm</code> captures all pipeline parameters. TypeScript types mirror backend Pydantic models exactly.</p>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">1</div>
+                    <div class="ui-form-title">Pipeline Identity &amp; Governance</div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">dag_id <span class="ui-field-required">*</span></div><div class="ui-field-type">string &bull; snake_case</div><div class="ui-field-desc">Unique DAG identifier (e.g., sales_daily_pipeline)</div></div>
+                        <div class="ui-field"><div class="ui-field-name">domain <span class="ui-field-required">*</span></div><div class="ui-field-type">enum</div><div class="ui-field-desc">Business domain: finance, sales, marketing, ops, hr</div></div>
+                        <div class="ui-field"><div class="ui-field-name">environment <span class="ui-field-required">*</span></div><div class="ui-field-type">enum</div><div class="ui-field-desc">Target: dev, staging, prod</div></div>
+                        <div class="ui-field"><div class="ui-field-name">business_owner <span class="ui-field-required">*</span></div><div class="ui-field-type">email</div><div class="ui-field-desc">Business stakeholder email</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">2</div>
+                    <div class="ui-form-title">Source Type &mdash; <code>SourceTypeSelector</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">source_type <span class="ui-field-required">*</span></div><div class="ui-field-type">enum &bull; 70+ options</div><div class="ui-field-desc">Category-based picker: File, Database, Streaming, API, Legacy, NoSQL, Logs, Cloud, Advanced</div></div>
+                        <div class="ui-field"><div class="ui-field-name">source_system <span class="ui-field-required">*</span></div><div class="ui-field-type">string</div><div class="ui-field-desc">Source identifier (e.g., oracle_erp, salesforce_crm)</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">3</div>
+                    <div class="ui-form-title">Source Config &mdash; Dynamic Forms</div>
+                </div>
+                <div class="ui-form-body">
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Based on source_type category, one of 6 type-specific forms is rendered:</p>
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">FileSourceConfigForm</div><div class="ui-field-desc">CSV, Parquet, JSON, Avro, Excel, GCS, S3 &rarr; gcs_path, delimiter, encoding, header</div></div>
+                        <div class="ui-field"><div class="ui-field-name">DatabaseSourceConfigForm</div><div class="ui-field-desc">PostgreSQL, MySQL, Oracle, Snowflake &rarr; jdbc_url_secret, query, watermark_column</div></div>
+                        <div class="ui-field"><div class="ui-field-name">StreamingSourceConfigForm</div><div class="ui-field-desc">Kafka, Pub/Sub, Kinesis &rarr; topic, consumer_group, window_type, watermark_delay, DLQ path</div></div>
+                        <div class="ui-field"><div class="ui-field-name">APISourceConfigForm</div><div class="ui-field-desc">REST, GraphQL, Salesforce &rarr; endpoint, auth_type, pagination, rate_limit</div></div>
+                        <div class="ui-field"><div class="ui-field-name">EBCDICSourceConfigForm</div><div class="ui-field-desc">EBCDIC, Fixed-Width, COBOL &rarr; copybook, record_length, encoding</div></div>
+                        <div class="ui-field"><div class="ui-field-name">DTSXSourceConfigForm</div><div class="ui-field-desc">SSIS packages &rarr; dtsx_path, connection_mapping</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">4</div>
+                    <div class="ui-form-title">DAG Pattern &mdash; <code>PatternSelector</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">pattern_code <span class="ui-field-optional">&cir;</span></div><div class="ui-field-type">enum &bull; P01-P09</div><div class="ui-field-desc">Explicitly select OR let RegistryManager auto-recommend: explicit &rarr; contract type &rarr; source type &rarr; default (P01)</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">5</div>
+                    <div class="ui-form-title">Schema &mdash; <code>SchemaInputPanel</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">columns[] <span class="ui-field-required">*</span></div><div class="ui-field-type">array</div><div class="ui-field-desc">Column definitions: name, type (string/integer/decimal/date/timestamp/boolean), nullable, pii flag</div></div>
+                        <div class="ui-field"><div class="ui-field-name">primary_keys <span class="ui-field-required">*</span></div><div class="ui-field-type">string[]</div><div class="ui-field-desc">Columns that uniquely identify records</div></div>
+                        <div class="ui-field"><div class="ui-field-name">schema_drift_policy</div><div class="ui-field-type">enum</div><div class="ui-field-desc">STRICT (fail on any change), ADDITIVE (allow new columns), FLEXIBLE (allow all)</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">6</div>
+                    <div class="ui-form-title">Target Zone &mdash; <code>ZoneIntentPanel</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">target_zone <span class="ui-field-required">*</span></div><div class="ui-field-type">enum</div><div class="ui-field-desc">bronze, silver, gold, trusted</div></div>
+                        <div class="ui-field"><div class="ui-field-name">bq_dataset <span class="ui-field-required">*</span></div><div class="ui-field-type">string</div><div class="ui-field-desc">BigQuery dataset name</div></div>
+                        <div class="ui-field"><div class="ui-field-name">write_mode <span class="ui-field-required">*</span></div><div class="ui-field-type">enum</div><div class="ui-field-desc">append, overwrite, merge, scd_type_1, scd_type_2</div></div>
+                        <div class="ui-field"><div class="ui-field-name">table_format</div><div class="ui-field-type">enum</div><div class="ui-field-desc">delta (default), iceberg, parquet</div></div>
+                        <div class="ui-field"><div class="ui-field-name">partition_field</div><div class="ui-field-type">string</div><div class="ui-field-desc">Partitioning column (e.g., execution_date)</div></div>
+                        <div class="ui-field"><div class="ui-field-name">clustering_fields</div><div class="ui-field-type">string[]</div><div class="ui-field-desc">Clustering columns for query optimization</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">7</div>
+                    <div class="ui-form-title">Gold Modeling &mdash; <code>GoldModelingSelector</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">destination_model</div><div class="ui-field-type">enum</div><div class="ui-field-desc">flat, dimensional (Star Schema), data_vault, obt (One Big Table)</div></div>
+                        <div class="ui-field"><div class="ui-field-name">fact_tables / dimension_tables</div><div class="ui-field-type">array</div><div class="ui-field-desc">Star Schema fact &amp; dimension definitions with surrogate keys</div></div>
+                        <div class="ui-field"><div class="ui-field-name">hub_tables / link_tables / satellite_tables</div><div class="ui-field-type">array</div><div class="ui-field-desc">Data Vault 2.0 hub, link, and satellite definitions</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">8</div>
+                    <div class="ui-form-title">Joins &mdash; <code>JoinDependencyBuilder</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">right_table <span class="ui-field-required">*</span></div><div class="ui-field-type">string</div><div class="ui-field-desc">Table to join (e.g., silver.customer_master)</div></div>
+                        <div class="ui-field"><div class="ui-field-name">join_type <span class="ui-field-required">*</span></div><div class="ui-field-type">enum</div><div class="ui-field-desc">INNER, LEFT, RIGHT, FULL, SEMI, ANTI</div></div>
+                        <div class="ui-field"><div class="ui-field-name">join_keys <span class="ui-field-required">*</span></div><div class="ui-field-type">array</div><div class="ui-field-desc">[{left: "customer_id", right: "id"}] &mdash; supports multi-key joins</div></div>
+                        <div class="ui-field"><div class="ui-field-name">join_order</div><div class="ui-field-type">integer</div><div class="ui-field-desc">Execution order for chained joins (A &rarr; B &rarr; C)</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ui-form-section fade-in">
+                <div class="ui-form-header">
+                    <div class="ui-form-number">9</div>
+                    <div class="ui-form-title">Execution Policy &mdash; <code>ExecutionPolicyPanel</code></div>
+                </div>
+                <div class="ui-form-body">
+                    <div class="ui-field-grid">
+                        <div class="ui-field"><div class="ui-field-name">schedule_interval</div><div class="ui-field-type">cron | preset</div><div class="ui-field-desc">@daily, @hourly, or cron expression</div></div>
+                        <div class="ui-field"><div class="ui-field-name">processing_mode</div><div class="ui-field-type">enum</div><div class="ui-field-desc">batch, micro_batch, streaming</div></div>
+                        <div class="ui-field"><div class="ui-field-name">retry_count / timeout_hours</div><div class="ui-field-type">integer</div><div class="ui-field-desc">Default: 3 retries, 6hr timeout</div></div>
+                        <div class="ui-field"><div class="ui-field-name">requires_human_approval</div><div class="ui-field-type">boolean</div><div class="ui-field-desc">Always true for PROD environment</div></div>
+                        <div class="ui-field"><div class="ui-field-name">preemptible_ratio</div><div class="ui-field-type">0.0&ndash;1.0</div><div class="ui-field-desc">Cost optimization: % of preemptible Dataproc workers (default 60%)</div></div>
+                        <div class="ui-field"><div class="ui-field-name">cost_labels</div><div class="ui-field-type">JSON</div><div class="ui-field-desc">GCP billing labels: {"domain": "sales", "team": "analytics"}</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 70+ Source Types -->
+    <section id="source-types">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">04</span>
+                <h2 class="section-title">70+ Source Types (9 Categories)</h2>
+                <p class="section-desc">The <code>SourceTypeSelector</code> groups all sources into logical categories with type-specific configuration forms.</p>
+            </div>
+
+            <div class="fade-in">
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">A</div><div class="source-category-name">File-Based</div><div class="source-category-count">14 types &bull; FileSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">CSV</span><span class="source-tag">TSV</span><span class="source-tag">TXT</span><span class="source-tag">JSON</span><span class="source-tag">NDJSON</span><span class="source-tag">XML</span><span class="source-tag">Parquet</span><span class="source-tag">Avro</span><span class="source-tag">ORC</span><span class="source-tag">Excel</span><span class="source-tag">Fixed-Width</span><span class="source-tag">EBCDIC</span><span class="source-tag">ZIP</span><span class="source-tag">GZIP</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">B</div><div class="source-category-name">Database</div><div class="source-category-count">9 types &bull; DatabaseSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">PostgreSQL</span><span class="source-tag">MySQL</span><span class="source-tag">Oracle</span><span class="source-tag">SQL Server</span><span class="source-tag">DB2</span><span class="source-tag">Teradata</span><span class="source-tag">Snowflake</span><span class="source-tag">BigQuery</span><span class="source-tag">SAP</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">C</div><div class="source-category-name">Streaming</div><div class="source-category-count">8 types &bull; StreamingSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">Kafka</span><span class="source-tag">Confluent</span><span class="source-tag">Kinesis</span><span class="source-tag">Pub/Sub</span><span class="source-tag">Event Hubs</span><span class="source-tag">Pulsar</span><span class="source-tag">RabbitMQ</span><span class="source-tag">MQTT</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">D</div><div class="source-category-name">API &amp; SaaS</div><div class="source-category-count">12 types &bull; APISourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">REST</span><span class="source-tag">GraphQL</span><span class="source-tag">SOAP</span><span class="source-tag">Salesforce</span><span class="source-tag">ServiceNow</span><span class="source-tag">Jira</span><span class="source-tag">Workday</span><span class="source-tag">Google Analytics</span><span class="source-tag">HubSpot</span><span class="source-tag">Zendesk</span><span class="source-tag">Stripe</span><span class="source-tag">SAP OData</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">E</div><div class="source-category-name">Legacy</div><div class="source-category-count">7 types &bull; DTSXSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">DTSX/SSIS</span><span class="source-tag">COBOL</span><span class="source-tag">VSAM</span><span class="source-tag">AS400</span><span class="source-tag">Mainframe</span><span class="source-tag">IMS</span><span class="source-tag">CICS</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">F</div><div class="source-category-name">NoSQL</div><div class="source-category-count">9 types &bull; DatabaseSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">MongoDB</span><span class="source-tag">Cassandra</span><span class="source-tag">DynamoDB</span><span class="source-tag">Firestore</span><span class="source-tag">Couchbase</span><span class="source-tag">HBase</span><span class="source-tag">Neo4j</span><span class="source-tag">Redis</span><span class="source-tag">Elasticsearch</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">G</div><div class="source-category-name">Logs</div><div class="source-category-count">5 types &bull; StreamingSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">Application Logs</span><span class="source-tag">Airflow Logs</span><span class="source-tag">Spark Logs</span><span class="source-tag">Audit Logs</span><span class="source-tag">Metrics</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">H</div><div class="source-category-name">Cloud Storage</div><div class="source-category-count">4 types &bull; FileSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">GCS</span><span class="source-tag">S3</span><span class="source-tag">Azure Blob</span><span class="source-tag">HDFS</span>
+                    </div>
+                </div>
+                <div class="source-category">
+                    <div class="source-category-header"><div class="source-category-letter">I</div><div class="source-category-name">Advanced</div><div class="source-category-count">6 types &bull; EBCDICSourceConfigForm</div></div>
+                    <div class="source-tags">
+                        <span class="source-tag">CDC</span><span class="source-tag">Delta Lake</span><span class="source-tag">Iceberg</span><span class="source-tag">IoT</span><span class="source-tag">Time-Series</span><span class="source-tag">Elasticsearch</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LangGraph Workflow -->
+    <section id="workflow" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">05</span>
+                <h2 class="section-title">LangGraph 9-Node Workflow</h2>
+                <p class="section-desc">An explicit state machine orchestrated by <code>apex_workflow.py</code> &mdash; not a ReAct loop. Each node has a clear purpose and produces typed output.</p>
+            </div>
+            <div class="workflow-grid fade-in">
+                <div class="workflow-node node-1"><div class="workflow-number">NODE 1</div><div class="workflow-title">normalize_input</div><div class="workflow-desc">Routes to UIInputNormalizer, NLInputNormalizer, or DTSXNormalizer via <code>InputDispatcher</code>. <span class="badge badge-purple">LLM</span> if NL mode.</div></div>
+                <div class="workflow-node node-2"><div class="workflow-number">NODE 2</div><div class="workflow-title">resolve_pattern</div><div class="workflow-desc">RegistryManager selects P01-P09 from <code>registry.json</code>. Priority: explicit &rarr; contract &rarr; source type &rarr; P01 default. <span class="badge badge-purple">LLM</span> if no match.</div></div>
+                <div class="workflow-node node-3"><div class="workflow-number">NODE 3</div><div class="workflow-title">load_metadata</div><div class="workflow-desc">Loads feed config, data contract, validation rules, join dependencies, pipeline dependencies from PostgreSQL.</div></div>
+                <div class="workflow-node node-4"><div class="workflow-number">NODE 4</div><div class="workflow-title">generate_artifacts</div><div class="workflow-desc">APEXDAGGenerator renders Jinja2 template &rarr; Python DAG + BigQuery security DDL (if PII detected). Output: <code>dags/generated/{dag_id}.py</code></div></div>
+                <div class="workflow-node node-5"><div class="workflow-number">NODE 5</div><div class="workflow-title">validate_artifacts</div><div class="workflow-desc">Python syntax check (compile), required imports, DAG ID in code, no hardcoded secrets, pattern-specific variable presence.</div></div>
+                <div class="workflow-node node-6"><div class="workflow-number">NODE 6</div><div class="workflow-title">persist_metadata</div><div class="workflow-desc">Save <code>pipeline_execution</code> record (with auto-incrementing sequence) and <code>agent_decision_log</code> audit trail to PostgreSQL.</div></div>
+                <div class="workflow-node node-7"><div class="workflow-number">NODE 7</div><div class="workflow-title">await_approval</div><div class="workflow-desc">PROD or schema_change only &mdash; publishes <code>pipeline.requires_approval</code> to Kafka. <span class="badge badge-orange">PAUSE</span> Resumes on <code>pipeline.approved</code>.</div></div>
+                <div class="workflow-node node-8"><div class="workflow-number">NODE 8</div><div class="workflow-title">deploy_artifacts</div><div class="workflow-desc">Git: create feature branch &rarr; commit DAG + metadata SQL &rarr; push &rarr; create PR &rarr; CI/CD validates (DagBag import test).</div></div>
+                <div class="workflow-node node-9"><div class="workflow-number">NODE 9</div><div class="workflow-title">handle_error</div><div class="workflow-desc">Cleanup, log error to <code>error_log</code>, notify via email/Slack. Graceful failure with full audit trail.</div></div>
+            </div>
+
+            <div class="code-block fade-in" style="margin-top: 2rem;">
+                <div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span>apex_workflow.py &mdash; StateGraph Definition</div>
+                <div class="code-content"><span class="keyword">from</span> langgraph.graph <span class="keyword">import</span> StateGraph
+
+graph = StateGraph(AgentState)
+
+<span class="comment"># Add nodes</span>
+graph.add_node(<span class="string">"normalize_input"</span>, normalize_input)
+graph.add_node(<span class="string">"resolve_pattern"</span>, resolve_pattern)
+graph.add_node(<span class="string">"load_metadata"</span>, load_metadata)
+graph.add_node(<span class="string">"generate_artifacts"</span>, generate_artifacts)
+graph.add_node(<span class="string">"validate_artifacts"</span>, validate_artifacts)
+graph.add_node(<span class="string">"persist_metadata"</span>, persist_metadata)
+graph.add_node(<span class="string">"await_approval"</span>, await_approval)
+graph.add_node(<span class="string">"deploy_artifacts"</span>, deploy_artifacts)
+graph.add_node(<span class="string">"handle_error"</span>, handle_error)
+
+<span class="comment"># Linear flow with error branching at each step</span>
+graph.set_entry_point(<span class="string">"normalize_input"</span>)
+graph.add_conditional_edges(<span class="string">"validate_artifacts"</span>,
+    <span class="keyword">lambda</span> s: <span class="string">"persist_metadata"</span> <span class="keyword">if</span> s[<span class="string">"validation_passed"</span>] <span class="keyword">else</span> <span class="string">"handle_error"</span>)
+graph.add_conditional_edges(<span class="string">"persist_metadata"</span>,
+    <span class="keyword">lambda</span> s: <span class="string">"await_approval"</span> <span class="keyword">if</span> s[<span class="string">"requires_approval"</span>] <span class="keyword">else</span> <span class="string">"deploy_artifacts"</span>)</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9 DAG Patterns -->
+    <section id="patterns">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">06</span>
+                <h2 class="section-title">9 DAG Patterns (P01&ndash;P09)</h2>
+                <p class="section-desc">Jinja2 templates in <code>src/templates/patterns/</code>. Each pattern generates a complete Airflow DAG with pattern-specific tasks. Total: 2,563 lines of templates.</p>
+            </div>
+            <div class="pattern-grid fade-in">
+                <div class="pattern-card"><span class="pattern-code">P01</span><div class="pattern-name">File Medallion</div><div class="pattern-when">CSV/JSON/Parquet &bull; STANDARD contract</div><div class="pattern-spark">Spark: all 5 jobs &bull; Full medallion pipeline</div></div>
+                <div class="pattern-card"><span class="pattern-code">P02</span><div class="pattern-name">Big Data File</div><div class="pattern-when">Files &gt; 10 GB &bull; auto-scaling</div><div class="pattern-spark">Spark: 4 jobs &bull; Dynamic cluster scaling, partitioned reads</div></div>
+                <div class="pattern-card"><span class="pattern-code">P03</span><div class="pattern-name">Database Lakehouse</div><div class="pattern-when">JDBC &bull; CDC / incremental</div><div class="pattern-spark">Spark: all 5 &bull; Watermark tracking, delta merge</div></div>
+                <div class="pattern-card"><span class="pattern-code">P04</span><div class="pattern-name">Legacy Migration</div><div class="pattern-when">DTSX, COBOL, EBCDIC, AS400</div><div class="pattern-spark">Spark: 4 jobs &bull; Copybook parsing, EBCDIC &rarr; UTF-8</div></div>
+                <div class="pattern-card"><span class="pattern-code">P05</span><div class="pattern-name">Streaming Batch</div><div class="pattern-when">Kafka, Pub/Sub, Kinesis</div><div class="pattern-spark">Spark: 4 jobs &bull; Windowing (tumbling/sliding/session), DLQ, offset mgmt</div></div>
+                <div class="pattern-card"><span class="pattern-code">P06</span><div class="pattern-name">API SaaS</div><div class="pattern-when">REST, GraphQL, Salesforce, SAP</div><div class="pattern-spark">Spark: 4 jobs &bull; Pagination, rate limiting, OAuth, retry</div></div>
+                <div class="pattern-card"><span class="pattern-code">P07</span><div class="pattern-name">SCD Type 2</div><div class="pattern-when">SCD2 contract &bull; any source</div><div class="pattern-spark">Spark: 3 jobs &bull; Hash-based change detection, valid_from/valid_to</div></div>
+                <div class="pattern-card"><span class="pattern-code">P08</span><div class="pattern-name">Data Vault 2.0</div><div class="pattern-when">DATA_VAULT contract</div><div class="pattern-spark">Spark: 3 jobs &bull; Hub + Link + Satellite loading, hash keys</div></div>
+                <div class="pattern-card"><span class="pattern-code">P09</span><div class="pattern-name">Star Schema</div><div class="pattern-when">STAR_SCHEMA contract</div><div class="pattern-spark">Spark: 3 jobs &bull; Fact + Dimension, surrogate keys, late-arriving dims</div></div>
+            </div>
+
+            <h3 style="margin: 3rem 0 1rem; font-size: 1.3rem;">Pattern Selection Decision Tree</h3>
+            <div class="timeline fade-in">
+                <div class="timeline-item">
+                    <div class="timeline-title">1. Check Explicit pattern_code</div>
+                    <div class="timeline-desc">If user explicitly set P01-P09 in the form &rarr; Use that pattern directly</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-title">2. Check Contract Type Mapping</div>
+                    <div class="timeline-desc">SCD2 contract &rarr; P07 | DATA_VAULT contract &rarr; P08 | STAR_SCHEMA contract &rarr; P09</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-title">3. Check Source Type Mapping</div>
+                    <div class="timeline-desc">FILE &rarr; P01/P02 (by size) | DATABASE &rarr; P03 | STREAMING &rarr; P05 | API &rarr; P06 | LEGACY &rarr; P04</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-title">4. Default &rarr; P01 (File Medallion)</div>
+                    <div class="timeline-desc">Fallback when no mapping matches. If truly novel, LLM generates a new template (P10+) &mdash; always requires human approval.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5 Canonical Spark Jobs -->
+    <section id="spark-jobs" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">07</span>
+                <h2 class="section-title">5 Canonical Spark Jobs + Utilities</h2>
+                <p class="section-desc">PySpark jobs in <code>src/spark_jobs/</code>. 100K+ lines of production code. Each job reads config from PostgreSQL at runtime.</p>
+            </div>
+
+            <div class="fade-in">
+                <table>
+                    <thead>
+                        <tr><th>Spark Job</th><th>Zone</th><th>Key Operations</th><th>Lines</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>raw_to_bronze.py</code></td>
+                            <td>Raw &rarr; Bronze</td>
+                            <td>Multi-format read (CSV/JSON/Parquet/EBCDIC/XML/Excel), schema evolution check, type casting, audit columns (_run_id, _execution_date), corrupt record DLQ, idempotent delete, Delta/Iceberg/Parquet write</td>
+                            <td>21K</td>
+                        </tr>
+                        <tr>
+                            <td><code>bronze_schema_validation.py</code></td>
+                            <td>Bronze</td>
+                            <td>Great Expectations validation: column presence, not-null, PK uniqueness, data types. Quality score (0-100). PASS &rarr; silver, FAIL &rarr; quarantine</td>
+                            <td>12K</td>
+                        </tr>
+                        <tr>
+                            <td><code>bronze_to_silver.py</code></td>
+                            <td>Bronze &rarr; Silver</td>
+                            <td>Apply view SQL + transformation rules, <strong>PII detection</strong> (regex + column names), <strong>persist to data_classification</strong>, <strong>apply masking</strong> (REDACT/HASH/TOKENIZE/PARTIAL_MASK), dedup by PK, generate MD5 business keys</td>
+                            <td>16K</td>
+                        </tr>
+                        <tr>
+                            <td><code>silver_semantic_validation.py</code></td>
+                            <td>Silver</td>
+                            <td>Business rule validation (SQL expressions), referential integrity, cross-field checks, range checks, custom GE expectations. PASS &rarr; gold, FAIL &rarr; quarantine</td>
+                            <td>12K</td>
+                        </tr>
+                        <tr>
+                            <td><code>silver_to_gold.py</code></td>
+                            <td>Silver &rarr; Gold</td>
+                            <td><strong>Multi-table joins</strong> via join_executor (chain joins, grain verification, broadcast hints), aggregations, SCD2, surrogate keys, <strong>PII masking enforcement</strong>, Gold view SQL</td>
+                            <td>19K</td>
+                        </tr>
+                        <tr>
+                            <td><code>join_executor.py</code></td>
+                            <td>Gold (support)</td>
+                            <td>Generic multi-table join engine: INNER/LEFT/RIGHT/FULL/SEMI/ANTI, null-safe keys, broadcast for small tables (&lt;100MB), grain verification (fanout &gt; 2.0x &rarr; error)</td>
+                            <td>9.5K</td>
+                        </tr>
+                        <tr>
+                            <td><code>table_maintenance.py</code></td>
+                            <td>All zones</td>
+                            <td>Delta VACUUM (7-day retention), Delta OPTIMIZE + Z-ORDER, Iceberg expire snapshots, Iceberg compact files (128MB target), Parquet small file compaction</td>
+                            <td>10K</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- LLM Usage -->
+    <section id="llm-usage">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">08</span>
+                <h2 class="section-title">Where LLM is Used (5 Points)</h2>
+                <p class="section-desc">The LLM powers specific conversion tasks. It never directly executes code or deploys artifacts.</p>
+            </div>
+
+            <div class="callout llm fade-in">
+                <div class="callout-icon">&#129504;</div>
+                <div class="callout-content">
+                    <div class="callout-title">LLM Safety Principle</div>
+                    <div class="callout-text">The LLM <strong>never executes natural language directly</strong>. All NL input is converted to structured metadata, validated, and shown to the user for approval before any code generation or deployment.</div>
+                </div>
+            </div>
+
+            <div class="fade-in">
+                <div class="llm-step">
+                    <div class="llm-step-icon" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));">&#128483;</div>
+                    <div class="llm-step-content">
+                        <div class="llm-step-title">1. Natural Language &rarr; Structured Config</div>
+                        <div class="llm-step-desc">When user selects NL input mode, <code>NLInputNormalizer</code> uses the LLM to convert free-text to structured <code>PipelineMetadata</code>.</div>
+                        <div class="llm-step-detail"><strong>Component:</strong> NLInputNormalizer &rarr; NLTransformProcessor<br><strong>Input:</strong> "Create a daily pipeline to ingest sales CSV from GCS, join with customers"<br><strong>Output:</strong> Structured JSON: source_type=file_csv, schema, joins, target_zone=gold<br><strong>Safety:</strong> User must preview and approve. Confidence &gt; 80% required.</div>
+                    </div>
+                </div>
+
+                <div class="llm-step">
+                    <div class="llm-step-icon" style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));">&#128279;</div>
+                    <div class="llm-step-content">
+                        <div class="llm-step-title">2. Join Intent Extraction from NL</div>
+                        <div class="llm-step-desc">When NL mentions joins, the LLM extracts table names (fuzzy matching against data catalog), join keys, and types.</div>
+                        <div class="llm-step-detail"><strong>Function:</strong> NLTransformProcessor._extract_join_config()<br><strong>Input:</strong> "join orders with customers on customer_id, keep all orders"<br><strong>Extracts:</strong> right_table: "silver.customer_master", join_key: "customer_id", join_type: "LEFT"<br><strong>Matching:</strong> Fuzzy match against catalog_repository.search_assets()</div>
+                    </div>
+                </div>
+
+                <div class="llm-step">
+                    <div class="llm-step-icon" style="background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));">&#128230;</div>
+                    <div class="llm-step-content">
+                        <div class="llm-step-title">3. DTSX Transformation Mapping</div>
+                        <div class="llm-step-desc">For complex SSIS transformations, the LLM maps T-SQL expressions to PySpark code within the <code>DTSXNormalizer</code>.</div>
+                        <div class="llm-step-detail"><strong>Component:</strong> DTSXNormalizer + dtsx_parser.py<br><strong>Input:</strong> SSIS Derived Column with T-SQL expression<br><strong>Output:</strong> Equivalent PySpark transformation rule<br><strong>Fallback:</strong> Flags uncertain mappings for manual review</div>
+                    </div>
+                </div>
+
+                <div class="llm-step">
+                    <div class="llm-step-icon" style="background: linear-gradient(135deg, var(--accent-green), #059669);">&#127919;</div>
+                    <div class="llm-step-content">
+                        <div class="llm-step-title">4. Template Selection Reasoning (Edge Cases)</div>
+                        <div class="llm-step-desc">When source type doesn't clearly map to a pattern, the LLM provides reasoning for selection.</div>
+                        <div class="llm-step-detail"><strong>Trigger:</strong> Ambiguous source type or conflicting requirements in resolve_pattern node<br><strong>Output:</strong> Pattern recommendation with confidence score<br><strong>Rule:</strong> Confidence &lt; 80% routes to human review</div>
+                    </div>
+                </div>
+
+                <div class="llm-step">
+                    <div class="llm-step-icon" style="background: linear-gradient(135deg, var(--accent-red), var(--accent-pink));">&#9889;</div>
+                    <div class="llm-step-content">
+                        <div class="llm-step-title">5. Dynamic Template Creation (No Registry Match)</div>
+                        <div class="llm-step-desc">When no existing P01-P09 template matches, the LLM generates a new Jinja2 template based on similar patterns.</div>
+                        <div class="llm-step-detail"><strong>Trigger:</strong> RegistryManager returns no match (rare)<br><strong>Process:</strong> Find similar templates &rarr; LLM generates new Jinja2 &rarr; Validate syntax + security scan &rarr; Human approval required<br><strong>Reuse:</strong> Approved templates become P10+ in registry for future use &mdash; no LLM needed again</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout warning fade-in" style="margin-top: 2rem;">
+                <div class="callout-icon">&#9888;</div>
+                <div class="callout-content">
+                    <div class="callout-title">Where LLM is NOT Used</div>
+                    <div class="callout-text">
+                        &cross; Direct code execution &mdash; All generated code goes through validation<br>
+                        &cross; Schema inference in production &mdash; Schemas must be explicit (schema_version table)<br>
+                        &cross; Security operations &mdash; Credentials from GCP Secret Manager only<br>
+                        &cross; Deployment decisions &mdash; Humans approve production deployments<br>
+                        &cross; Runtime processing &mdash; Spark jobs read config from PostgreSQL, not LLM
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Metadata Schema -->
+    <section id="metadata" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">09</span>
+                <h2 class="section-title">PostgreSQL Metadata Schema (13 DDL Files)</h2>
+                <p class="section-desc">Business logic lives in metadata tables, not code. Located in <code>ddl/apex/</code>.</p>
+            </div>
+
+            <div class="fade-in">
+                <table class="ddl-table">
+                    <thead><tr><th>DDL</th><th>Tables</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td>01_extensions_and_types.sql</td><td>ENUMs, extensions</td><td>zone_level_enum, source_type_enum, pgcrypto, uuid-ossp</td></tr>
+                        <tr><td>02_core_tables.sql</td><td>connection_registry, domain_registry, source_registry, dag_template, feed_group, feed</td><td>Core entities: connections, domains, sources, templates, feeds</td></tr>
+                        <tr><td>03_contract_and_schema.sql</td><td>data_contract, schema_version, view_definition, transformation_rule</td><td>Pipeline contracts, versioned schemas, zone SQL views, transform rules</td></tr>
+                        <tr><td>04_validation_and_quality.sql</td><td>validation_rule, quality_expectation, sla_definition</td><td>Data quality rules, GE expectations, SLA configs</td></tr>
+                        <tr><td>05_execution_and_logging.sql</td><td>pipeline_execution, task_execution, audit_log, data_lineage, error_log, execution_cost_log</td><td>Runtime tracking: executions, audit trail, lineage, costs</td></tr>
+                        <tr><td>06_component_registry.sql</td><td>template_registry, utility_registry, spark_job_registry, agent_decision_log</td><td>Component catalog: patterns, utilities, Spark jobs, agent audit</td></tr>
+                        <tr><td>07_ge_validation.sql</td><td>ge_validation_result</td><td>Great Expectations validation results with full expectation JSON</td></tr>
+                        <tr><td>08_join_dependency.sql</td><td>join_dependency</td><td>Multi-table join configs: right_table, join_type, join_keys, join_order</td></tr>
+                        <tr><td>09_pipeline_dependency.sql</td><td>pipeline_dependency</td><td>Cross-DAG dependencies for ExternalTaskSensor generation</td></tr>
+                        <tr><td>10_observability_metrics.sql</td><td>observability_metrics, v_observability_baseline</td><td>Drift detection metrics with 30-day rolling baseline view</td></tr>
+                        <tr><td>11_data_catalog.sql</td><td>data_asset, business_term, tag_taxonomy</td><td>Data catalog: asset registry (GIN full-text search), business glossary, tag hierarchy</td></tr>
+                        <tr><td>12_governance.sql</td><td>access_policy, data_classification, access_request</td><td>RBAC policies, PII classifications (SSN/EMAIL/PHONE), access request workflow</td></tr>
+                        <tr><td>13_data_products.sql</td><td>data_product, data_product_subscription</td><td>Data mesh: product registry, subscription workflow (PENDING/APPROVED/REVOKED)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Governance & Security -->
+    <section id="governance">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">10</span>
+                <h2 class="section-title">Governance, Security &amp; Data Quality</h2>
+                <p class="section-desc">Enterprise-grade governance built into every pipeline run.</p>
+            </div>
+
+            <div class="feature-grid fade-in">
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128373;</div>
+                    <div class="feature-card-title">PII Detection &amp; Masking</div>
+                    <div class="feature-card-desc">Automatic PII detection in <code>bronze_to_silver.py</code> via regex + column name indicators. Detects SSN, credit card (Luhn), email, phone, IP. Persists to <code>data_classification</code> table. Masking strategies: REDACT, HASH, TOKENIZE, PARTIAL_MASK, ENCRYPT, NULL, FAKE. Masking enforced in both Silver and Gold zones.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128203;</div>
+                    <div class="feature-card-title">Schema Evolution</div>
+                    <div class="feature-card-desc">Three drift policies: <strong>STRICT</strong> (fail on any change), <strong>ADDITIVE</strong> (allow new columns), <strong>FLEXIBLE</strong> (allow all, log warnings). Detected in <code>raw_to_bronze.py</code> by comparing incoming DataFrame against <code>schema_version</code> table.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128200;</div>
+                    <div class="feature-card-title">Data Drift Detection</div>
+                    <div class="feature-card-desc">4 drift types: <strong>Schema</strong> (columns changed), <strong>Statistical</strong> (distribution shift &gt; 3&sigma;), <strong>Volume</strong> (row count anomaly &gt; 50%), <strong>Freshness</strong> (late data &gt; 3h). Results stored in <code>observability_metrics</code> with 30-day rolling baseline.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#9989;</div>
+                    <div class="feature-card-title">Great Expectations Validation</div>
+                    <div class="feature-card-desc">Two validation gates: <strong>Bronze</strong> (column presence, not-null, PK uniqueness, data types) and <strong>Silver</strong> (business rules, referential integrity, cross-field, range checks). Results to <code>ge_validation_result</code>. BranchPythonOperator routes PASS/FAIL.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128279;</div>
+                    <div class="feature-card-title">Data Lineage &amp; OpenLineage</div>
+                    <div class="feature-card-desc">Automatic lineage tracking: source &rarr; Bronze &rarr; Silver &rarr; Gold. Stored in <code>data_lineage</code> table. Also emits OpenLineage spec 2.0 JSON to Marquez/DataHub/file via <code>openlineage_emitter.py</code>.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128176;</div>
+                    <div class="feature-card-title">Cost Optimization</div>
+                    <div class="feature-card-desc">Preemptible workers (default 60%), autoscaling policies, GCP billing labels, Dataproc serverless option, CMEK encryption, private subnet networking. Cost tracked in <code>execution_cost_log</code>.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128296;</div>
+                    <div class="feature-card-title">Self-Healing (VIGIL Pattern)</div>
+                    <div class="feature-card-desc">8 automatic remediation actions: retry with backoff, scale cluster, repartition, reduce batch size, skip corrupt records, switch to full load, clear cache, quarantine + continue. Circuit breaker prevents cascading failures.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128218;</div>
+                    <div class="feature-card-title">Data Catalog &amp; Products</div>
+                    <div class="feature-card-desc">Auto-registration of assets after each zone transition. Full-text search (GIN index). Business glossary with terms &amp; definitions. Data Products registry with subscription workflow (Data Mesh). Tag taxonomy: SENSITIVITY, DOMAIN, QUALITY, COMPLIANCE.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128640;</div>
+                    <div class="feature-card-title">Multi-Environment Promotion</div>
+                    <div class="feature-card-desc">Environments: dev, staging, prod (via <code>APEX_ENVIRONMENT</code>). Promotion script: <code>promote_pipeline.py --from dev --to staging</code>. Regenerates artifacts with env-specific GCS/BQ paths. Prod requires human approval.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Runtime Library -->
+    <section id="runtime" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">11</span>
+                <h2 class="section-title">dag_utilities &mdash; Runtime Library</h2>
+                <p class="section-desc">Shared Python package pip-installed in Airflow. Imported by all generated DAGs at runtime. Located in <code>src/dag_utilities/</code>.</p>
+            </div>
+
+            <div class="fade-in">
+                <table>
+                    <thead><tr><th>Package</th><th>Key Classes</th><th>Purpose</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>core/</code></td><td>MetadataClient, ExecutionContext, ConfigLoader</td><td>PostgreSQL client (all runtime config), XCom state management, multi-env config</td></tr>
+                        <tr><td><code>spark/</code></td><td>SparkJobSubmitter, ClusterManager, SparkConfigBuilder</td><td>Submit to Dataproc/EMR/local, dynamic scaling, fluent config builder with cost optimization</td></tr>
+                        <tr><td><code>validation/</code></td><td>SchemaValidator, SemanticValidator, QualityChecker, GEHelper</td><td>Bronze schema checks, Silver business rules, quality scoring (0-100), GE integration</td></tr>
+                        <tr><td><code>logging/</code></td><td>AuditLogger, LineageTracker, MetricsCollector, OpenLineageEmitter, CloudMonitoringClient</td><td>Audit trail, data lineage, pipeline metrics, OpenLineage JSON, GCP custom metrics</td></tr>
+                        <tr><td><code>remediation/</code></td><td>SelfHealer, RetryHandler, IncidentManager</td><td>VIGIL self-healing (8 actions), exponential backoff + circuit breaker, incident creation</td></tr>
+                        <tr><td><code>storage/</code></td><td>GCSClient, FileOperations</td><td>GCS/S3/local storage abstraction</td></tr>
+                        <tr><td><code>notification/</code></td><td>EmailNotifier, SlackNotifier</td><td>Email and Slack alerts (success, failure, SLA breach)</td></tr>
+                        <tr><td><code>pipeline/</code></td><td>pipeline_tasks.py, pattern_tasks.py</td><td>Common task functions (all 9 patterns) + pattern-specific tasks (P02-P09)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin: 3rem 0 1rem; font-size: 1.3rem;">GCP Cloud Monitoring Custom Metrics</h3>
+            <div class="ui-field-grid fade-in">
+                <div class="ui-field"><div class="ui-field-name">apex/pipeline/records_processed</div><div class="ui-field-type">Counter</div><div class="ui-field-desc">Total records processed per zone transition</div></div>
+                <div class="ui-field"><div class="ui-field-name">apex/pipeline/quality_score</div><div class="ui-field-type">Gauge</div><div class="ui-field-desc">Weighted quality score (0-100) per execution</div></div>
+                <div class="ui-field"><div class="ui-field-name">apex/pipeline/duration_seconds</div><div class="ui-field-type">Timer</div><div class="ui-field-desc">End-to-end pipeline execution time</div></div>
+                <div class="ui-field"><div class="ui-field-name">apex/pipeline/cost_dollars</div><div class="ui-field-type">Gauge</div><div class="ui-field-desc">Estimated Dataproc cost per execution</div></div>
+                <div class="ui-field"><div class="ui-field-name">apex/pipeline/sla_breach</div><div class="ui-field-type">Counter</div><div class="ui-field-desc">SLA breach events (freshness, completion, quality)</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Frontend UI Pages -->
+    <section id="ui-pages">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">12</span>
+                <h2 class="section-title">Frontend UI Pages</h2>
+                <p class="section-desc">Next.js 14 with React Query and TailwindCSS. TypeScript types in <code>pipeline-canonical.ts</code> mirror backend Pydantic models exactly.</p>
+            </div>
+
+            <div class="feature-grid fade-in">
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128736;</div>
+                    <div class="feature-card-title">/pipelines</div>
+                    <div class="feature-card-desc">Pipeline creation &amp; monitoring. <code>UnifiedPipelineForm</code> with 3 input modes, <code>SourceTypeSelector</code> (70+ sources), <code>PatternSelector</code>, <code>SchemaInputPanel</code>, <code>ZoneIntentPanel</code>, <code>GoldModelingSelector</code>, <code>JoinDependencyBuilder</code>, <code>ExecutionPolicyPanel</code>.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128218;</div>
+                    <div class="feature-card-title">/catalog</div>
+                    <div class="feature-card-desc">Data Catalog browser. 3 tabs: Data Assets (search by name/domain/zone), Business Glossary (term definitions), Tag Taxonomy (SENSITIVITY/DOMAIN/QUALITY/COMPLIANCE).</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#128230;</div>
+                    <div class="feature-card-title">/data-products</div>
+                    <div class="feature-card-desc">Data Products marketplace. Browse published products by domain, view SLA definitions, subscribe to products. Subscription approval workflow.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-card-icon">&#127915;</div>
+                    <div class="feature-card-title">/jira/[id]</div>
+                    <div class="feature-card-desc">Jira-integrated pipeline creation. Auto-populates fields from Jira ticket metadata. Linked to pipeline creation workflow.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary" style="background: var(--bg-secondary);">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">&Sigma;</span>
+                <h2 class="section-title">Complete Flow Summary</h2>
+            </div>
+            <div class="callout fade-in" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15)); border: 1px solid rgba(139, 92, 246, 0.3);">
+                <div class="callout-icon">&#128640;</div>
+                <div class="callout-content">
+                    <div class="callout-text" style="font-size: 1.05rem; line-height: 1.8;">
+                        <strong>User fills 9 UI sections</strong> (or describes in NL, or uploads DTSX) &rarr;
+                        <strong>InputDispatcher normalizes</strong> to canonical PipelineMetadata &rarr;
+                        <strong>RegistryManager selects pattern</strong> P01-P09 (or <span class="badge badge-purple">LLM</span> creates new) &rarr;
+                        <strong>APEXDAGGenerator renders Jinja2</strong> template with joins, validation, PII masking &rarr;
+                        <strong>Validator checks</strong> syntax + imports + security &rarr;
+                        <strong>Human approves</strong> (PROD) &rarr;
+                        <strong>Git deploys</strong> (feature branch &rarr; PR &rarr; CI/CD) &rarr;
+                        <strong>Airflow executes</strong> 5 Spark jobs through medallion zones (Raw &rarr; Bronze &rarr; Silver &rarr; Gold) with PII detection, schema evolution, quality gates, join execution, lineage tracking, cost monitoring &mdash;
+                        <strong>all orchestrated by a 9-node LangGraph workflow</strong> backed by <strong>13 PostgreSQL DDL files</strong> of metadata.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">APEX vs Traditional ETL</h3>
+            <div class="fade-in">
+                <table>
+                    <thead><tr><th>Traditional ETL</th><th>APEX (Compiler)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Business logic hardcoded in DAG Python</td><td>Business logic in PostgreSQL metadata tables</td></tr>
+                        <tr><td>Schema changes require DAG edits</td><td>Schema changes update schema_version table; DAG unchanged</td></tr>
+                        <tr><td>Joins hardcoded in Spark jobs</td><td>Joins in join_dependency table; executed by join_executor.py</td></tr>
+                        <tr><td>Manual deployment</td><td>Git PR + CI/CD automated deployment</td></tr>
+                        <tr><td>No lineage tracking</td><td>Automatic lineage + OpenLineage spec</td></tr>
+                        <tr><td>Manual error handling</td><td>Self-healing via VIGIL pattern (8 actions)</td></tr>
+                        <tr><td>No PII detection</td><td>Automatic detection + masking enforcement</td></tr>
+                        <tr><td>No cost tracking</td><td>Automatic cost estimation + GCP billing labels</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Folder Structure -->
+    <section id="folder-structure">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">&#128193;</span>
+                <h2 class="section-title">Project Structure</h2>
+            </div>
+            <div class="code-block fade-in">
+                <div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span>agents/data_agent/</div>
+                <div class="code-content"><span class="comment">## DDL (13 files) &mdash; PostgreSQL metadata schema</span>
+ddl/apex/
+  01_extensions_and_types.sql      <span class="comment"># ENUMs, extensions</span>
+  02_core_tables.sql               <span class="comment"># connections, domains, sources, templates, feeds</span>
+  03_contract_and_schema.sql       <span class="comment"># contracts, schema versions, views, transforms</span>
+  04_validation_and_quality.sql    <span class="comment"># validation rules, GE expectations, SLAs</span>
+  05_execution_and_logging.sql     <span class="comment"># executions, audit, lineage, costs</span>
+  06_component_registry.sql        <span class="comment"># template/utility/spark registries</span>
+  07_ge_validation.sql             <span class="comment"># Great Expectations results</span>
+  08_join_dependency.sql           <span class="comment"># multi-table join configs</span>
+  09_pipeline_dependency.sql       <span class="comment"># cross-DAG dependencies</span>
+  10_observability_metrics.sql     <span class="comment"># drift detection + 30-day baseline</span>
+  11_data_catalog.sql              <span class="comment"># asset registry, glossary, tags</span>
+  12_governance.sql                <span class="comment"># RBAC, PII classifications</span>
+  13_data_products.sql             <span class="comment"># data mesh products + subscriptions</span>
+
+<span class="comment">## Source Code</span>
+src/
+  graphs/
+    apex_workflow.py               <span class="comment"># 9-node LangGraph StateGraph</span>
+  models/
+    canonical.py                   <span class="comment"># UnifiedPipelineInput, PipelineMetadata</span>
+    source.py                      <span class="comment"># 70+ SourceType enum, SourceConfig</span>
+    schema.py                      <span class="comment"># ColumnDefinition, SchemaConfig</span>
+    target.py                      <span class="comment"># TargetZone, TableFormat (delta/iceberg/parquet)</span>
+    transformation.py              <span class="comment"># 18 TransformTypes, JoinConfig</span>
+    quality.py, execution.py       <span class="comment"># QualityRule, ExecutionPolicy</span>
+    gold_zone.py                   <span class="comment"># Star Schema, Data Vault, SCD2</span>
+    apex_models.py                 <span class="comment"># APEX-specific: Feed, DataContract</span>
+  normalizers/
+    dispatcher.py                  <span class="comment"># Routes input to correct normalizer</span>
+    ui_normalizer.py               <span class="comment"># UI structured &rarr; PipelineMetadata</span>
+    nl_normalizer.py               <span class="comment"># Natural language &rarr; PipelineMetadata (LLM)</span>
+    dtsx_normalizer.py             <span class="comment"># DTSX/SSIS &rarr; PipelineMetadata</span>
+  generators/
+    apex_dag_generator.py          <span class="comment"># Jinja2 DAG renderer + BQ security DDL</span>
+  repository/
+    registry_manager.py            <span class="comment"># Pattern selection (P01-P09)</span>
+    pipeline_repository.py         <span class="comment"># Pipeline CRUD</span>
+    catalog_repository.py          <span class="comment"># Data catalog search + registration</span>
+    connection.py                  <span class="comment"># PostgreSQL connection pool</span>
+  templates/patterns/
+    p01_file_medallion.py.jinja2   <span class="comment"># through p09_star_schema.py.jinja2</span>
+    _macros/dependency_sensor.jinja2
+  spark_jobs/
+    raw_to_bronze.py               <span class="comment"># 21K lines &mdash; Raw &rarr; Bronze</span>
+    bronze_schema_validation.py    <span class="comment"># 12K lines &mdash; GE validation</span>
+    bronze_to_silver.py            <span class="comment"># 16K lines &mdash; Bronze &rarr; Silver + PII</span>
+    silver_semantic_validation.py  <span class="comment"># 12K lines &mdash; Business rules</span>
+    silver_to_gold.py              <span class="comment"># 19K lines &mdash; Silver &rarr; Gold + joins</span>
+    join_executor.py               <span class="comment"># 9.5K lines &mdash; Multi-table join engine</span>
+    table_maintenance.py           <span class="comment"># 10K lines &mdash; VACUUM, OPTIMIZE</span>
+  dag_utilities/
+    core/                          <span class="comment"># MetadataClient, ConfigLoader</span>
+    spark/                         <span class="comment"># JobSubmitter, ClusterManager, ConfigBuilder</span>
+    validation/                    <span class="comment"># SchemaValidator, GEHelper, QualityChecker</span>
+    logging/                       <span class="comment"># AuditLogger, LineageTracker, OpenLineage</span>
+    remediation/                   <span class="comment"># SelfHealer (VIGIL), RetryHandler</span>
+    storage/                       <span class="comment"># GCSClient, FileOperations</span>
+    notification/                  <span class="comment"># Email, Slack notifiers</span>
+    pipeline/                      <span class="comment"># Common + pattern-specific task functions</span>
+  parsers/
+    dtsx_parser.py                 <span class="comment"># SSIS XML &rarr; SourceConfig</span>
+    copybook_parser.py             <span class="comment"># COBOL copybook &rarr; schema</span>
+    nl_transform_processor.py      <span class="comment"># NL &rarr; PySpark/SQL (9 intents)</span>
+  security/
+    pii_detection.py               <span class="comment"># Regex + column-name PII detection</span>
+    governance_enforcer.py         <span class="comment"># Masking enforcement + BQ policy tags</span>
+  quality/
+    schema_evolution.py            <span class="comment"># STRICT/ADDITIVE/FLEXIBLE drift</span>
+    data_drift_detector.py         <span class="comment"># Schema/stats/volume/freshness drift</span>
+
+registry.json                      <span class="comment"># Component manifest (APEX v2.1.0)</span>
+scripts/promote_pipeline.py        <span class="comment"># Multi-env promotion CLI</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Practical Implementation Guide -->
+    <section id="practical-guide">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">&#128295;</span>
+                <h2 class="section-title">Practical Implementation Guide</h2>
+                <p class="section-desc">Real-world insights from end-to-end testing. Common pitfalls, debugging tips, and production patterns that work.</p>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">&#127881; Example: EBCDIC Pipeline (3 seconds, API to GitHub)</h3>
+            <div class="callout success fade-in">
+                <div class="callout-icon">&#9989;</div>
+                <div class="callout-content">
+                    <div class="callout-title">Real End-to-End Run</div>
+                    <div class="callout-text">
+                        <strong>Input:</strong> API POST with 6-column EBCDIC schema, GCS source<br>
+                        <strong>Pattern:</strong> P01 File Medallion (auto-selected)<br>
+                        <strong>Generated:</strong> 227-line DAG → mainframe_customer_ebcdic.py<br>
+                        <strong>Deployed:</strong> GitHub PR #4 on sam2881/enterprise-data-pipelines<br>
+                        <strong>Execution:</strong> ~3s through all 9 workflow phases<br>
+                        <strong>Validation:</strong> Python syntax ✓ Imports ✓ DAG structure ✓
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">&#128296; Common Fixes</h3>
+            <div class="fade-in">
+                <table>
+                    <thead><tr><th>Issue</th><th>Symptom</th><th>Fix</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Git Auth</strong></td><td><code>fatal: could not read Username</code></td><td>Embed token: <code>https://x-access-token:{token}@github.com/</code></td></tr>
+                        <tr><td><strong>Missing domain</strong></td><td><code>'domain' is undefined</code></td><td>Add context alias: <code>context["domain"] = config.domain_id</code></td></tr>
+                        <tr><td><strong>Python bools</strong></td><td><code>NameError: name 'false'</code></td><td>Jinja2 renders <code>false</code> not <code>False</code>; use filters</td></tr>
+                        <tr><td><strong>Docker cache</strong></td><td>Code changes not applied</td><td>Build with <code>--no-cache</code> flag</td></tr>
+                        <tr><td><strong>Registry missing</strong></td><td><code>registry_json_not_found</code></td><td>Add to Dockerfile: <code>COPY registry.json ./</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">&#128269; Debug Commands</h3>
+            <div class="code-block fade-in">
+                <div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span>Quick Debug Reference</div>
+                <div class="code-content"><span class="comment"># Check health</span>
+curl http://localhost:8001/health | jq
+
+<span class="comment"># Submit pipeline</span>
+curl -X POST http://localhost:8001/pipelines -H <span class="string">"Content-Type: application/json"</span> -d @request.json
+
+<span class="comment"># Check status</span>
+sleep 10 && curl http://localhost:8001/pipelines/{id} | jq
+
+<span class="comment"># View logs</span>
+docker compose logs --tail=100 data-agent | grep <span class="string">"generate_artifacts"</span>
+
+<span class="comment"># Extract DAG</span>
+docker cp ai-agent-data:/app/dags/generated/{dag_id}.py ./</div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">&#128218; Required Template Variables</h3>
+            <div class="callout fade-in">
+                <div class="callout-icon">&#128209;</div>
+                <div class="callout-content">
+                    <div class="callout-title">P01 Template Expects</div>
+                    <div class="callout-text" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                        feed_id, contract_id, dag_id, domain, start_date.year/.month/.day, owner, schedule_interval, retry_count, environment, bronze_columns
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin: 2rem 0 1rem; font-size: 1.3rem;">&#127939; Quick Start</h3>
+            <div class="timeline fade-in">
+                <div class="timeline-item"><div class="timeline-title">1. Setup</div><div class="timeline-desc"><code>.env</code> needs: GITHUB_TOKEN, ANTHROPIC_API_KEY, GCP_PROJECT_ID</div></div>
+                <div class="timeline-item"><div class="timeline-title">2. Start</div><div class="timeline-desc"><code>docker compose up -d postgres kafka data-agent</code></div></div>
+                <div class="timeline-item"><div class="timeline-title">3. Test</div><div class="timeline-desc"><code>curl -X POST localhost:8001/pipelines -d @request.json</code></div></div>
+                <div class="timeline-item"><div class="timeline-title">4. View</div><div class="timeline-desc">Check response for <code>pr_url</code>, review DAG, merge</div></div>
+            </div>
+
+            <div class="callout llm fade-in" style="margin-top: 2rem;">
+                <div class="callout-icon">&#129504;</div>
+                <div class="callout-content">
+                    <div class="callout-title">For Beginners</div>
+                    <div class="callout-text">
+                        1. Read <code>docs/CLAUDE_CODE_MASTER_CONTEXT.md</code><br>
+                        2. Run <code>scripts/e2e_csv_pipeline_test.py</code><br>
+                        3. Study generated DAG in <code>/app/dags/generated/</code><br>
+                        4. Explore <code>src/graphs/apex_workflow.py</code> for LangGraph
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-logo">APEX Data Agent</div>
+        <p class="footer-text">Enterprise-grade metadata-driven pipeline compiler. 9 patterns, 70+ sources, 5 Spark jobs, 13 DDL files &mdash; a compiler that turns metadata into production Airflow DAGs.</p>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem;">APEX v2.1 &bull; Metadata-Driven Architecture &bull; LangGraph Orchestration &bull; Medallion Architecture</p>
+    </footer>
+
+    <script>
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    </script>
+</body>
+</html>
