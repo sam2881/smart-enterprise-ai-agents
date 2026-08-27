@@ -1,6 +1,46 @@
 # Enterprise Agentic Platform
 
-An event-driven, multi-agent platform for automated IT incident resolution and intelligent data pipeline generation. Built with LangGraph, FastAPI, Apache Kafka, and Next.js 14. Deploys end-to-end on Google Cloud Platform with a single setup script.
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-Next.js-3178C6?logo=typescript&logoColor=white) ![Kafka](https://img.shields.io/badge/Events-Apache%20Kafka-231F20?logo=apachekafka&logoColor=white) ![GCP](https://img.shields.io/badge/Cloud-GCP-4285F4?logo=googlecloud&logoColor=white) ![Tests](https://img.shields.io/badge/Tests-102%20unit%20tests-2E7D32)
+
+An event-driven, multi-agent platform for **governed IT incident remediation** and **metadata-driven data pipeline generation**. Built with LangGraph, FastAPI, Apache Kafka, and Next.js 14, this portfolio project demonstrates how AI can reason and propose while deterministic services validate, authorize, execute, and audit consequential actions.
+
+> **Portfolio signal:** architecture thinking backed by runnable Python, TypeScript, SQL, Terraform, Docker, CI/CD, security controls, and operational workflows.
+
+## Why This Project Matters
+
+| Enterprise problem | Demonstrated solution |
+| --- | --- |
+| Slow, manual incident response | ServiceNow events flow through diagnosis, RAG, planning, approval, execution, and verification |
+| Fragile, bespoke data pipelines | APEX agents generate Airflow DAGs, Spark jobs, and BigQuery SQL from structured metadata |
+| Uncontrolled AI actions | Human approval gates, policy checks, audit events, PII detection, and rollback-aware execution |
+| Opaque distributed systems | Kafka-backed state transitions, observability, lineage, and explicit LangGraph workflows |
+
+## Start Here
+
+- **[Architecture deep-dive](docs/architecture.md)** — event flow, services, and workflow boundaries
+- **[Data Agent guide](docs/data-agent-guide.md)** — source types, generated artifacts, and pipeline lifecycle
+- **[Testing guide](docs/testing.md)** — unit, integration, and end-to-end validation strategy
+- **[Frontend guide](frontend/README.md)** — dashboard routes and local UI workflow
+
+### Two Systems, One Control Plane
+
+- **Incident Management:** ServiceNow/Jira/monitoring intake → context retrieval → remediation plan → risk review → human approval → controlled execution → verification.
+- **Data Engineering Agent:** source metadata → planning → connection test → DAG/Spark/SQL generation → validation → deployment → monitoring.
+
+The platform is intentionally designed around a clear boundary: **AI proposes; policy and deterministic runtime services decide what can execute.**
+
+```mermaid
+flowchart LR
+       A[ServiceNow / Jira / Data Sources] --> B[MCP Integrations]
+       B --> C[(Kafka Event Log)]
+       C --> D[LangGraph Workflows]
+       D --> E[Policy, Security & Human Approval]
+       E --> F[FastAPI Control Plane]
+       F --> G[Airflow / Spark / Cloud Runtime]
+       D --> H[Next.js Operations UI]
+       G --> I[Metrics, Logs, Lineage & Audit]
+       I --> H
+```
 
 ---
 
