@@ -124,7 +124,7 @@ with DAG(
         op_kwargs={
             "config": config,
             "job_name": "bronze_to_silver",
-            "job_path": "spark_jobs/bronze_to_silver.py",
+            "job_path": "spark_jobs/v2/promote_bronze_to_silver.py",
             "feed_id": FEED_ID,
             "contract_id": CONTRACT_ID,
             "metrics_xcom_key": "silver_metrics",
@@ -152,7 +152,7 @@ with DAG(
         op_kwargs={
             "config": config,
             "job_name": "silver_to_gold",
-            "job_path": "spark_jobs/silver_to_gold.py",
+            "job_path": "spark_jobs/v2/build_gold_layer.py",
             "feed_id": FEED_ID,
             "contract_id": CONTRACT_ID,
             "metrics_xcom_key": "gold_metrics",

@@ -20,7 +20,7 @@ Usage in thin DAGs:
     raw_tg = get_spark_tg_wrapper_v2(
         dag=dag,
         task_group_id="raw_zone",
-        spark_script_path="gs://bucket/spark_scripts/ge_schema_validator.py",
+        spark_script_path="gs://bucket/spark_scripts/validate_schema_with_great_expectations.py",
         positional_args_list=[str(FEED_ID), "raw", "{{ ds_nodash }}"],
         pg_conn_info_dict=PG_CONN_INFO,
         ge_check_enabled=True,

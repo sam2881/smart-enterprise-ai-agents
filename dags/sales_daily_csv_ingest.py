@@ -109,7 +109,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "source_to_landing",
-                "job_path": "spark_jobs/v2/source_to_landing.py",
+                "job_path": "spark_jobs/v2/ingest_source_to_landing.py",
                 "args": {
                     "--feed-id": "feed_daily_sales",
                     "--batch-id": "{{ ds_nodash }}",
@@ -147,7 +147,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "landing_to_bronze",
-                "job_path": "spark_jobs/v2/landing_to_bronze.py",
+                "job_path": "spark_jobs/v2/promote_landing_to_bronze.py",
                 "args": {
                     "--feed-id": "feed_daily_sales",
                     "--contract-id": "feed_daily_sales",
@@ -182,7 +182,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "bronze_to_silver",
-                "job_path": "spark_jobs/v2/bronze_to_silver.py",
+                "job_path": "spark_jobs/v2/promote_bronze_to_silver.py",
                 "args": {
                     "--feed-id": "feed_daily_sales",
                     "--contract-id": "feed_daily_sales",
@@ -205,7 +205,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "silver_to_gold",
-                "job_path": "spark_jobs/v2/silver_to_gold.py",
+                "job_path": "spark_jobs/v2/build_gold_layer.py",
                 "args": {
                     "--feed-id": "feed_daily_sales",
                     "--contract-id": "feed_daily_sales",

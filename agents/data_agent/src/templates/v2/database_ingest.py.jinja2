@@ -145,7 +145,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "source_to_landing",
-                "job_path": "spark_jobs/v2/source_to_landing.py",
+                "job_path": "spark_jobs/v2/ingest_source_to_landing.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--batch-id": "{% raw %}{{ ds_nodash }}{% endraw %}",
@@ -193,7 +193,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "landing_to_bronze",
-                "job_path": "spark_jobs/v2/landing_to_bronze.py",
+                "job_path": "spark_jobs/v2/promote_landing_to_bronze.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--contract-id": "{{ feed.feed_id }}",
@@ -230,7 +230,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "bronze_to_silver",
-                "job_path": "spark_jobs/v2/bronze_to_silver.py",
+                "job_path": "spark_jobs/v2/promote_bronze_to_silver.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--contract-id": "{{ feed.feed_id }}",
@@ -257,7 +257,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "silver_to_gold",
-                "job_path": "spark_jobs/v2/silver_to_gold.py",
+                "job_path": "spark_jobs/v2/build_gold_layer.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--contract-id": "{{ feed.feed_id }}",
@@ -296,7 +296,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "load_hub_{{ hub.hub_name }}",
-                "job_path": "spark_jobs/v2/load_hub.py",
+                "job_path": "spark_jobs/v2/load_data_vault_hub.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--execution-id": "{% raw %}{{ ti.xcom_pull(key='execution_id') }}{% endraw %}",
@@ -316,7 +316,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "load_sat_{{ sat.satellite_name }}",
-                "job_path": "spark_jobs/v2/load_satellite.py",
+                "job_path": "spark_jobs/v2/load_data_vault_satellite.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--execution-id": "{% raw %}{{ ti.xcom_pull(key='execution_id') }}{% endraw %}",
@@ -341,7 +341,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "load_dim_{{ dim.dimension_name }}",
-                "job_path": "spark_jobs/v2/load_dimension.py",
+                "job_path": "spark_jobs/v2/load_dimension_tables.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--execution-id": "{% raw %}{{ ti.xcom_pull(key='execution_id') }}{% endraw %}",
@@ -363,7 +363,7 @@ with DAG(
             python_callable=submit_dataproc_job,
             op_kwargs={
                 "job_name": "load_fact_{{ fact.fact_name }}",
-                "job_path": "spark_jobs/v2/load_fact.py",
+                "job_path": "spark_jobs/v2/load_fact_table.py",
                 "args": {
                     "--feed-id": "{{ feed.feed_id }}",
                     "--execution-id": "{% raw %}{{ ti.xcom_pull(key='execution_id') }}{% endraw %}",

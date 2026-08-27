@@ -68,7 +68,7 @@ tests/             ← Integration tests (require live infra)
 
 `Landing` (raw, immutable) → `Bronze` (schema enforced) → `Silver` (cleaned/deduped) → `Gold` (business logic, analytics-ready — final layer)
 
-Zone Spark jobs: `src/spark_jobs/v2/landing_to_bronze.py`, `bronze_to_silver.py`, `silver_to_gold.py`, `load_fact.py`, `load_hub.py`
+Zone Spark jobs: `src/spark_jobs/v2/promote_landing_to_bronze.py`, `promote_bronze_to_silver.py`, `build_gold_layer.py`, `load_fact_table.py`, `load_data_vault_hub.py`
 
 ## Adding a New Source Type
 

@@ -24,7 +24,7 @@ All schema, format, delimiter, source_path, quality rules etc. are fetched
 from PostgreSQL tables using feed_id — NOT passed as positional args.
 
 Usage:
-    spark-submit ge_schema_validator.py 1001 manual__2026-02-08 "" \\
+    spark-submit validate_schema_with_great_expectations.py 1001 manual__2026-02-08 "" \\
         pg-host public user pass 5432 "" 42 \\
         cdls/validations/great_expectations/ cdls/data_docs/great_expectations/
 """
@@ -994,7 +994,7 @@ def main():
     """
     if len(sys.argv) < 7:
         print(
-            "Usage: spark-submit ge_schema_validator.py "
+            "Usage: spark-submit validate_schema_with_great_expectations.py "
             "<feed_id> <run_id> <data_asset_name> "
             "<pg_host> <pg_schema> <pg_user> <pg_pw> <pg_port> <pg_extra> "
             "[run_id_cws] [validations_prefix] [data_docs_prefix]"

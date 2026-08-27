@@ -301,7 +301,7 @@ The `pipeline_execution` table tracks re-runs with an auto-incrementing `sequenc
 
 ### Multi-Table Joins in Gold Zone
 
-When `join_dependency` entries exist for a contract, `silver_to_gold.py` calls `join_executor.py` before Gold processing:
+When `join_dependency` entries exist for a contract, `build_gold_layer.py` calls `join_executor.py` before Gold processing:
 
 ```python
 # Step 0: Resolve join dependencies
@@ -370,7 +370,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 | **Output** | Quality score (0-100), validation results to `ge_validation_result` table |
 | **Branch** | Pass → bronze_to_silver; Fail → handle_validation_failure |
 
-### 3. bronze_to_silver.py
+### 3. promote_bronze_to_silver.py
 
 | Aspect | Detail |
 |--------|--------|
@@ -389,7 +389,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 | **Output** | Quality score (0-100), validation results to `ge_validation_result` table |
 | **Branch** | Pass → silver_to_gold; Fail → handle_validation_failure |
 
-### 5. silver_to_gold.py
+### 5. build_gold_layer.py
 
 | Aspect | Detail |
 |--------|--------|
@@ -404,7 +404,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 
 | Aspect | Detail |
 |--------|--------|
-| **Purpose** | Generic multi-table join engine used by silver_to_gold.py |
+| **Purpose** | Generic multi-table join engine used by build_gold_layer.py |
 | **Join Types** | INNER, LEFT, RIGHT, FULL, CROSS, SEMI, ANTI |
 | **Features** | Chain joins (A→B→C), null-safe keys, broadcast hints for small tables |
 | **Safety** | Grain verification after each join — raises `ValueError` if fanout ratio > 2.0x |

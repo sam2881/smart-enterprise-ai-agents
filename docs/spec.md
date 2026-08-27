@@ -656,7 +656,7 @@ dag_structure = {
 ║  Logic:      Column presence, data types, PK integrity, nullability          ║
 ║  Driven By:  validation_rule (zone='BRONZE'), quality_expectation            ║
 ║                                                                              ║
-║  JOB #3: bronze_to_silver.py                                                 ║
+║  JOB #3: promote_bronze_to_silver.py                                                 ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
 ║  Purpose:    Transform Bronze to cleansed, conformed Silver                  ║
 ║  Input:      Bronze zone                                                     ║
@@ -672,7 +672,7 @@ dag_structure = {
 ║  Logic:      Business rules, referential integrity, grain enforcement        ║
 ║  Driven By:  validation_rule (zone='SILVER'), quality_expectation            ║
 ║                                                                              ║
-║  JOB #5: silver_to_gold.py                                                   ║
+║  JOB #5: build_gold_layer.py                                                   ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
 ║  Purpose:    Transform Silver to business-ready Gold                         ║
 ║  Input:      Silver zone                                                     ║
@@ -1054,7 +1054,7 @@ class SelfHealer:
 │ Load Modes:   Full, Append, Incremental (date-partitioned)                  │
 │                                                                              │
 │ DAG Template: dag_template_file_medallion.py                                │
-│ Spark Jobs:   raw_to_bronze.py → bronze_to_silver.py → silver_to_gold.py    │
+│ Spark Jobs:   raw_to_bronze.py → promote_bronze_to_silver.py → build_gold_layer.py    │
 │                                                                              │
 │ Metadata Required:                                                           │
 │ • data_contract: file_pattern, file_format, source_path, load_type          │
@@ -1206,7 +1206,7 @@ class SelfHealer:
 │ • Change detection on tracked columns                                       │
 │                                                                              │
 │ DAG Template: dag_template_scd2.py                                          │
-│ Gold Job: silver_to_gold.py with SCD2 merge logic                           │
+│ Gold Job: build_gold_layer.py with SCD2 merge logic                           │
 │                                                                              │
 │ Metadata Required:                                                           │
 │ • transformation_rule: business_key_columns, tracked_columns                │
@@ -1240,7 +1240,7 @@ class SelfHealer:
 │ • SATELLITE: Attribute storage (hash_key, hub_fk, attributes, hashdiff)     │
 │                                                                              │
 │ DAG Template: dag_template_data_vault.py                                    │
-│ Gold Job: silver_to_gold.py with DV2 loading patterns                       │
+│ Gold Job: build_gold_layer.py with DV2 loading patterns                       │
 │                                                                              │
 │ Metadata Required:                                                           │
 │ • transformation_rule: dv_type (HUB/LINK/SAT), hash_columns                 │
@@ -1275,7 +1275,7 @@ class SelfHealer:
 │ • BRIDGE: Many-to-many relationship handlers                                │
 │                                                                              │
 │ DAG Template: dag_template_star_schema.py                                   │
-│ Gold Job: silver_to_gold.py with dimensional loading                        │
+│ Gold Job: build_gold_layer.py with dimensional loading                        │
 │                                                                              │
 │ Metadata Required:                                                           │
 │ • transformation_rule: table_type (FACT/DIM), grain_columns                 │
@@ -1842,9 +1842,9 @@ typical_frequency: "Daily, Weekly, Monthly"
 required_spark_jobs:
   - "raw_to_bronze.py"
   - "bronze_schema_validation.py"
-  - "bronze_to_silver.py"
+  - "promote_bronze_to_silver.py"
   - "silver_semantic_validation.py"
-  - "silver_to_gold.py"
+  - "build_gold_layer.py"
 
 required_metadata_tables:
   - "source_registry"
@@ -2485,7 +2485,7 @@ INSERT INTO dag_template (
     ARRAY['FLAT', 'NORMALIZED'],
     false, false, false, false, false, false, false,
     ARRAY['source_registry', 'feed_group', 'feed', 'data_contract', 'schema_version', 'view_definition', 'validation_rule', 'spark_config'],
-    ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'bronze_to_silver.py', 'silver_semantic_validation.py', 'silver_to_gold.py'],
+    ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'promote_bronze_to_silver.py', 'silver_semantic_validation.py', 'build_gold_layer.py'],
     ARRAY['file', 'csv', 'json', 'parquet', 'avro', 'daily', 'weekly', 'batch', 'ingest', 'landing', 'vendor', 'export'],
     '{{ jinja_template_content }}',
     '{"source_path": "", "file_pattern": "", "load_type": "FULL"}',
@@ -2514,7 +2514,7 @@ INSERT INTO dag_template (
     ARRAY['FLAT', 'PARTITIONED'],
     true,
     ARRAY['source_registry', 'feed_group', 'feed', 'data_contract', 'schema_version', 'view_definition', 'validation_rule', 'spark_config'],
-    ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'bronze_to_silver.py', 'silver_semantic_validation.py', 'silver_to_gold.py'],
+    ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'promote_bronze_to_silver.py', 'silver_semantic_validation.py', 'build_gold_layer.py'],
     ARRAY['large', 'big', 'huge', 'massive', 'terabyte', 'tb', 'compressed', 'archive', 'batch', 'parallel', 'partition'],
     '{"executor_instances": 10, "executor_memory": "8g", "executor_cores": 4, "driver_memory": "4g", "shuffle_partitions": 500, "adaptive_enabled": true}',
     '{{ jinja_template_content }}',
@@ -5259,8 +5259,8 @@ with DAG(
 │  PYSPARK JOBS (5 canonical):                                                │
 │  ─────────────────────────────────────────────────────────────────────────  │
 │  1. raw_to_bronze.py              4. silver_semantic_validation.py          │
-│  2. bronze_schema_validation.py   5. silver_to_gold.py                      │
-│  3. bronze_to_silver.py                                                     │
+│  2. bronze_schema_validation.py   5. build_gold_layer.py                      │
+│  3. promote_bronze_to_silver.py                                                     │
 │                                                                             │
 │  DATA ZONES (5 layers):                                                     │
 │  ─────────────────────────────────────────────────────────────────────────  │
@@ -6727,8 +6727,8 @@ data-platform/
 │   └── dag_generator.py              # DAG generation script
 ├── spark_jobs/
 │   ├── raw_to_bronze.py
-│   ├── bronze_to_silver.py
-│   └── silver_to_gold.py
+│   ├── promote_bronze_to_silver.py
+│   └── build_gold_layer.py
 ├── dag_utilities/
 │   ├── __init__.py
 │   ├── core/

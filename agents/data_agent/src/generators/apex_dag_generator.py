@@ -257,16 +257,16 @@ class APEXDAGGenerator:
 
     # Spark jobs included per generated bundle
     V2_SPARK_JOBS = [
-        "ge_schema_validator.py",
-        "ge_semantic_validator.py",
-        "source_to_landing.py",
-        "landing_to_bronze.py",
-        "bronze_to_silver.py",
-        "silver_to_gold.py",
-        "load_hub.py",
-        "load_satellite.py",
-        "load_dimension.py",
-        "load_fact.py",
+        "validate_schema_with_great_expectations.py",
+        "validate_semantics_with_great_expectations.py",
+        "ingest_source_to_landing.py",
+        "promote_landing_to_bronze.py",
+        "promote_bronze_to_silver.py",
+        "build_gold_layer.py",
+        "load_data_vault_hub.py",
+        "load_data_vault_satellite.py",
+        "load_dimension_tables.py",
+        "load_fact_table.py",
     ]
 
     def generate_from_feed_group(

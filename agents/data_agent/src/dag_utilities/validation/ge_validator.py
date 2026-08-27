@@ -1,7 +1,7 @@
 """
 Great Expectations Validator - Step 6 of Agent Workflow
 
-Production GE validation following the ge_schema_validator.py pattern:
+Production GE validation following the validate_schema_with_great_expectations.py pattern:
 - Schema validation from schema_details table
 - Semantic validation from quality_rules table
 - Auto-create expectation suites if not exist
@@ -73,7 +73,7 @@ class ExpectationConfig:
 
 class GEValidator:
     """
-    Production GE validation following ge_schema_validator.py pattern.
+    Production GE validation following validate_schema_with_great_expectations.py pattern.
 
     Step 6 of the 7-step Agent Workflow:
     - GE rules come from quality_rules metadata table

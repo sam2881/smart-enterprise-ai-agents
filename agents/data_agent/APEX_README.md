@@ -40,9 +40,9 @@ This document describes the redesigned data agent architecture following the APE
 |-----|---------|
 | `raw_to_bronze.py` | Raw file ingestion to Bronze zone |
 | `bronze_schema_validation.py` | Schema validation on Bronze data |
-| `bronze_to_silver.py` | Bronze to Silver transformation with view SQL |
+| `promote_bronze_to_silver.py` | Bronze to Silver transformation with view SQL |
 | `silver_semantic_validation.py` | Business rule validation on Silver |
-| `silver_to_gold.py` | Silver to Gold transformation, SCD2, aggregations |
+| `build_gold_layer.py` | Silver to Gold transformation, SCD2, aggregations |
 
 ### 4. Pipeline Pattern Templates (`src/templates/patterns/`)
 

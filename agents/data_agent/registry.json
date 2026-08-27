@@ -178,7 +178,7 @@
     },
     "BRONZE_TO_SILVER": {
       "name": "Bronze to Silver Transform",
-      "path": "src/spark_jobs/bronze_to_silver.py",
+      "path": "src/spark_jobs/v2/promote_bronze_to_silver.py",
       "source_zone": "BRONZE",
       "target_zone": "SILVER",
       "operations": ["VIEW_TRANSFORM", "DEDUPLICATE", "BUSINESS_KEY", "CLEAN", "HASH_GENERATE"],
@@ -194,7 +194,7 @@
     },
     "SILVER_TO_GOLD": {
       "name": "Silver to Gold Transform",
-      "path": "src/spark_jobs/silver_to_gold.py",
+      "path": "src/spark_jobs/v2/build_gold_layer.py",
       "source_zone": "SILVER",
       "target_zone": "GOLD",
       "operations": ["AGGREGATE", "SCD2", "MERGE", "DIMENSION_LOAD", "FACT_LOAD", "SURROGATE_KEY", "HUB_LOAD", "LINK_LOAD", "SATELLITE_LOAD", "DETECT_CHANGES"],
@@ -202,61 +202,61 @@
     },
     "V2_GE_SCHEMA_VALIDATOR": {
       "name": "V2 GE Schema Validator",
-      "path": "src/spark_jobs/v2/ge_schema_validator.py",
+      "path": "src/spark_jobs/v2/validate_schema_with_great_expectations.py",
       "operations": ["SCHEMA_VALIDATION", "GE_CHECKPOINT"],
       "required_args": ["feed_id", "batch_identifier", "data_asset_name", "pg_host", "pg_schema"]
     },
     "V2_GE_SEMANTIC_VALIDATOR": {
       "name": "V2 GE Semantic Validator",
-      "path": "src/spark_jobs/v2/ge_semantic_validator.py",
+      "path": "src/spark_jobs/v2/validate_semantics_with_great_expectations.py",
       "operations": ["SEMANTIC_VALIDATION", "BUSINESS_RULES", "REFERENTIAL_INTEGRITY"],
       "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
     },
     "V2_SOURCE_TO_LANDING": {
       "name": "V2 Source to Landing",
-      "path": "src/spark_jobs/v2/source_to_landing.py",
+      "path": "src/spark_jobs/v2/ingest_source_to_landing.py",
       "operations": ["RAW_INGEST", "FORMAT_DETECTION", "STRING_CAST"],
       "required_args": ["--feed-id", "--batch-id", "--source-type", "--source-path", "--target-path"]
     },
     "V2_LANDING_TO_BRONZE": {
       "name": "V2 Landing to Bronze",
-      "path": "src/spark_jobs/v2/landing_to_bronze.py",
+      "path": "src/spark_jobs/v2/promote_landing_to_bronze.py",
       "operations": ["TYPE_CAST", "SCHEMA_ENFORCEMENT", "AUDIT_COLUMNS"],
       "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
     },
     "V2_BRONZE_TO_SILVER": {
       "name": "V2 Bronze to Silver",
-      "path": "src/spark_jobs/v2/bronze_to_silver.py",
+      "path": "src/spark_jobs/v2/promote_bronze_to_silver.py",
       "operations": ["DEDUP", "CLEAN", "TRANSFORM", "STANDARDIZE"],
       "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db"]
     },
     "V2_SILVER_TO_GOLD": {
       "name": "V2 Silver to Gold",
-      "path": "src/spark_jobs/v2/silver_to_gold.py",
+      "path": "src/spark_jobs/v2/build_gold_layer.py",
       "operations": ["BUSINESS_LOGIC", "SCD2", "DATA_VAULT", "STAR_SCHEMA"],
       "required_args": ["--feed-id", "--contract-id", "--execution-id", "--metadata-db", "--model-type"]
     },
     "V2_LOAD_HUB": {
       "name": "V2 Data Vault Hub Loader",
-      "path": "src/spark_jobs/v2/load_hub.py",
+      "path": "src/spark_jobs/v2/load_data_vault_hub.py",
       "operations": ["HASH_KEY", "HUB_INSERT"],
       "required_args": ["--feed-id", "--execution-id", "--hub-name", "--business-keys"]
     },
     "V2_LOAD_SATELLITE": {
       "name": "V2 Data Vault Satellite Loader",
-      "path": "src/spark_jobs/v2/load_satellite.py",
+      "path": "src/spark_jobs/v2/load_data_vault_satellite.py",
       "operations": ["HASH_DIFF", "CHANGE_DETECT", "SATELLITE_INSERT"],
       "required_args": ["--feed-id", "--execution-id", "--satellite-name", "--hub-hash-key-col"]
     },
     "V2_LOAD_DIMENSION": {
       "name": "V2 Star Schema Dimension Loader",
-      "path": "src/spark_jobs/v2/load_dimension.py",
+      "path": "src/spark_jobs/v2/load_dimension_tables.py",
       "operations": ["SCD0", "SCD1", "SCD2", "SCD3", "SURROGATE_KEY"],
       "required_args": ["--feed-id", "--execution-id", "--dimension-name", "--scd-type"]
     },
     "V2_LOAD_FACT": {
       "name": "V2 Star Schema Fact Loader",
-      "path": "src/spark_jobs/v2/load_fact.py",
+      "path": "src/spark_jobs/v2/load_fact_table.py",
       "operations": ["DIMENSION_LOOKUP", "SURROGATE_RESOLVE", "FACT_INSERT"],
       "required_args": ["--feed-id", "--execution-id", "--fact-name", "--grain-columns"]
     }

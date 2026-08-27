@@ -354,7 +354,7 @@ with DAG(
             tg_name="schema_validation",
             feed_name="{{ feed_task_group_name | default('feed_load') }}.",
             spark_app_name=str(FEED_ID) + "-schema-" + str(uuid.uuid4()),
-            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/great_expectations/ge_schema_validator.py",
+            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/great_expectations/validate_schema_with_great_expectations.py",
             exec_size="{{ exec_size | default('medium') }}",
             extra_task_id="check_result",
             extra_func=check_ge_status,
