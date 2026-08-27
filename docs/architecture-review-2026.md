@@ -125,7 +125,7 @@ FastAPI → LangGraph → Kafka → Redis → PostgreSQL communications are all 
 **G-SEC-03: No Secrets Rotation Automation**  
 Credentials (OpenAI API key, Jira token, ServiceNow password, Fernet keys) are environment variables with no rotation schedule or automated rotation trigger. One credential exposure (already occurred with the GitHub token) requires manual rotation across all environments.
 
-*Impact:* Critical. Exposed credentials (`[REDACTED_GITHUB_TOKEN]`, ServiceNow `[REDACTED_SERVICENOW_PASSWORD]`) from the previous session have not been rotated.  
+*Impact:* Critical. Exposed credentials from the previous session have not been rotated.  
 *Fix:* HashiCorp Vault with dynamic secrets for database credentials. Cloud-native: GCP Secret Manager, AWS Secrets Manager, or Azure Key Vault with automatic rotation policies.
 
 **G-SEC-04: No API Rate Limiting**  
