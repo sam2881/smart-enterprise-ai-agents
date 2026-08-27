@@ -50,7 +50,7 @@ src/
   models/          ← Pydantic v2 canonical models (source.py, canonical.py, pipeline.py)
   generators/      ← Jinja2 DAG + SQL generation (apex_dag_generator.py)
   dag_utilities/   ← 42 DAG building blocks (see dag_utilities/README.md)
-  spark_jobs/v2/   ← Zone Spark processors (landing_to_bronze, bronze_to_silver, etc.)
+  spark_jobs/v2/   ← Zone Spark processors (professional, layer-oriented jobs)
   normalizers/     ← Input normalization (UI/NL/DTSX → UnifiedPipelineInput)
   parsers/         ← Raw input parsers (dtsx_parser.py, nl_transform_processor.py)
   quality/         ← Data drift detection + schema evolution
@@ -68,7 +68,7 @@ tests/             ← Integration tests (require live infra)
 
 `Landing` (raw, immutable) → `Bronze` (schema enforced) → `Silver` (cleaned/deduped) → `Gold` (business logic, analytics-ready — final layer)
 
-Zone Spark jobs: `src/spark_jobs/v2/promote_landing_to_bronze.py`, `promote_bronze_to_silver.py`, `build_gold_layer.py`, `load_fact_table.py`, `load_data_vault_hub.py`
+Zone Spark jobs: `src/spark_jobs/v2/ingest_source_to_landing.py`, `promote_landing_to_bronze.py`, `promote_bronze_to_silver.py`, `build_gold_layer.py`, `validate_schema_with_great_expectations.py`, `validate_semantics_with_great_expectations.py`, `load_dimension_tables.py`, `load_fact_table.py`, `load_data_vault_hub.py`, `load_data_vault_satellite.py`
 
 ## Adding a New Source Type
 
