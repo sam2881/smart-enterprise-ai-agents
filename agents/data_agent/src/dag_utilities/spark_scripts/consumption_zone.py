@@ -540,13 +540,13 @@ def _apply_schema_encryption(df, config: Dict) -> Any:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def audit_log(conn, feed_id, file_run_id, zone, status, records=0, error=None):
-    """Write audit record to audit_log table (production pattern)."""
+def platform_audit_log(conn, feed_id, file_run_id, zone, status, records=0, error=None):
+    """Write audit record to platform_audit_log table (production pattern)."""
     try:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO audit_log
+            INSERT INTO platform_audit_log
                 (event_type, severity, feed_id, execution_id, event_data, created_at)
             VALUES (%s, %s, %s, %s, %s, NOW())
             """,
@@ -564,7 +564,7 @@ def audit_log(conn, feed_id, file_run_id, zone, status, records=0, error=None):
         )
         conn.commit()
     except Exception as exc:
-        logger.warning("audit_log failed: %s", exc)
+        logger.warning("platform_audit_log failed: %s", exc)
         try:
             conn.rollback()
         except Exception:
@@ -679,7 +679,7 @@ def main():
     processor = DV_PROCESSORS.get(data_vault_type.lower())
     if not processor:
         logger.error("Unknown data_vault_type: %s", data_vault_type)
-        audit_log(conn, feed_id, 0, "consumption", "failed",
+        platform_audit_log(conn, feed_id, 0, "consumption", "failed",
                   error=f"Unknown data_vault_type: {data_vault_type}")
         spark.stop()
         sys.exit(1)
@@ -705,7 +705,7 @@ def main():
 
     # 9. Write audit log
     elapsed = time.time() - start_time
-    audit_log(conn, feed_id, 0, "consumption", "success",
+    platform_audit_log(conn, feed_id, 0, "consumption", "success",
               records=row_count_out)
 
     # 10. Update ingestion status

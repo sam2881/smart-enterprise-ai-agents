@@ -494,7 +494,7 @@ async def list_pipelines(
 
 class MigrationJobRequest(BaseModel):
     """Request to start a stored procedure migration job."""
-    connection_code: str = Field(..., description="connection_registry.connection_code for the source DB")
+    connection_code: str = Field(..., description="platform_connection_registry.connection_code for the source DB")
     schema_filter: str = Field(default="%", description="SQL LIKE pattern for schema names")
     proc_name_pattern: str = Field(default="%", description="SQL LIKE pattern for procedure names")
     dtsx_source_path: Optional[str] = Field(default=None, description="GCS path to .dtsx file (optional)")

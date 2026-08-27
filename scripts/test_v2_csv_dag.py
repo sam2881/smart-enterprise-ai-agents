@@ -39,7 +39,7 @@ def build_csv_feed_group() -> FeedGroupConfig:
                 delimiter=",",
                 header_rows=1,
                 encoding="UTF-8",
-                schema_version=1,
+                platform_schema_version=1,
                 columns=[
                     ColumnDef(name="order_id", data_type="STRING", nullable=False),
                     ColumnDef(name="customer_id", data_type="STRING", nullable=False),

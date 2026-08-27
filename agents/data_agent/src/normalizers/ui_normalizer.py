@@ -245,7 +245,7 @@ class UIInputNormalizer(BaseNormalizer):
             columns = [ColumnDefinition(name="id", type=DataType.STRING, pk=True)]
 
         return SchemaConfig(
-            schema_version=data.get("schema_version", "1.0.0"),
+            platform_schema_version=data.get("platform_schema_version", "1.0.0"),
             is_current=True,
             columns=columns,
             primary_keys=data.get("primary_keys", []),

@@ -24,7 +24,7 @@ from .template_manager import TemplateManager
 @dataclass
 class GeneratedArtifact:
     """A single generated artifact (DAG, Spark config, GE suite)."""
-    artifact_type: str  # dag, spark_config, ge_suite, sql
+    artifact_type: str  # dag, platform_spark_config, ge_suite, sql
     filename: str
     content: str
     checksum: str
@@ -45,7 +45,7 @@ class GeneratedArtifacts:
     dag_id: str
     pattern_code: str
     dag_file: GeneratedArtifact
-    spark_config: GeneratedArtifact
+    platform_spark_config: GeneratedArtifact
     ge_suites: List[GeneratedArtifact] = field(default_factory=list)
     sql_statements: List[GeneratedArtifact] = field(default_factory=list)
     overall_checksum: str = ""
@@ -57,7 +57,7 @@ class GeneratedArtifacts:
             "dag_id": self.dag_id,
             "pattern_code": self.pattern_code,
             "dag_file": self.dag_file.to_dict(),
-            "spark_config": self.spark_config.to_dict(),
+            "platform_spark_config": self.platform_spark_config.to_dict(),
             "ge_suites": [s.to_dict() for s in self.ge_suites],
             "sql_statements": [s.to_dict() for s in self.sql_statements],
             "overall_checksum": self.overall_checksum,
@@ -159,19 +159,19 @@ class DeterministicDAGGenerator:
         )
 
         # Step 5: Generate Spark config
-        spark_config = self._generate_spark_config(
+        platform_spark_config = self._generate_spark_config(
             feed_id=feed_id,
             feed=feed,
             zones=zones,
             transforms=transforms,
             domain=domain,
         )
-        spark_checksum = self._compute_content_checksum(json.dumps(spark_config, sort_keys=True))
+        spark_checksum = self._compute_content_checksum(json.dumps(platform_spark_config, sort_keys=True))
 
         spark_artifact = GeneratedArtifact(
-            artifact_type="spark_config",
+            artifact_type="platform_spark_config",
             filename=f"{dag_id}_spark_config.json",
-            content=json.dumps(spark_config, indent=2, sort_keys=True),
+            content=json.dumps(platform_spark_config, indent=2, sort_keys=True),
             checksum=spark_checksum,
         )
 
@@ -197,7 +197,7 @@ class DeterministicDAGGenerator:
             dag_id=dag_id,
             pattern_code=pattern_code,
             dag_file=dag_artifact,
-            spark_config=spark_artifact,
+            platform_spark_config=spark_artifact,
             ge_suites=ge_artifacts,
             overall_checksum=overall_checksum,
             generated_at=generated_at,
@@ -516,8 +516,8 @@ class DeterministicDAGGenerator:
         dag_path.write_text(artifacts.dag_file.content)
 
         # Write Spark config
-        spark_path = self.output_dir / artifacts.spark_config.filename
-        spark_path.write_text(artifacts.spark_config.content)
+        spark_path = self.output_dir / artifacts.platform_spark_config.filename
+        spark_path.write_text(artifacts.platform_spark_config.content)
 
         # Write GE suites
         ge_dir = self.output_dir / "ge_suites"
@@ -535,7 +535,7 @@ class DeterministicDAGGenerator:
             "generated_at": artifacts.generated_at,
             "artifacts": {
                 "dag": artifacts.dag_file.to_dict(),
-                "spark_config": artifacts.spark_config.to_dict(),
+                "platform_spark_config": artifacts.platform_spark_config.to_dict(),
                 "ge_suites": [s.to_dict() for s in artifacts.ge_suites],
             },
         }

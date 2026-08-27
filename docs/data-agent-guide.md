@@ -297,11 +297,11 @@ dt = DeltaTable.forName(spark, contract_config["bronze_table"])
 dt.delete(f"_execution_date = '{execution_date}'")
 ```
 
-The `pipeline_execution` table tracks re-runs with an auto-incrementing `sequence` column per `(feed_id, execution_date)`. The `_run_id` (UUID) stays in all data tables; the sequence is PostgreSQL metadata only.
+The `platform_pipeline_execution` table tracks re-runs with an auto-incrementing `sequence` column per `(feed_id, execution_date)`. The `_run_id` (UUID) stays in all data tables; the sequence is PostgreSQL metadata only.
 
 ### Multi-Table Joins in Gold Zone
 
-When `join_dependency` entries exist for a contract, `build_gold_layer.py` calls `join_executor.py` before Gold processing:
+When `platform_join_dependency` entries exist for a contract, `build_gold_layer.py` calls `join_executor.py` before Gold processing:
 
 ```python
 # Step 0: Resolve join dependencies
@@ -312,7 +312,7 @@ if join_configs:
     gold_df = execute_joins(spark, base_df, join_configs, execution_id)
 ```
 
-The join executor supports INNER/LEFT/RIGHT/FULL/CROSS/SEMI/ANTI joins with **grain verification** (fanout detection) after each join. Join definitions come from the `join_dependency` metadata table.
+The join executor supports INNER/LEFT/RIGHT/FULL/CROSS/SEMI/ANTI joins with **grain verification** (fanout detection) after each join. Join definitions come from the `platform_join_dependency` metadata table.
 
 ### Schema Evolution
 
@@ -367,7 +367,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 |--------|--------|
 | **Source** | Bronze zone |
 | **Operations** | Column presence → Not-null → Primary key uniqueness → Data type validation → Custom GE expectations |
-| **Output** | Quality score (0-100), validation results to `validation_result` table |
+| **Output** | Quality score (0-100), validation results to `platform_validation_result` table |
 | **Branch** | Pass → bronze_to_silver; Fail → handle_validation_failure |
 
 ### 3. promote_bronze_to_silver.py
@@ -377,7 +377,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 | **Source** | Bronze zone |
 | **Target** | Silver (cleaned, deduplicated, Delta Lake) |
 | **Operations** | Apply Silver view SQL → Transformation rules (CLEANSING, DERIVATION, LOOKUP) → **PII detection + masking enforcement** (Step 2.5) → Deduplicate by primary keys → Generate MD5 business keys → Audit columns → Idempotent delete → Write Delta |
-| **PII Step** | Detects PII via `pii_detection.detect_pii()`, persists to `data_classification`, applies masking via `GovernanceEnforcer` (non-blocking) |
+| **PII Step** | Detects PII via `pii_detection.detect_pii()`, persists to `platform_data_classification`, applies masking via `GovernanceEnforcer` (non-blocking) |
 | **Partitioned By** | `_silver_execution_date` |
 
 ### 4. silver_semantic_validation.py
@@ -386,7 +386,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 |--------|--------|
 | **Source** | Silver zone |
 | **Operations** | Business rules → Referential integrity → Cross-field validation → Range checks → Custom GE expectations |
-| **Output** | Quality score (0-100), validation results to `validation_result` table |
+| **Output** | Quality score (0-100), validation results to `platform_validation_result` table |
 | **Branch** | Pass → silver_to_gold; Fail → handle_validation_failure |
 
 ### 5. build_gold_layer.py
@@ -408,7 +408,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 | **Join Types** | INNER, LEFT, RIGHT, FULL, CROSS, SEMI, ANTI |
 | **Features** | Chain joins (A→B→C), null-safe keys, broadcast hints for small tables |
 | **Safety** | Grain verification after each join — raises `ValueError` if fanout ratio > 2.0x |
-| **Config Source** | `join_dependency` metadata table |
+| **Config Source** | `platform_join_dependency` metadata table |
 
 ---
 
@@ -429,7 +429,7 @@ Shared library imported by all generated DAGs at runtime. Installed via pip in t
 
 | Function | Used By | Purpose |
 |----------|---------|---------|
-| `initialize_execution()` | All patterns | Create `pipeline_execution` record with auto-incrementing sequence |
+| `initialize_execution()` | All patterns | Create `platform_pipeline_execution` record with auto-incrementing sequence |
 | `check_source_file()` | P01, P02, P04 | Verify source file exists in GCS |
 | `submit_zone_job()` | All patterns | Submit Spark job to Dataproc/local with correct args |
 | `run_ge_validation()` | All patterns | Run GE validation as BranchPythonOperator (pass/fail routing) |
@@ -444,7 +444,7 @@ Shared library imported by all generated DAGs at runtime. Installed via pip in t
 |--------|---------|
 | `ge_helper.py` | Great Expectations integration: build suite, validate DataFrame, return results |
 | `ge_configs.py` | GE expectation builder: maps validation_rules to GE expectations |
-| `ge_result_writer.py` | Persist GE results to `validation_result` table |
+| `ge_result_writer.py` | Persist GE results to `platform_validation_result` table |
 | `schema_validator.py` | Bronze column presence + type checks |
 | `semantic_validator.py` | Silver business rule + referential integrity checks |
 | `quality_checker.py` | Completeness, freshness, accuracy scoring |
@@ -453,7 +453,7 @@ Shared library imported by all generated DAGs at runtime. Installed via pip in t
 
 | Module | Purpose |
 |--------|---------|
-| `audit_logger.py` | Write events to `audit_log` table |
+| `audit_logger.py` | Write events to `platform_audit_log` table |
 | `lineage_tracker.py` | Track data lineage + emit OpenLineage events |
 | `metrics_collector.py` | Record pipeline metrics |
 | `openlineage_emitter.py` | Convert APEX lineage to OpenLineage spec JSON, emit to HTTP endpoint or file |
@@ -480,14 +480,14 @@ Shared library imported by all generated DAGs at runtime. Installed via pip in t
 
 ### Great Expectations Integration
 
-Validation rules from the `validation_rule` and `quality_expectation` metadata tables are converted to GE expectations:
+Validation rules from the `platform_validation_rule` and `platform_quality_expectation` metadata tables are converted to GE expectations:
 
 ```
-metadata validation_rule
+metadata platform_validation_rule
     → GEConfigBuilder.build_expectations()
     → GEHelper.validate_dataframe()
     → GEResultWriter.write_results()
-    → validation_result table
+    → platform_validation_result table
 ```
 
 Quality scoring uses Airbnb Midas pattern: weighted 0-100 score based on rule severity.
@@ -514,7 +514,7 @@ Incoming DataFrame schema
 | Volume Drift | Row count anomaly | CRITICAL if >50% change, WARNING if >threshold |
 | Freshness Drift | Late-arriving data | CRITICAL if >3h late, WARNING if >threshold |
 
-Results persist to `observability_metrics` table with a 30-day rolling baseline view (`v_observability_baseline`).
+Results persist to `platform_observability_metrics` table with a 30-day rolling baseline view (`v_observability_baseline`).
 
 ### OpenLineage
 
@@ -528,10 +528,10 @@ Results persist to `observability_metrics` table with a 30-day rolling baseline 
 
 ## Cross-Pipeline Dependencies
 
-When a Gold table depends on Silver tables from multiple feeds, the `pipeline_dependency` table defines upstream relationships:
+When a Gold table depends on Silver tables from multiple feeds, the `platform_pipeline_dependency` table defines upstream relationships:
 
 ```sql
-INSERT INTO pipeline_dependency (upstream_feed_id, upstream_dag_id, downstream_feed_id)
+INSERT INTO platform_pipeline_dependency (upstream_feed_id, upstream_dag_id, downstream_feed_id)
 VALUES ('FEED_CUSTOMERS', 'customers_daily', 'FEED_SALES_GOLD');
 ```
 
@@ -621,52 +621,52 @@ agents/data_agent/ddl/apex/
 ### Entity-Relationship Overview
 
 ```
-connection_registry
+platform_connection_registry
        |
        V
-domain_registry ----> source_registry ----> feed_group ----> feed
+platform_domain_registry ----> platform_source_registry ----> platform_feed_group ----> feed
                                                 |               |
-                                          dag_template     data_contract ----> schema_version
+                                          platform_dag_template     platform_data_contract ----> platform_schema_version
                                                                |                    |
-                                                          view_definition      validation_rule
+                                                          platform_view_definition      platform_validation_rule
                                                                |                    |
-                                                    transformation_rule     quality_expectation
+                                                    platform_transformation_rule     platform_quality_expectation
                                                                |
-                                                   contract_transformation
+                                                   platform_contract_transformation
                                                                |
-                                               pipeline_execution ----> task_execution
+                                               platform_pipeline_execution ----> platform_task_execution
                                                        |     |              |
-                                                 audit_log  data_lineage  error_log
+                                                 platform_audit_log  platform_data_lineage  platform_error_log
                                                        |
-                                              validation_log
-                                              sla_breach_log
-                                              execution_cost_log
+                                              platform_validation_log
+                                              platform_sla_breach_log
+                                              platform_execution_cost_log
 
-join_dependency -----> (contract_id FK to data_contract)
-pipeline_dependency -> (feed_id references to feed)
-observability_metrics  (historical baselines)
+platform_join_dependency -----> (contract_id FK to platform_data_contract)
+platform_pipeline_dependency -> (feed_id references to feed)
+platform_observability_metrics  (historical baselines)
 
-template_registry
-utility_registry
-spark_job_registry       (Component catalogs — queried by the agent before generating code)
-component_change_log
-agent_decision_log
+platform_template_registry
+platform_utility_registry
+platform_spark_job_registry       (Component catalogs — queried by the agent before generating code)
+platform_component_change_log
+platform_agent_decision_log
 ```
 
 ### Key Tables
 
 | DDL | Table | Purpose |
 |-----|-------|---------|
-| 02 | `feed` | One row per Airflow DAG. Links to feed_group, template, schedule. |
-| 03 | `data_contract` | Defines file format, zone paths, load type, primary keys. |
-| 03 | `schema_version` | Versioned column definitions (supports schema evolution). |
-| 03 | `view_definition` | SQL view definitions for Bronze→Silver and Silver→Gold transitions. |
-| 04 | `validation_rule` | SQL boolean expressions, with severity and blocking flag. |
-| 05 | `pipeline_execution` | One row per DAG run. Includes `sequence` (auto-incrementing per feed+date). |
-| 07 | `validation_result` | Great Expectations validation results per checkpoint. |
-| 08 | `join_dependency` | Multi-table join definitions (table, keys, type, order). |
-| 09 | `pipeline_dependency` | Cross-DAG dependencies for ExternalTaskSensor generation. |
-| 10 | `observability_metrics` | Historical metrics for anomaly detection baselines. |
+| 02 | `feed` | One row per Airflow DAG. Links to platform_feed_group, template, schedule. |
+| 03 | `platform_data_contract` | Defines file format, zone paths, load type, primary keys. |
+| 03 | `platform_schema_version` | Versioned column definitions (supports schema evolution). |
+| 03 | `platform_view_definition` | SQL view definitions for Bronze→Silver and Silver→Gold transitions. |
+| 04 | `platform_validation_rule` | SQL boolean expressions, with severity and blocking flag. |
+| 05 | `platform_pipeline_execution` | One row per DAG run. Includes `sequence` (auto-incrementing per feed+date). |
+| 07 | `platform_validation_result` | Great Expectations validation results per checkpoint. |
+| 08 | `platform_join_dependency` | Multi-table join definitions (table, keys, type, order). |
+| 09 | `platform_pipeline_dependency` | Cross-DAG dependencies for ExternalTaskSensor generation. |
+| 10 | `platform_observability_metrics` | Historical metrics for anomaly detection baselines. |
 
 ### How DAGs Use These Tables at Runtime
 
@@ -675,27 +675,27 @@ DAG starts
   |
   V
 MetadataClient queries PostgreSQL:
-  +---> feed, data_contract, schema_version (is_current=true)
-  +---> validation_rule, quality_expectation (for this contract + zone)
-  +---> view_definition (SQL for zone transitions)
-  +---> join_dependency (multi-table joins for Gold)
-  +---> spark_config (cluster sizing)
-  +---> notification_config (alert routing)
-  +---> watermark_tracking (for incremental loads)
+  +---> feed, platform_data_contract, platform_schema_version (is_current=true)
+  +---> platform_validation_rule, platform_quality_expectation (for this contract + zone)
+  +---> platform_view_definition (SQL for zone transitions)
+  +---> platform_join_dependency (multi-table joins for Gold)
+  +---> platform_spark_config (cluster sizing)
+  +---> platform_notification_config (alert routing)
+  +---> platform_watermark_tracking (for incremental loads)
   |
   V
 DAG tasks execute using this config (no hardcoded logic)
   |
   V
 After execution:
-  +---> Writes: pipeline_execution (run status, metrics, sequence)
-  +---> Writes: task_execution (per-task metrics)
-  +---> Writes: audit_log (zone-level actions)
-  +---> Writes: data_lineage (source-to-target mapping)
-  +---> Writes: validation_result (GE validation outcomes)
-  +---> Writes: observability_metrics (for baseline computation)
+  +---> Writes: platform_pipeline_execution (run status, metrics, sequence)
+  +---> Writes: platform_task_execution (per-task metrics)
+  +---> Writes: platform_audit_log (zone-level actions)
+  +---> Writes: platform_data_lineage (source-to-target mapping)
+  +---> Writes: platform_validation_result (GE validation outcomes)
+  +---> Writes: platform_observability_metrics (for baseline computation)
   +---> Emits: OpenLineage JSON (to Marquez/DataHub/file)
-  +---> Updates: watermark_tracking (new bookmark value)
+  +---> Updates: platform_watermark_tracking (new bookmark value)
 ```
 
 ---
@@ -791,14 +791,14 @@ These capabilities close the gaps identified against GCP, AWS, and Azure big dat
 
 ### Data Catalog & Discovery
 
-Every dataset across medallion zones is auto-registered in the `data_asset` table after zone transitions. Provides:
+Every dataset across medallion zones is auto-registered in the `platform_data_asset` table after zone transitions. Provides:
 
 | Feature | Implementation |
 |---------|---------------|
-| Asset Registry | `data_asset` table — auto-populated by `AuditLogger.register_zone_asset()` |
+| Asset Registry | `platform_data_asset` table — auto-populated by `AuditLogger.register_zone_asset()` |
 | Full-Text Search | PostgreSQL GIN index on name + description + domain |
-| Business Glossary | `business_term` table — maps technical columns to business definitions |
-| Tag Taxonomy | `tag_taxonomy` table — hierarchical classification (SENSITIVITY, DOMAIN, COMPLIANCE) |
+| Business Glossary | `platform_business_term` table — maps technical columns to business definitions |
+| Tag Taxonomy | `platform_tag_taxonomy` table — hierarchical classification (SENSITIVITY, DOMAIN, COMPLIANCE) |
 | Catalog CRUD | `catalog_repository.py` — register, search, get_lineage, get_by_path |
 | MetadataClient | `metadata_client.py` — `search_data_assets()`, `get_asset_by_path()`, `register_data_asset()` |
 
@@ -812,18 +812,18 @@ PII detection results are now persisted and enforced, not just detected:
 ```
 PIIDetector.detect_pii_in_dataframe()
     → persist_classifications(results, asset_id)
-        → data_classification table
+        → platform_data_classification table
             → GovernanceEnforcer.enforce_pii_masking(df, asset_id)
                 → Masked DataFrame written to Silver/Gold
 ```
 
 | Feature | Implementation |
 |---------|---------------|
-| Access Policies | `access_policy` table — resource-level RBAC (READ/WRITE/ADMIN/MASKED_READ) |
-| Data Classification | `data_classification` table — links PII detection to assets |
+| Access Policies | `platform_access_policy` table — resource-level RBAC (READ/WRITE/ADMIN/MASKED_READ) |
+| Data Classification | `platform_data_classification` table — links PII detection to assets |
 | Masking Enforcement | `governance_enforcer.py` — applies masking transforms from classification |
 | BQ Policy Tags | `governance_enforcer.generate_bq_policy_tags()` — BigQuery column-level security |
-| Access Requests | `access_request` table — self-service access with approval workflow |
+| Access Requests | `platform_access_request` table — self-service access with approval workflow |
 
 **DDL**: `ddl/apex/12_governance.sql`
 **Code**: `src/security/governance_enforcer.py`, `src/security/pii_detection.py` (persist_classifications)
@@ -864,8 +864,8 @@ Enterprise data mesh support with product registry and subscription workflow:
 
 | Feature | Implementation |
 |---------|---------------|
-| Product Registry | `data_product` table — name, domain, owner, SLAs, version, status |
-| Subscriptions | `data_product_subscription` table — PENDING → APPROVED → REVOKED |
+| Product Registry | `platform_data_product` table — name, domain, owner, SLAs, version, status |
+| Subscriptions | `platform_data_product_subscription` table — PENDING → APPROVED → REVOKED |
 | Product Catalog | `v_data_product_catalog` view — with active subscriber count |
 | MetadataClient | `metadata_client.py` — `get_data_products()`, `publish_data_product()`, `subscribe_to_product()` |
 | Classification | `metadata_client.py` — `get_classifications(asset_id)` |
@@ -954,18 +954,18 @@ python scripts/promote_pipeline.py --feed-id sales_daily --from dev --to staging
 | # | File | Tables |
 |---|------|--------|
 | 01 | `01_extensions_and_types.sql` | ENUMs and extensions |
-| 02 | `02_core_tables.sql` | connection, domain, source, feed, spark_config |
-| 03 | `03_contract_and_schema.sql` | data_contract, schema_version, view_definition, transformation_rule |
-| 04 | `04_validation_and_quality.sql` | validation_rule, quality_expectation, sla_definition |
-| 05 | `05_execution_and_logging.sql` | pipeline_execution, audit_log, error_log, cost_log (11 tables) |
-| 06 | `06_component_registry.sql` | template_registry, utility_registry, spark_job_registry |
-| 07 | `07_ge_validation.sql` | validation_result, validation_summary |
-| 08 | `08_join_dependency.sql` | join_dependency |
-| 09 | `09_pipeline_dependency.sql` | pipeline_dependency |
-| 10 | `10_observability_metrics.sql` | observability_metrics, v_observability_baseline |
-| 11 | `11_data_catalog.sql` | data_asset, business_term, tag_taxonomy |
-| 12 | `12_governance.sql` | access_policy, data_classification, access_request |
-| 13 | `13_data_products.sql` | data_product, data_product_subscription |
+| 02 | `02_core_tables.sql` | connection, domain, source, feed, platform_spark_config |
+| 03 | `03_contract_and_schema.sql` | platform_data_contract, platform_schema_version, platform_view_definition, platform_transformation_rule |
+| 04 | `04_validation_and_quality.sql` | platform_validation_rule, platform_quality_expectation, platform_sla_definition |
+| 05 | `05_execution_and_logging.sql` | platform_pipeline_execution, platform_audit_log, platform_error_log, cost_log (11 tables) |
+| 06 | `06_component_registry.sql` | platform_template_registry, platform_utility_registry, platform_spark_job_registry |
+| 07 | `07_ge_validation.sql` | platform_validation_result, platform_validation_summary |
+| 08 | `08_join_dependency.sql` | platform_join_dependency |
+| 09 | `09_pipeline_dependency.sql` | platform_pipeline_dependency |
+| 10 | `10_observability_metrics.sql` | platform_observability_metrics, v_observability_baseline |
+| 11 | `11_data_catalog.sql` | platform_data_asset, platform_business_term, platform_tag_taxonomy |
+| 12 | `12_governance.sql` | platform_access_policy, platform_data_classification, platform_access_request |
+| 13 | `13_data_products.sql` | platform_data_product, platform_data_product_subscription |
 
 ---
 

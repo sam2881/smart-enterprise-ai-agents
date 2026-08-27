@@ -2,7 +2,7 @@
 LegacyMigrationAgent — Orchestrates the full SSIS → PySpark migration pipeline.
 
 Steps executed in order:
-  1. Create migration_job row in DB
+  1. Create platform_migration_job row in DB
   2. Extract SP definitions via StoredProcReader (live DB → static fallback)
   3. Build DependencyGraph → persist lineage
   4. Call LLM (per proc) via stored_proc_migration.md prompt → save artifacts
@@ -80,7 +80,7 @@ class LegacyMigrationAgent(BaseAgent):
         repo = MigrationRepository(settings.get_database_url_str())
 
         # ----------------------------------------------------------------
-        # Step 1: Create migration_job
+        # Step 1: Create platform_migration_job
         # ----------------------------------------------------------------
         dtsx_summary = dtsx_config.get("dtsx_summary", {})
         schema_filter = dtsx_config.get("schema_filter", "%")
@@ -268,7 +268,7 @@ class LegacyMigrationAgent(BaseAgent):
         self, connection_code: Optional[str], settings: Any
     ) -> Optional[Dict[str, Any]]:
         """
-        Resolve connection details from connection_registry + Secret Manager.
+        Resolve connection details from platform_connection_registry + Secret Manager.
         Mirrors the pattern in database_source.get_jdbc_connection().
         Returns None if no connection_code is provided or lookup fails.
         """
@@ -276,7 +276,7 @@ class LegacyMigrationAgent(BaseAgent):
             return None
         try:
             class _FakeMetadataClient:
-                """Minimal stub that reads connection_registry via psycopg2."""
+                """Minimal stub that reads platform_connection_registry via psycopg2."""
                 def __init__(self, db_url: str) -> None:
                     self._db_url = db_url
 
@@ -289,7 +289,7 @@ class LegacyMigrationAgent(BaseAgent):
                             """SELECT connection_id, connection_code, db_type, host, port,
                                       database_name, username, credentials_secret_path,
                                       extra_params
-                               FROM connection_registry
+                               FROM platform_connection_registry
                                WHERE connection_code = %s AND is_active = true
                                LIMIT 1""",
                             (code,),

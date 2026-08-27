@@ -1,5 +1,5 @@
 """
-Schema definition models matching pipeline_schemas table.
+Schema definition models matching platform_pipeline_schemas table.
 
 Schemas are versioned (SCD Type 2 pattern) and stored as JSONB.
 """
@@ -42,7 +42,7 @@ class ColumnDefinition(BaseModel):
     """
     Single column definition.
 
-    Stored in JSONB array in pipeline_schemas.columns.
+    Stored in JSONB array in platform_pipeline_schemas.columns.
     """
     model_config = ConfigDict(extra="forbid")
 
@@ -87,13 +87,13 @@ class ColumnDefinition(BaseModel):
 
 class SchemaConfig(BaseModel):
     """
-    Schema configuration matching pipeline_schemas table.
+    Schema configuration matching platform_pipeline_schemas table.
     """
     model_config = ConfigDict(from_attributes=True)
 
     schema_id: Optional[UUID] = Field(default=None)
     pipeline_id: Optional[UUID] = Field(default=None)
-    schema_version: str = Field(default="1.0.0")
+    platform_schema_version: str = Field(default="1.0.0")
     is_current: bool = Field(default=True)
 
     # Column definitions (stored as JSONB)

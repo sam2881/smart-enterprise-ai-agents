@@ -537,15 +537,15 @@ def generate_metadata_insert_sql(feed: FeedConfig) -> str:
     bk_json = json.dumps(feed.business_keys)
 
     sql = f"-- METADATA: {feed.feed_name}\n"
-    sql += f"INSERT INTO schema_details (feed_id, schema_version, columns, business_keys, created_at)\n"
+    sql += f"INSERT INTO schema_details (feed_id, platform_schema_version, columns, business_keys, created_at)\n"
     sql += f"VALUES (\n"
     sql += f"  '{feed.feed_id}',\n"
-    sql += f"  {feed.schema_version},\n"
+    sql += f"  {feed.platform_schema_version},\n"
     sql += f"  '{cols_json}'::jsonb,\n"
     sql += f"  '{bk_json}'::jsonb,\n"
     sql += f"  NOW()\n"
     sql += f")\n"
-    sql += f"ON CONFLICT (feed_id, schema_version) DO UPDATE SET\n"
+    sql += f"ON CONFLICT (feed_id, platform_schema_version) DO UPDATE SET\n"
     sql += f"  columns = EXCLUDED.columns,\n"
     sql += f"  business_keys = EXCLUDED.business_keys;\n"
     return sql

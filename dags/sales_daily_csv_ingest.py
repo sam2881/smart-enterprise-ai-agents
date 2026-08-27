@@ -225,8 +225,8 @@ with DAG(
 
 
         # --- Audit ---
-        audit_log = PythonOperator(
-            task_id="audit_log",
+        platform_audit_log = PythonOperator(
+            task_id="platform_audit_log",
             python_callable=pipeline_tasks.audit_execution,
             op_kwargs={
                 "metadata": metadata,
@@ -246,7 +246,7 @@ with DAG(
         schema_validation >> landing_to_bronze >> semantic_validation
         semantic_validation >> bronze_to_silver >> silver_to_gold
 
-        silver_to_gold >> audit_log
+        silver_to_gold >> platform_audit_log
 
         schema_validation >> handle_validation_failure
         semantic_validation >> handle_validation_failure

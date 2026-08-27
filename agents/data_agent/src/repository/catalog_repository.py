@@ -20,9 +20,9 @@ class CatalogRepository:
     Manages the data catalog: assets, business terms, and tags.
 
     Tables:
-    - data_asset: Every table/dataset across zones
-    - business_term: Business glossary entries
-    - tag_taxonomy: Hierarchical classification tags
+    - platform_data_asset: Every table/dataset across zones
+    - platform_business_term: Business glossary entries
+    - platform_tag_taxonomy: Hierarchical classification tags
     """
 
     def __init__(self, connection_string: Optional[str] = None):
@@ -64,7 +64,7 @@ class CatalogRepository:
         now = datetime.utcnow()
 
         query = """
-            INSERT INTO data_asset (
+            INSERT INTO platform_data_asset (
                 asset_id, asset_name, asset_type, zone_level, feed_id,
                 contract_id, dataset_path, schema_json, row_count, size_bytes,
                 owner, domain, tags, description, quality_score,
@@ -146,7 +146,7 @@ class CatalogRepository:
             SELECT asset_id, asset_name, asset_type, zone_level, feed_id,
                    dataset_path, domain, tags, description, row_count,
                    quality_score, last_refreshed_at
-            FROM data_asset da
+            FROM platform_data_asset da
             WHERE {' AND '.join(conditions)}
             ORDER BY da.updated_at DESC
             LIMIT %s
@@ -161,7 +161,7 @@ class CatalogRepository:
         query = """
             SELECT asset_id, asset_name, asset_type, zone_level, feed_id,
                    dataset_path, domain, tags, schema_json, row_count
-            FROM data_asset
+            FROM platform_data_asset
             WHERE dataset_path = %s AND is_active = true
             LIMIT 1
         """
@@ -183,14 +183,14 @@ class CatalogRepository:
 
         upstream_sql = """
             SELECT DISTINCT dl.source_entity, da.asset_id, da.zone_level, da.domain
-            FROM data_lineage dl
-            LEFT JOIN data_asset da ON da.asset_name = dl.source_entity AND da.is_active = true
+            FROM platform_data_lineage dl
+            LEFT JOIN platform_data_asset da ON da.asset_name = dl.source_entity AND da.is_active = true
             WHERE dl.target_entity = %s
         """
         downstream_sql = """
             SELECT DISTINCT dl.target_entity, da.asset_id, da.zone_level, da.domain
-            FROM data_lineage dl
-            LEFT JOIN data_asset da ON da.asset_name = dl.target_entity AND da.is_active = true
+            FROM platform_data_lineage dl
+            LEFT JOIN platform_data_asset da ON da.asset_name = dl.target_entity AND da.is_active = true
             WHERE dl.source_entity = %s
         """
         with self.conn.cursor() as cur:
@@ -206,7 +206,7 @@ class CatalogRepository:
 
     def _get_asset(self, asset_id: str) -> Optional[Dict]:
         with self.conn.cursor() as cur:
-            cur.execute("SELECT asset_id, asset_name FROM data_asset WHERE asset_id = %s", [asset_id])
+            cur.execute("SELECT asset_id, asset_name FROM platform_data_asset WHERE asset_id = %s", [asset_id])
             row = cur.fetchone()
             if row:
                 return {"asset_id": str(row[0]), "asset_name": row[1]}
@@ -228,7 +228,7 @@ class CatalogRepository:
         """Register a business glossary term."""
         term_id = str(uuid.uuid4())
         query = """
-            INSERT INTO business_term (
+            INSERT INTO platform_business_term (
                 term_id, term_name, definition, domain, owner,
                 synonyms, related_assets, created_at, updated_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -254,7 +254,7 @@ class CatalogRepository:
         """Search business glossary."""
         sql = """
             SELECT term_id, term_name, definition, domain, owner, synonyms
-            FROM business_term
+            FROM platform_business_term
             WHERE is_active = true
               AND to_tsvector('english', coalesce(term_name, '') || ' ' || coalesce(definition, ''))
                   @@ plainto_tsquery('english', %s)

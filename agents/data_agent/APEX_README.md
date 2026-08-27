@@ -13,10 +13,10 @@ This document describes the redesigned data agent architecture following the APE
 | File | Tables |
 |------|--------|
 | `01_extensions_and_types.sql` | Extensions, ENUM types |
-| `02_core_tables.sql` | connection_registry, domain_registry, source_registry, dag_template, feed_group, feed, spark_config, notification_config |
-| `03_contract_and_schema.sql` | data_contract, schema_version, view_definition, transformation_rule, contract_transformation |
-| `04_validation_and_quality.sql` | validation_rule, quality_expectation, sla_definition, pipeline_dependency |
-| `05_execution_and_logging.sql` | pipeline_execution, task_execution, audit_log, data_lineage, validation_log, error_log, metadata_audit_log, agent_decision_log |
+| `02_core_tables.sql` | platform_connection_registry, platform_domain_registry, platform_source_registry, platform_dag_template, platform_feed_group, feed, platform_spark_config, platform_notification_config |
+| `03_contract_and_schema.sql` | platform_data_contract, platform_schema_version, platform_view_definition, platform_transformation_rule, platform_contract_transformation |
+| `04_validation_and_quality.sql` | platform_validation_rule, platform_quality_expectation, platform_sla_definition, platform_pipeline_dependency |
+| `05_execution_and_logging.sql` | platform_pipeline_execution, platform_task_execution, platform_audit_log, platform_data_lineage, platform_validation_log, platform_error_log, platform_metadata_audit_log, platform_agent_decision_log |
 
 ### 2. dag_utilities Module (`src/dag_utilities/`)
 

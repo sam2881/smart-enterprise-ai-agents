@@ -447,7 +447,7 @@ class MetadataClient:
 
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM source_registry WHERE source_id = %s",
+            "SELECT * FROM platform_source_registry WHERE source_id = %s",
             (source_id,)
         )
         row = cursor.fetchone()

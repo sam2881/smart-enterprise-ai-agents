@@ -384,8 +384,8 @@ with DAG(
         )
 
         # --- Audit ---
-        audit_log = PythonOperator(
-            task_id="audit_log",
+        platform_audit_log = PythonOperator(
+            task_id="platform_audit_log",
             python_callable=pipeline_tasks.audit_execution,
             op_kwargs={
                 "metadata": metadata,
@@ -432,7 +432,7 @@ with DAG(
         silver_to_gold >> migration_report
 {% endif %}
 
-        migration_report >> audit_log
+        migration_report >> platform_audit_log
 
         schema_validation >> handle_validation_failure
         semantic_validation >> handle_validation_failure

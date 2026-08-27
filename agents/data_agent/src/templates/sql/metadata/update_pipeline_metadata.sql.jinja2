@@ -19,7 +19,7 @@ BEGIN;
 -- =============================================================================
 
 -- 1. Record the schema change for audit
-INSERT INTO schema_changes (
+INSERT INTO platform_schema_changes (
     schema_id,
     pipeline_id,
     change_type,
@@ -39,8 +39,8 @@ SELECT
     pr.pipeline_id,
     '{{ change_type }}',  -- add_column, drop_column, modify_type, rename_column
     '{{ change_description | replace("'", "''") }}',
-    ps.schema_version,
-    ps.schema_version + 1,
+    ps.platform_schema_version,
+    ps.platform_schema_version + 1,
     {{ "'" ~ column_name ~ "'" if column_name else 'NULL' }},
     {{ "'" ~ previous_definition | tojson ~ "'::jsonb" if previous_definition else 'NULL' }},
     {{ "'" ~ new_definition | tojson ~ "'::jsonb" if new_definition else 'NULL' }},
@@ -48,21 +48,21 @@ SELECT
     '{{ affected_pipelines | default([]) | tojson }}'::jsonb,
     '{{ requested_by | default("system") }}',
     {% if requires_approval %}'pending'{% else %}'approved'{% endif %}
-FROM pipeline_registry pr
-JOIN pipeline_schemas ps ON ps.pipeline_id = pr.pipeline_id AND ps.is_current = TRUE
+FROM platform_pipeline_registry pr
+JOIN platform_pipeline_schemas ps ON ps.pipeline_id = pr.pipeline_id AND ps.is_current = TRUE
 WHERE pr.dag_id = '{{ dag_id }}' AND pr.environment = '{{ environment | default("dev") }}';
 
 {% if not requires_approval %}
 -- 2. Mark current schema as not current
-UPDATE pipeline_schemas
+UPDATE platform_pipeline_schemas
 SET is_current = FALSE, updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
   AND is_current = TRUE;
 
 -- 3. Insert new schema version
-INSERT INTO pipeline_schemas (
+INSERT INTO platform_pipeline_schemas (
     pipeline_id,
-    schema_version,
+    platform_schema_version,
     is_current,
     columns,
     primary_keys,
@@ -71,13 +71,13 @@ INSERT INTO pipeline_schemas (
 )
 SELECT
     pipeline_id,
-    (SELECT COALESCE(MAX(schema_version), 0) + 1 FROM pipeline_schemas ps2 WHERE ps2.pipeline_id = pr.pipeline_id),
+    (SELECT COALESCE(MAX(platform_schema_version), 0) + 1 FROM platform_pipeline_schemas ps2 WHERE ps2.pipeline_id = pr.pipeline_id),
     TRUE,
     '{{ new_columns | tojson }}'::jsonb,
     {{ "'" ~ primary_keys | tojson ~ "'::jsonb" if primary_keys else "'[]'::jsonb" }},
     {{ "'" ~ partition_columns | tojson ~ "'::jsonb" if partition_columns else "'[]'::jsonb" }},
     {{ "'" ~ cluster_columns | tojson ~ "'::jsonb" if cluster_columns else "'[]'::jsonb" }}
-FROM pipeline_registry pr
+FROM platform_pipeline_registry pr
 WHERE pr.dag_id = '{{ dag_id }}' AND pr.environment = '{{ environment | default("dev") }}';
 {% endif %}
 
@@ -88,7 +88,7 @@ WHERE pr.dag_id = '{{ dag_id }}' AND pr.environment = '{{ environment | default(
 
 {% for transform in transformations %}
 -- Update or insert transformation rule: {{ transform.rule_name }}
-INSERT INTO transformation_rules (
+INSERT INTO platform_transformation_rules (
     pipeline_id,
     rule_name,
     layer,
@@ -119,7 +119,7 @@ SELECT
     {{ "'" ~ transform.generated_pyspark | replace("'", "''") ~ "'" if transform.generated_pyspark else 'NULL' }},
     TRUE,
     '{{ updated_by | default("system") }}'
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
 ON CONFLICT (pipeline_id, layer, execution_order) DO UPDATE SET
     rule_name = EXCLUDED.rule_name,
@@ -140,13 +140,13 @@ ON CONFLICT (pipeline_id, layer, execution_order) DO UPDATE SET
 -- =============================================================================
 
 -- Deactivate existing rules (soft delete)
-UPDATE pipeline_quality_rules
+UPDATE platform_pipeline_quality_rules
 SET is_active = FALSE, updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
 
 {% for rule in quality_rules %}
 -- Insert updated quality rule: {{ rule.rule_name }}
-INSERT INTO pipeline_quality_rules (
+INSERT INTO platform_pipeline_quality_rules (
     pipeline_id,
     rule_name,
     rule_type,
@@ -165,7 +165,7 @@ SELECT
     '{{ rule.severity | default("warning") }}',
     {{ rule.threshold_pct | default(100.0) }},
     TRUE
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
 
 {% endfor %}
@@ -175,7 +175,7 @@ WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev")
 -- EXECUTION POLICY UPDATE
 -- =============================================================================
 
-UPDATE pipeline_execution_policies
+UPDATE platform_pipeline_execution_policies
 SET
     {% if schedule_interval is defined %}schedule_interval = '{{ schedule_interval }}',{% endif %}
     {% if processing_mode is defined %}processing_mode = '{{ processing_mode }}',{% endif %}
@@ -186,20 +186,20 @@ SET
     {% if approval_groups is defined %}approval_groups = '{{ approval_groups | tojson }}'::jsonb,{% endif %}
     {% if requires_human_approval is defined %}requires_human_approval = {{ requires_human_approval | lower }},{% endif %}
     updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
 
 {% elif update_type == 'data_contract_update' %}
 -- =============================================================================
 -- DATA CONTRACT UPDATE
 -- =============================================================================
 
-UPDATE data_contracts
+UPDATE platform_data_contracts
 SET
     {% if freshness_sla_hours is defined %}freshness_sla_hours = {{ freshness_sla_hours }},{% endif %}
     {% if completeness_threshold_pct is defined %}completeness_threshold_pct = {{ completeness_threshold_pct }},{% endif %}
     {% if quality_score_min is defined %}quality_score_min = {{ quality_score_min }},{% endif %}
     updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
   AND status = 'active';
 
 {% elif update_type == 'source_update' %}
@@ -207,7 +207,7 @@ WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{
 -- SOURCE CONFIGURATION UPDATE
 -- =============================================================================
 
-UPDATE pipeline_sources
+UPDATE platform_pipeline_sources
 SET
     {% if source_bucket is defined %}source_bucket = '{{ source_bucket }}',{% endif %}
     {% if source_prefix is defined %}source_prefix = '{{ source_prefix }}',{% endif %}
@@ -216,14 +216,14 @@ SET
     {% if watermark_column is defined %}watermark_column = '{{ watermark_column }}',{% endif %}
     {% if connection_id is defined %}connection_id = '{{ connection_id }}',{% endif %}
     updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
 
 {% elif update_type == 'target_update' %}
 -- =============================================================================
 -- TARGET CONFIGURATION UPDATE
 -- =============================================================================
 
-UPDATE pipeline_targets
+UPDATE platform_pipeline_targets
 SET
     {% if target_zone is defined %}target_zone = '{{ target_zone }}',{% endif %}
     {% if bq_dataset is defined %}bq_dataset = '{{ bq_dataset }}',{% endif %}
@@ -232,14 +232,14 @@ SET
     {% if merge_keys is defined %}merge_keys = '{{ merge_keys | tojson }}'::jsonb,{% endif %}
     {% if partition_field is defined %}partition_field = '{{ partition_field }}',{% endif %}
     updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}');
 
 {% elif update_type == 'pipeline_status_update' %}
 -- =============================================================================
 -- PIPELINE STATUS UPDATE
 -- =============================================================================
 
-UPDATE pipeline_registry
+UPDATE platform_pipeline_registry
 SET
     status = '{{ new_status }}',
     {% if version is defined %}version = '{{ version }}',{% endif %}
@@ -252,7 +252,7 @@ WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev")
 -- LOG UPDATE EVENT
 -- =============================================================================
 
-INSERT INTO pipeline_events (
+INSERT INTO platform_pipeline_events (
     dag_id,
     event_type,
     event_data,
@@ -272,7 +272,7 @@ VALUES (
 );
 
 -- Update pipeline registry timestamp
-UPDATE pipeline_registry
+UPDATE platform_pipeline_registry
 SET updated_at = NOW()
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
 

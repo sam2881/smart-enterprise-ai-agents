@@ -247,7 +247,7 @@ class DataContract(BaseModel):
     version: int = 1
     schema_definition: Optional[Dict[str, Any]] = None
     quality_rules: Optional[List[Dict[str, Any]]] = None
-    sla_definition: Optional[Dict[str, Any]] = None
+    platform_sla_definition: Optional[Dict[str, Any]] = None
     is_active: bool = True
 
 

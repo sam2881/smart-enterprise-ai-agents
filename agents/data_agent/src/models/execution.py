@@ -1,5 +1,5 @@
 """
-Execution policy models matching pipeline_execution_policies table.
+Execution policy models matching platform_pipeline_execution_policies table.
 """
 
 from datetime import date, datetime
@@ -19,7 +19,7 @@ class ProcessingMode(str, Enum):
 
 class ExecutionPolicy(BaseModel):
     """
-    Execution policy matching pipeline_execution_policies table.
+    Execution policy matching platform_pipeline_execution_policies table.
     """
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,7 +65,7 @@ class ExecutionPolicy(BaseModel):
 
 class ExecutionRecord(BaseModel):
     """
-    Execution tracking matching pipeline_executions table.
+    Execution tracking matching platform_pipeline_executions table.
     """
     model_config = ConfigDict(from_attributes=True)
 
@@ -103,7 +103,7 @@ class ExecutionRecord(BaseModel):
 
 class PipelineEvent(BaseModel):
     """
-    Audit event matching pipeline_events table.
+    Audit event matching platform_pipeline_events table.
     """
     model_config = ConfigDict(from_attributes=True)
 

@@ -2973,7 +2973,7 @@ def register_routes(app: FastAPI) -> None:
             source_config=body.get("source_config", {}),
             schema_definition=body.get("schema_definition", {}),
             target_config=body.get("target_config", {}),
-            transformation_rules=body.get("transformation_rules", []),
+            platform_transformation_rules=body.get("platform_transformation_rules", []),
             data_quality_rules=body.get("data_quality_rules", []),
             execution_policy=body.get("execution_policy", {}),
             jira_ticket=body.get("jira_ticket"),

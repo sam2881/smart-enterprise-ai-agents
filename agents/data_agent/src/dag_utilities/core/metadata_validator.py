@@ -128,7 +128,7 @@ class MetadataValidator:
         self._validate_feed_definition(feed, report)
 
         if not report.valid:
-            return report  # Fail fast on feed errors
+            return report  # Fail fast on platform_feed errors
 
         # 2. Validate contract
         contract = self.meta.get_contract(feed_id)
@@ -173,7 +173,7 @@ class MetadataValidator:
             if field_name not in feed or feed.get(field_name) is None:
                 report.add_result(ValidationResult(
                     valid=False,
-                    message=f"Required field '{field_name}' missing from feed definition",
+                    message=f"Required field '{field_name}' missing from platform_feed definition",
                     severity=ValidationSeverity.ERROR,
                     field=field_name,
                 ))

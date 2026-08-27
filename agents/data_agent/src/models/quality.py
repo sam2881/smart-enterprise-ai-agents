@@ -1,5 +1,5 @@
 """
-Quality rule models matching pipeline_quality_rules table.
+Quality rule models matching platform_pipeline_quality_rules table.
 
 Data quality gates enforce thresholds at each medallion zone.
 """
@@ -90,7 +90,7 @@ class CustomConfig(BaseModel):
 
 class QualityRule(BaseModel):
     """
-    Quality rule configuration matching pipeline_quality_rules table.
+    Quality rule configuration matching platform_pipeline_quality_rules table.
     """
     model_config = ConfigDict(from_attributes=True)
 

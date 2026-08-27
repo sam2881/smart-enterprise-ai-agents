@@ -6,9 +6,9 @@
 -- modern Airflow + PySpark equivalents.
 --
 -- Flow:
---   migration_job  →  migration_object (one per SP/view/proc extracted)
---                 →  migration_lineage (directed dependency graph edges)
---                 →  migration_artifact (LLM-generated PySpark/Airflow code)
+--   platform_migration_job  →  platform_migration_object (one per SP/view/proc extracted)
+--                 →  platform_migration_lineage (directed dependency graph edges)
+--                 →  platform_migration_artifact (LLM-generated PySpark/Airflow code)
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
@@ -16,13 +16,13 @@
 -- │    One row per migration request (DTSX + live DB or static .sql scan)   │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS migration_job (
+CREATE TABLE IF NOT EXISTS platform_migration_job (
     job_id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    connection_id        UUID REFERENCES connection_registry(connection_id),
+    connection_id        UUID REFERENCES platform_connection_registry(connection_id),
     dtsx_source_path     VARCHAR(1000),           -- GCS path to .dtsx file, nullable
     schema_filter        VARCHAR(200) DEFAULT '%', -- SQL LIKE pattern for schema
     proc_name_pattern    VARCHAR(200) DEFAULT '%', -- SQL LIKE pattern for object names
-    target_feed_group_id UUID REFERENCES feed_group(feed_group_id),
+    target_feed_group_id UUID REFERENCES platform_feed_group(feed_group_id),
     status               VARCHAR(30) NOT NULL DEFAULT 'PENDING'
                              CHECK (status IN (
                                  'PENDING', 'EXTRACTING', 'GRAPH_BUILDING',
@@ -43,19 +43,19 @@ CREATE TABLE IF NOT EXISTS migration_job (
     updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_mig_job_status     ON migration_job(status);
-CREATE INDEX IF NOT EXISTS idx_mig_job_conn       ON migration_job(connection_id);
-CREATE INDEX IF NOT EXISTS idx_mig_job_created    ON migration_job(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mig_job_status     ON platform_migration_job(status);
+CREATE INDEX IF NOT EXISTS idx_mig_job_conn       ON platform_migration_job(connection_id);
+CREATE INDEX IF NOT EXISTS idx_mig_job_created    ON platform_migration_job(created_at DESC);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 2. MIGRATION_OBJECT                                                      │
 -- │    One row per stored procedure / function / view extracted              │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS migration_object (
+CREATE TABLE IF NOT EXISTS platform_migration_object (
     object_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_id             UUID NOT NULL
-                           REFERENCES migration_job(job_id) ON DELETE CASCADE,
+                           REFERENCES platform_migration_job(job_id) ON DELETE CASCADE,
     object_schema      VARCHAR(200) NOT NULL,
     object_name        VARCHAR(400) NOT NULL,
     object_type        VARCHAR(30)  NOT NULL
@@ -86,10 +86,10 @@ CREATE TABLE IF NOT EXISTS migration_object (
     UNIQUE (job_id, object_schema, object_name, object_type)
 );
 
-CREATE INDEX IF NOT EXISTS idx_mig_obj_job        ON migration_object(job_id);
-CREATE INDEX IF NOT EXISTS idx_mig_obj_status     ON migration_object(extraction_status);
-CREATE INDEX IF NOT EXISTS idx_mig_obj_name       ON migration_object(object_schema, object_name);
-CREATE INDEX IF NOT EXISTS idx_mig_obj_type       ON migration_object(object_type);
+CREATE INDEX IF NOT EXISTS idx_mig_obj_job        ON platform_migration_object(job_id);
+CREATE INDEX IF NOT EXISTS idx_mig_obj_status     ON platform_migration_object(extraction_status);
+CREATE INDEX IF NOT EXISTS idx_mig_obj_name       ON platform_migration_object(object_schema, object_name);
+CREATE INDEX IF NOT EXISTS idx_mig_obj_type       ON platform_migration_object(object_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 3. MIGRATION_LINEAGE                                                     │
@@ -97,14 +97,14 @@ CREATE INDEX IF NOT EXISTS idx_mig_obj_type       ON migration_object(object_typ
 -- │    parent calls / references child                                       │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS migration_lineage (
+CREATE TABLE IF NOT EXISTS platform_migration_lineage (
     lineage_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     job_id           UUID NOT NULL
-                         REFERENCES migration_job(job_id) ON DELETE CASCADE,
+                         REFERENCES platform_migration_job(job_id) ON DELETE CASCADE,
     parent_object_id UUID NOT NULL
-                         REFERENCES migration_object(object_id) ON DELETE CASCADE,
+                         REFERENCES platform_migration_object(object_id) ON DELETE CASCADE,
     child_object_id  UUID NOT NULL
-                         REFERENCES migration_object(object_id) ON DELETE CASCADE,
+                         REFERENCES platform_migration_object(object_id) ON DELETE CASCADE,
     reference_type   VARCHAR(30) NOT NULL DEFAULT 'CALLS'
                          CHECK (reference_type IN (
                              'CALLS', 'SELECTS_FROM', 'INSERTS_INTO',
@@ -119,21 +119,21 @@ CREATE TABLE IF NOT EXISTS migration_lineage (
     CHECK   (parent_object_id <> child_object_id)   -- no self-references
 );
 
-CREATE INDEX IF NOT EXISTS idx_mig_lin_job     ON migration_lineage(job_id);
-CREATE INDEX IF NOT EXISTS idx_mig_lin_parent  ON migration_lineage(parent_object_id);
-CREATE INDEX IF NOT EXISTS idx_mig_lin_child   ON migration_lineage(child_object_id);
+CREATE INDEX IF NOT EXISTS idx_mig_lin_job     ON platform_migration_lineage(job_id);
+CREATE INDEX IF NOT EXISTS idx_mig_lin_parent  ON platform_migration_lineage(parent_object_id);
+CREATE INDEX IF NOT EXISTS idx_mig_lin_child   ON platform_migration_lineage(child_object_id);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 4. MIGRATION_ARTIFACT                                                    │
 -- │    LLM-generated code for each migrated object                          │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS migration_artifact (
+CREATE TABLE IF NOT EXISTS platform_migration_artifact (
     artifact_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     object_id         UUID NOT NULL
-                          REFERENCES migration_object(object_id) ON DELETE CASCADE,
+                          REFERENCES platform_migration_object(object_id) ON DELETE CASCADE,
     job_id            UUID NOT NULL
-                          REFERENCES migration_job(job_id) ON DELETE CASCADE,
+                          REFERENCES platform_migration_job(job_id) ON DELETE CASCADE,
     artifact_type     VARCHAR(30) NOT NULL
                           CHECK (artifact_type IN (
                               'PYSPARK_JOB', 'AIRFLOW_OPERATOR',
@@ -156,9 +156,9 @@ CREATE TABLE IF NOT EXISTS migration_artifact (
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_mig_art_object ON migration_artifact(object_id);
-CREATE INDEX IF NOT EXISTS idx_mig_art_job    ON migration_artifact(job_id);
-CREATE INDEX IF NOT EXISTS idx_mig_art_type   ON migration_artifact(artifact_type);
+CREATE INDEX IF NOT EXISTS idx_mig_art_object ON platform_migration_artifact(object_id);
+CREATE INDEX IF NOT EXISTS idx_mig_art_job    ON platform_migration_artifact(job_id);
+CREATE INDEX IF NOT EXISTS idx_mig_art_type   ON platform_migration_artifact(artifact_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ HELPFUL VIEWS                                                            │
@@ -182,10 +182,10 @@ SELECT
     COUNT(DISTINCT ma.artifact_id) AS artifact_count,
     COUNT(DISTINCT ml.lineage_id)  AS lineage_edge_count,
     AVG(ma.confidence_score)       AS avg_confidence
-FROM migration_job j
-LEFT JOIN migration_object   mo ON mo.job_id = j.job_id
-LEFT JOIN migration_artifact ma ON ma.job_id = j.job_id
-LEFT JOIN migration_lineage  ml ON ml.job_id = j.job_id
+FROM platform_migration_job j
+LEFT JOIN platform_migration_object   mo ON mo.job_id = j.job_id
+LEFT JOIN platform_migration_artifact ma ON ma.job_id = j.job_id
+LEFT JOIN platform_migration_lineage  ml ON ml.job_id = j.job_id
 GROUP BY j.job_id, j.status, j.extraction_source,
          j.total_objects, j.extracted_objects, j.failed_objects, j.skipped_objects,
          j.started_at, j.completed_at, j.created_by;

@@ -61,7 +61,7 @@ class DataprocConfig:
         feed_config: Dict[str, Any],
         environment: str = "dev"
     ) -> "DataprocConfig":
-        """Create config from feed metadata."""
+        """Create config from platform_feed metadata."""
         config = cls.from_environment()
 
         config.executor_memory = feed_config.get("spark_executor_memory", "8g")

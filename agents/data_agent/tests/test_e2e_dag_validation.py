@@ -375,7 +375,7 @@ def run_tests():
             "Rejection Workflow": "rejected" in single_code or "move_to_rejected" in single_code,
             "Environment Emails": "get_environment_recipients" in single_code,
             "Self Re-trigger": "TriggerDagRunOperator" in single_code,
-            "Audit Logging": "audit_log" in single_code,
+            "Audit Logging": "platform_audit_log" in single_code,
             "GE Validation": "ge_check" in single_code or "check_ge_status" in single_code,
             "Spark TaskGroup": "get_spark_tg_wrapper" in single_code,
         }

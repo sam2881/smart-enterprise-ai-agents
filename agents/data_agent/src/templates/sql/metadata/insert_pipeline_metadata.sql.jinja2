@@ -16,7 +16,7 @@ BEGIN;
 -- -----------------------------------------------------------------------------
 -- 1. PIPELINE REGISTRY (Master record)
 -- -----------------------------------------------------------------------------
-INSERT INTO pipeline_registry (
+INSERT INTO platform_pipeline_registry (
     dag_id,
     pipeline_name,
     domain,
@@ -58,13 +58,13 @@ ON CONFLICT (dag_id, environment) DO UPDATE SET
 RETURNING pipeline_id;
 
 -- Store pipeline_id for subsequent inserts
--- In practice, use SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment }}'
+-- In practice, use SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment }}'
 
 -- -----------------------------------------------------------------------------
 -- 2. SOURCE CONFIGURATION
 -- -----------------------------------------------------------------------------
 {% if source %}
-INSERT INTO pipeline_sources (
+INSERT INTO platform_pipeline_sources (
     pipeline_id,
     source_type,
     source_format,
@@ -139,7 +139,7 @@ SELECT
     {% if source.copybook %}'{{ source.copybook | tojson }}'::jsonb,{% endif %}
     {% if source.record_length %}{{ source.record_length }},{% endif %}
     NOW()
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     source_type = EXCLUDED.source_type,
@@ -152,14 +152,14 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
 -- -----------------------------------------------------------------------------
 {% if schema and schema.columns %}
 -- Mark any existing schema as not current
-UPDATE pipeline_schemas
+UPDATE platform_pipeline_schemas
 SET is_current = FALSE, updated_at = NOW()
-WHERE pipeline_id = (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
+WHERE pipeline_id = (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}')
   AND is_current = TRUE;
 
-INSERT INTO pipeline_schemas (
+INSERT INTO platform_pipeline_schemas (
     pipeline_id,
-    schema_version,
+    platform_schema_version,
     is_current,
     columns,
     primary_keys,
@@ -168,13 +168,13 @@ INSERT INTO pipeline_schemas (
 )
 SELECT
     pipeline_id,
-    {{ schema.schema_version | default(1) }},
+    {{ schema.platform_schema_version | default(1) }},
     TRUE,
     '{{ schema.columns | tojson }}'::jsonb,
     {{ "'" ~ schema.primary_keys | tojson ~ "'::jsonb" if schema.primary_keys else "'[]'::jsonb" }},
     {{ "'" ~ schema.partition_columns | tojson ~ "'::jsonb" if schema.partition_columns else "'[]'::jsonb" }},
     {{ "'" ~ schema.cluster_columns | tojson ~ "'::jsonb" if schema.cluster_columns else "'[]'::jsonb" }}
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
 {% endif %}
 
@@ -182,7 +182,7 @@ WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev")
 -- 4. TARGET CONFIGURATION
 -- -----------------------------------------------------------------------------
 {% if target %}
-INSERT INTO pipeline_targets (
+INSERT INTO platform_pipeline_targets (
     pipeline_id,
     target_zone,
     bq_project,
@@ -207,7 +207,7 @@ SELECT
     {{ "'" ~ target.partition_field ~ "'" if target.partition_field else 'NULL' }},
     {{ "'" ~ target.cluster_fields | tojson ~ "'::jsonb" if target.cluster_fields else "'[]'::jsonb" }},
     '{{ target.destination_model | default("flat") }}'
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     target_zone = EXCLUDED.target_zone,
@@ -222,7 +222,7 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
 -- -----------------------------------------------------------------------------
 {% if transformations %}
 {% for transform in transformations %}
-INSERT INTO transformation_rules (
+INSERT INTO platform_transformation_rules (
     pipeline_id,
     rule_name,
     layer,
@@ -253,7 +253,7 @@ SELECT
     {{ "'" ~ transform.generated_pyspark | replace("'", "''") ~ "'" if transform.generated_pyspark else 'NULL' }},
     TRUE,
     '{{ created_by | default("system") }}'
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
 
 {% endfor %}
@@ -264,7 +264,7 @@ WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev")
 -- -----------------------------------------------------------------------------
 {% if quality_rules %}
 {% for rule in quality_rules %}
-INSERT INTO pipeline_quality_rules (
+INSERT INTO platform_pipeline_quality_rules (
     pipeline_id,
     rule_name,
     rule_type,
@@ -283,7 +283,7 @@ SELECT
     '{{ rule.severity | default("warning") }}',
     {{ rule.threshold_pct | default(100.0) }},
     TRUE
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}';
 
 {% endfor %}
@@ -293,7 +293,7 @@ WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev")
 -- 7. EXECUTION POLICY
 -- -----------------------------------------------------------------------------
 {% if execution_policy %}
-INSERT INTO pipeline_execution_policies (
+INSERT INTO platform_pipeline_execution_policies (
     pipeline_id,
     schedule_interval,
     start_date,
@@ -322,7 +322,7 @@ SELECT
     {{ execution_policy.requires_human_approval | default(false) | lower }},
     '{{ execution_policy.approval_groups | default([]) | tojson }}'::jsonb,
     '{{ execution_policy.alert_emails | default([]) | tojson }}'::jsonb
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     schedule_interval = EXCLUDED.schedule_interval,
@@ -334,8 +334,8 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
 -- -----------------------------------------------------------------------------
 -- 8. DATA CONTRACT (SLA Definition)
 -- -----------------------------------------------------------------------------
-{% if data_contract %}
-INSERT INTO data_contracts (
+{% if platform_data_contract %}
+INSERT INTO platform_data_contracts (
     pipeline_id,
     contract_name,
     contract_version,
@@ -349,12 +349,12 @@ SELECT
     pipeline_id,
     '{{ dag_id }}_contract',
     '1.0.0',
-    {{ data_contract.freshness_sla_hours | default(24) }},
-    {{ data_contract.completeness_threshold_pct | default(99.0) }},
-    {{ data_contract.quality_score_min | default(95.0) }},
+    {{ platform_data_contract.freshness_sla_hours | default(24) }},
+    {{ platform_data_contract.completeness_threshold_pct | default(99.0) }},
+    {{ platform_data_contract.quality_score_min | default(95.0) }},
     '{{ owner_team }}',
     'active'
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = '{{ dag_id }}' AND environment = '{{ environment | default("dev") }}'
 ON CONFLICT (pipeline_id, contract_version) DO NOTHING;
 {% endif %}
@@ -362,7 +362,7 @@ ON CONFLICT (pipeline_id, contract_version) DO NOTHING;
 -- -----------------------------------------------------------------------------
 -- 9. LOG PIPELINE EVENT
 -- -----------------------------------------------------------------------------
-INSERT INTO pipeline_events (
+INSERT INTO platform_pipeline_events (
     dag_id,
     event_type,
     event_data,
@@ -376,7 +376,7 @@ VALUES (
         "action": "insert",
         "source_type": "{{ source.source_type if source else 'unknown' }}",
         "target_zone": "{{ target.target_zone if target else 'unknown' }}",
-        "schema_version": {{ schema.schema_version | default(1) if schema else 1 }},
+        "platform_schema_version": {{ schema.platform_schema_version | default(1) if schema else 1 }},
         "transformation_count": {{ transformations | length if transformations else 0 }},
         "quality_rule_count": {{ quality_rules | length if quality_rules else 0 }},
         "created_by": "{{ created_by | default('system') }}"

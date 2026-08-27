@@ -345,14 +345,14 @@ def persist_classifications(
     connection_string: Optional[str] = None,
 ) -> int:
     """
-    Persist PII detection results to the data_classification table.
+    Persist PII detection results to the platform_data_classification table.
 
     Links detection output to governance enforcement pipeline:
-    PII Detection → data_classification → GovernanceEnforcer → masking
+    PII Detection → platform_data_classification → GovernanceEnforcer → masking
 
     Args:
         results: PII detection results from PIIDetector
-        asset_id: UUID of the data_asset being classified
+        asset_id: UUID of the platform_data_asset being classified
         connection_string: PostgreSQL connection string
 
     Returns:
@@ -370,7 +370,7 @@ def persist_classifications(
         with conn.cursor() as cur:
             for result in results:
                 cur.execute("""
-                    INSERT INTO data_classification (
+                    INSERT INTO platform_data_classification (
                         classification_id, asset_id, column_name,
                         classification_type, pii_type, confidence,
                         masking_strategy, detected_at

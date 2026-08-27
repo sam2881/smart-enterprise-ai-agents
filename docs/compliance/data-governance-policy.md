@@ -270,7 +270,7 @@ Required lineage fields per event:
 
 ### 9.2 Implementation
 
-Lineage events are emitted by `dags/dag_utilities/logging/lineage_tracker.py` and stored in the `data_lineage` PostgreSQL table. The lineage viewer is accessible via the `/catalog` frontend route.
+Lineage events are emitted by `dags/dag_utilities/logging/lineage_tracker.py` and stored in the `platform_data_lineage` PostgreSQL table. The lineage viewer is accessible via the `/catalog` frontend route.
 
 ### 9.3 Lineage Retention
 
@@ -297,7 +297,7 @@ Every data asset created or modified by the platform must be registered in the d
 |-------|-------------|-----------|
 | `asset_name` | Unique, descriptive name | Yes |
 | `zone` | Medallion zone (LANDING/BRONZE/SILVER/GOLD) | Yes |
-| `schema_version` | Semantic version of the schema (`1.0.0`) | Yes |
+| `platform_schema_version` | Semantic version of the schema (`1.0.0`) | Yes |
 | `owner` | Data Steward email | Yes |
 | `business_owner` | Data Owner name and team | Yes |
 | `classification` | L1/L2/L3/L4 | Yes |

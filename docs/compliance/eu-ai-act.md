@@ -252,7 +252,7 @@ End-to-end data lineage is tracked for all data engineering pipelines. Lineage r
 - Schema versions at each stage
 - Data quality metrics at each transformation boundary
 
-**Legacy Migration Lineage:** The `migration_lineage` table (DDL: `agents/data_agent/ddl/apex/14_legacy_migration.sql`) provides object-level dependency lineage for migrated stored procedures. Each record documents: parent object, child object, reference type (`CALLS`, `SELECTS_FROM`, `INSERTS_INTO`, `UPDATES`, `DELETES_FROM`), topological execution level, and migration job context. This creates a complete provenance chain from source SSIS package → extracted stored procedure → generated PySpark artifact.
+**Legacy Migration Lineage:** The `platform_migration_lineage` table (DDL: `agents/data_agent/ddl/apex/14_legacy_migration.sql`) provides object-level dependency lineage for migrated stored procedures. Each record documents: parent object, child object, reference type (`CALLS`, `SELECTS_FROM`, `INSERTS_INTO`, `UPDATES`, `DELETES_FROM`), topological execution level, and migration job context. This creates a complete provenance chain from source SSIS package → extracted stored procedure → generated PySpark artifact.
 
 Lineage data supports Article 10 compliance by providing a complete audit trail of how operational data flows through the platform, enabling post-market monitoring and bias detection.
 
@@ -288,7 +288,7 @@ The `PIIDetector` class automatically scans DataFrames for PII before data is lo
 - `NULL` — Replace with NULL
 - `FAKE` — Replace with synthetic but realistic data
 
-PII detection results are persisted to the `data_classification` PostgreSQL table via `persist_classifications()`, linking detected PII to the data governance enforcement pipeline.
+PII detection results are persisted to the `platform_data_classification` PostgreSQL table via `persist_classifications()`, linking detected PII to the data governance enforcement pipeline.
 
 **Data Retention for PII:** PII data is retained for a maximum of 90 days per `backend/governance/data_retention.py` (`DataCategory.PII_DATA`, retention_days=90, legal_basis="GDPR Article 5(1)(e)"). No archive is created before deletion of PII records.
 
@@ -317,7 +317,7 @@ The following documentation is maintained and kept current:
 | Testing Strategy | `docs/testing.md` | E2E test plan for both systems, chaos engineering scenarios |
 | APEX Agent README | `agents/data_agent/APEX_README.md` | Data Engineering Agent capabilities, 70+ source types, medallion zones |
 | MCP Server Integrations | `mcp-servers/README.md` | Model Context Protocol server integrations and tool definitions |
-| Legacy Migration DDL | `agents/data_agent/ddl/apex/14_legacy_migration.sql` | 4 tables: migration_job, migration_object, migration_lineage, migration_artifact — records all SP extraction, dependency graph, and LLM artifact generation |
+| Legacy Migration DDL | `agents/data_agent/ddl/apex/14_legacy_migration.sql` | 4 tables: platform_migration_job, platform_migration_object, platform_migration_lineage, platform_migration_artifact — records all SP extraction, dependency graph, and LLM artifact generation |
 
 ### 5.3 Codebase Documentation
 

@@ -48,7 +48,7 @@ from dag_utilities.common.dag_tasks import (
     dag_handle_failure,
     check_ge_status,
     check_flag,
-    audit_log,
+    platform_audit_log,
     get_file_run_id,
     get_schema_version5,
     get_feed_config,
@@ -409,7 +409,7 @@ with DAG(
                 "",
                 "",
                 HEADER_DETAILS,
-                '{{ "{{" }}ti.xcom_pull(key="schema_version", task_ids="get_file_schema_version"){{ "}}" }}',
+                '{{ "{{" }}ti.xcom_pull(key="platform_schema_version", task_ids="get_file_schema_version"){{ "}}" }}',
                 FOOTER_DETAILS,
                 '{{ "{{" }}ti.xcom_pull(key="feed_group_uuid_id", task_ids="init"){{ "}}" }}',
                 RAW_PATH,
@@ -519,7 +519,7 @@ with DAG(
 
         rejected_audit = PythonOperator(
             task_id="rejected_audit_log",
-            python_callable=audit_log,
+            python_callable=platform_audit_log,
             op_kwargs={
                 **_BASE_KWARGS,
                 "file_run_id": 0,
@@ -530,7 +530,7 @@ with DAG(
 
         trusted_rejected_audit = PythonOperator(
             task_id="trusted_rejected_audit_log",
-            python_callable=audit_log,
+            python_callable=platform_audit_log,
             op_kwargs={
                 **_BASE_KWARGS,
                 "file_run_id": 0,

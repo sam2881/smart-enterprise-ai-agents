@@ -204,7 +204,7 @@ class DependencyGraph:
 
     def to_lineage_rows(self, job_id: str) -> List[Dict[str, Any]]:
         """
-        Produce rows ready to INSERT into migration_lineage.
+        Produce rows ready to INSERT into platform_migration_lineage.
         Uses fqn strings as temporary IDs; the repository substitutes real UUIDs.
         """
         if not self._levels:

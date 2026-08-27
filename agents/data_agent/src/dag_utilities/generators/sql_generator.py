@@ -12,7 +12,7 @@ Tables:
 - zone_configurations
 - quality_rules (ge_validation_ref)
 - ge_expectations_store
-- join_dependency (if applicable)
+- platform_join_dependency (if applicable)
 - transform_definitions
 """
 

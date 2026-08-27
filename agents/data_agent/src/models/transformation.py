@@ -1,5 +1,5 @@
 """
-Transformation models matching pipeline_transformations table.
+Transformation models matching platform_pipeline_transformations table.
 
 Supports both structured transforms and NL-generated transforms.
 NL transforms are ALWAYS converted to structured metadata before execution.
@@ -170,7 +170,7 @@ class NLTransformInput(BaseModel):
 
 class TransformConfig(BaseModel):
     """
-    Transformation configuration matching pipeline_transformations table.
+    Transformation configuration matching platform_pipeline_transformations table.
     """
     model_config = ConfigDict(from_attributes=True)
 

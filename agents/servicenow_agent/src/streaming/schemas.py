@@ -459,7 +459,7 @@ class PipelinePlanningEvent(EventBase):
     pipeline_action: str  # create, modify, upgrade_schema, no_change
     is_new_pipeline: bool
     template_selection: Dict[str, Any]
-    schema_changes: List[Dict[str, Any]] = Field(default_factory=list)
+    platform_schema_changes: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class PipelineGeneratingEvent(EventBase):
@@ -467,7 +467,7 @@ class PipelineGeneratingEvent(EventBase):
     event_type: str = "pipeline.generating"
     request_id: str
     jira_key: str
-    dag_template: str
+    platform_dag_template: str
     spark_templates: List[str]
     artifact_count: int
 

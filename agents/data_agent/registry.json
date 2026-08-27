@@ -435,7 +435,7 @@
     "path": "ddl/apex/",
     "files": [
       {"name": "01_extensions_and_types.sql", "description": "PostgreSQL extensions and ENUM types"},
-      {"name": "02_core_tables.sql", "description": "Registry tables: connection, domain, source, template, feed, spark_config"},
+      {"name": "02_core_tables.sql", "description": "Registry tables: connection, domain, source, template, feed, platform_spark_config"},
       {"name": "03_contract_and_schema.sql", "description": "Contract, schema, view, transformation tables"},
       {"name": "04_validation_and_quality.sql", "description": "Validation rules, quality expectations, SLA, dependencies"},
       {"name": "05_execution_and_logging.sql", "description": "Execution tracking, audit logs, lineage, errors"},

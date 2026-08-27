@@ -210,7 +210,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│      source_registry     │       │     domain_registry      │
+│      platform_source_registry     │       │     platform_domain_registry      │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK source_id        UUID │       │ PK domain_id        UUID │
 │    source_code   VARCHAR │       │    domain_code   VARCHAR │
@@ -229,7 +229,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│     feed_group           │       │        feed              │
+│     platform_feed_group           │       │        feed              │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK feed_group_id    UUID │◄──────│ PK feed_id          UUID │
 │ FK source_id        UUID │       │ FK feed_group_id    UUID │
@@ -250,7 +250,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│     data_contract        │       │      schema_version      │
+│     platform_data_contract        │       │      platform_schema_version      │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK contract_id      UUID │◄──────│ PK schema_version_id UUID│
 │ FK feed_id          UUID │       │ FK contract_id       UUID│
@@ -278,7 +278,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│   transformation_rule    │       │      view_definition     │
+│   platform_transformation_rule    │       │      platform_view_definition     │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK transform_id     UUID │       │ PK view_id          UUID │
 │ FK contract_id      UUID │       │ FK contract_id      UUID │
@@ -298,7 +298,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│   validation_rule        │       │   quality_expectation    │
+│   platform_validation_rule        │       │   platform_quality_expectation    │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK validation_id    UUID │       │ PK expectation_id   UUID │
 │ FK contract_id      UUID │       │ FK contract_id      UUID │
@@ -319,7 +319,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│    pipeline_execution    │       │     task_execution       │
+│    platform_pipeline_execution    │       │     platform_task_execution       │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK execution_id     UUID │◄──────│ PK task_exec_id     UUID │
 │ FK feed_id          UUID │       │ FK execution_id     UUID │
@@ -336,7 +336,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
                                    └──────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│    audit_log             │       │    data_lineage          │
+│    platform_audit_log             │       │    platform_data_lineage          │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK audit_id         UUID │       │ PK lineage_id       UUID │
 │ FK execution_id     UUID │       │ FK execution_id     UUID │
@@ -353,7 +353,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│    spark_config          │       │    connection_registry   │
+│    platform_spark_config          │       │    platform_connection_registry   │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK spark_config_id  UUID │       │ PK connection_id    UUID │
 │ FK feed_group_id    UUID │       │    connection_code VARCHAR│
@@ -370,7 +370,7 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
                                    └──────────────────────────┘
 
 ┌──────────────────────────┐       ┌──────────────────────────┐
-│    dag_template          │       │    notification_config   │
+│    platform_dag_template          │       │    platform_notification_config   │
 ├──────────────────────────┤       ├──────────────────────────┤
 │ PK template_id      UUID │       │ PK notification_id  UUID │
 │    template_code VARCHAR │       │ FK feed_group_id    UUID │
@@ -389,20 +389,20 @@ Based on your existing schema, here is the enhanced, production-grade metadata m
 ## 3.2 Key Metadata Relationships
 
 ```
-source_registry (1) ──────────────────────── (N) feed_group
-feed_group (1) ───────────────────────────── (N) feed  
-feed (1) ─────────────────────────────────── (1) data_contract
-data_contract (1) ────────────────────────── (N) schema_version
-data_contract (1) ────────────────────────── (N) transformation_rule
-data_contract (1) ────────────────────────── (N) view_definition
-data_contract (1) ────────────────────────── (N) validation_rule
-data_contract (1) ────────────────────────── (N) quality_expectation
-feed (1) ─────────────────────────────────── (N) pipeline_execution
-pipeline_execution (1) ───────────────────── (N) task_execution
-pipeline_execution (1) ───────────────────── (N) audit_log
-pipeline_execution (1) ───────────────────── (N) data_lineage
-feed_group (1) ────────────────────────────── (1) spark_config
-feed_group (1) ────────────────────────────── (N) notification_config
+platform_source_registry (1) ──────────────────────── (N) platform_feed_group
+platform_feed_group (1) ───────────────────────────── (N) feed  
+feed (1) ─────────────────────────────────── (1) platform_data_contract
+platform_data_contract (1) ────────────────────────── (N) platform_schema_version
+platform_data_contract (1) ────────────────────────── (N) platform_transformation_rule
+platform_data_contract (1) ────────────────────────── (N) platform_view_definition
+platform_data_contract (1) ────────────────────────── (N) platform_validation_rule
+platform_data_contract (1) ────────────────────────── (N) platform_quality_expectation
+feed (1) ─────────────────────────────────── (N) platform_pipeline_execution
+platform_pipeline_execution (1) ───────────────────── (N) platform_task_execution
+platform_pipeline_execution (1) ───────────────────── (N) platform_audit_log
+platform_pipeline_execution (1) ───────────────────── (N) platform_data_lineage
+platform_feed_group (1) ────────────────────────────── (1) platform_spark_config
+platform_feed_group (1) ────────────────────────────── (N) platform_notification_config
 ```
 
 ---
@@ -646,7 +646,7 @@ dag_structure = {
 ║  Input:      Raw zone (any format: CSV, JSON, Parquet, Avro, XML, Fixed)     ║
 ║  Output:     Bronze zone (Delta/Iceberg)                                     ║
 ║  Logic:      Schema application, type casting, audit column injection        ║
-║  Driven By:  schema_version.schema_json, data_contract.file_format           ║
+║  Driven By:  platform_schema_version.schema_json, platform_data_contract.file_format           ║
 ║                                                                              ║
 ║  JOB #2: bronze_schema_validation.py                                         ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
@@ -654,7 +654,7 @@ dag_structure = {
 ║  Input:      Bronze zone                                                     ║
 ║  Output:     Validation results + rejected_records zone                      ║
 ║  Logic:      Column presence, data types, PK integrity, nullability          ║
-║  Driven By:  validation_rule (zone='BRONZE'), quality_expectation            ║
+║  Driven By:  platform_validation_rule (zone='BRONZE'), platform_quality_expectation            ║
 ║                                                                              ║
 ║  JOB #3: promote_bronze_to_silver.py                                                 ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
@@ -662,7 +662,7 @@ dag_structure = {
 ║  Input:      Bronze zone                                                     ║
 ║  Output:     Silver zone (Delta/Iceberg)                                     ║
 ║  Logic:      Apply view definitions, dedup, standardization, enrichment      ║
-║  Driven By:  view_definition (zone='SILVER'), transformation_rule            ║
+║  Driven By:  platform_view_definition (zone='SILVER'), platform_transformation_rule            ║
 ║                                                                              ║
 ║  JOB #4: silver_semantic_validation.py                                       ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
@@ -670,7 +670,7 @@ dag_structure = {
 ║  Input:      Silver zone                                                     ║
 ║  Output:     Validation results + anomaly flags                              ║
 ║  Logic:      Business rules, referential integrity, grain enforcement        ║
-║  Driven By:  validation_rule (zone='SILVER'), quality_expectation            ║
+║  Driven By:  platform_validation_rule (zone='SILVER'), platform_quality_expectation            ║
 ║                                                                              ║
 ║  JOB #5: build_gold_layer.py                                                   ║
 ║  ────────────────────────────────────────────────────────────────────────── ║
@@ -678,7 +678,7 @@ dag_structure = {
 ║  Input:      Silver zone                                                     ║
 ║  Output:     Gold zone (Delta/Iceberg)                                       ║
 ║  Logic:      Dimensional modeling (Star/DV2), aggregations, KPIs             ║
-║  Driven By:  view_definition (zone='GOLD'), transformation_rule              ║
+║  Driven By:  platform_view_definition (zone='GOLD'), platform_transformation_rule              ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -707,7 +707,7 @@ class SparkJobInterface:
                 'schema_json': dict,
                 'transformations': list[dict],
                 'validations': list[dict],
-                'spark_config': dict
+                'platform_spark_config': dict
             }
         """
         pass
@@ -1057,10 +1057,10 @@ class SelfHealer:
 │ Spark Jobs:   raw_to_bronze.py → promote_bronze_to_silver.py → build_gold_layer.py    │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • data_contract: file_pattern, file_format, source_path, load_type          │
-│ • schema_version: schema_json, delimiters, encoding                         │
-│ • transformation_rule: zone-specific transformation expressions             │
-│ • view_definition: SQL for each zone transition                             │
+│ • platform_data_contract: file_pattern, file_format, source_path, load_type          │
+│ • platform_schema_version: schema_json, delimiters, encoding                         │
+│ • platform_transformation_rule: zone-specific transformation expressions             │
+│ • platform_view_definition: SQL for each zone transition                             │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -1083,9 +1083,9 @@ class SelfHealer:
 │ Spark Config: Higher executors, memory, shuffle partitions                  │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • spark_config: executor_instances (10+), executor_memory (8g+)             │
-│ • data_contract: is_compressed, compression_format                          │
-│ • transformation_rule: partition_columns, coalesce_target                   │
+│ • platform_spark_config: executor_instances (10+), executor_memory (8g+)             │
+│ • platform_data_contract: is_compressed, compression_format                          │
+│ • platform_transformation_rule: partition_columns, coalesce_target                   │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -1108,9 +1108,9 @@ class SelfHealer:
 │ Additional Jobs: cdc_processor.py (extends bronze_to_silver)                │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • connection_registry: JDBC connection details                              │
-│ • data_contract: extraction_mode (FULL/CDC/WATERMARK)                       │
-│ • transformation_rule: merge_keys, soft_delete_column                       │
+│ • platform_connection_registry: JDBC connection details                              │
+│ • platform_data_contract: extraction_mode (FULL/CDC/WATERMARK)                       │
+│ • platform_transformation_rule: merge_keys, soft_delete_column                       │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -1126,7 +1126,7 @@ class SelfHealer:
 │ Migration Process:                                                           │
 │ 1. Parse .dtsx XML structure                                                │
 │ 2. Extract: SQL queries, transformations, control flow                      │
-│ 3. Convert to: view_definition + transformation_rule                        │
+│ 3. Convert to: platform_view_definition + platform_transformation_rule                        │
 │ 4. Generate: metadata INSERT statements                                     │
 │ 5. Validate: output parity with legacy                                      │
 │                                                                              │
@@ -1135,8 +1135,8 @@ class SelfHealer:
 │                                                                              │
 │ Metadata Required:                                                           │
 │ • legacy_package_reference: original .dtsx path                             │
-│ • view_definition: converted SQL logic                                      │
-│ • validation_rule: parity checks against legacy output                      │
+│ • platform_view_definition: converted SQL logic                                      │
+│ • platform_validation_rule: parity checks against legacy output                      │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -1159,8 +1159,8 @@ class SelfHealer:
 │ Spark Jobs: streaming_to_bronze.py (continuous), standard silver/gold       │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • connection_registry: Kafka bootstrap servers, topics                      │
-│ • data_contract: watermark_column, late_arrival_threshold                   │
+│ • platform_connection_registry: Kafka bootstrap servers, topics                      │
+│ • platform_data_contract: watermark_column, late_arrival_threshold                   │
 │ • streaming_config: trigger_interval, checkpoint_location                   │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -1184,9 +1184,9 @@ class SelfHealer:
 │ Additional: api_extractor.py (pre-Bronze extraction)                        │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • connection_registry: API endpoint, auth method, secret_path               │
+│ • platform_connection_registry: API endpoint, auth method, secret_path               │
 │ • api_config: pagination_type, rate_limit, response_schema                  │
-│ • transformation_rule: JSON flattening expressions                          │
+│ • platform_transformation_rule: JSON flattening expressions                          │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -1209,9 +1209,9 @@ class SelfHealer:
 │ Gold Job: build_gold_layer.py with SCD2 merge logic                           │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • transformation_rule: business_key_columns, tracked_columns                │
-│ • view_definition: SCD2 merge SQL (MERGE INTO with WHEN MATCHED)            │
-│ • data_contract: target_model_type = 'SCD2'                                 │
+│ • platform_transformation_rule: business_key_columns, tracked_columns                │
+│ • platform_view_definition: SCD2 merge SQL (MERGE INTO with WHEN MATCHED)            │
+│ • platform_data_contract: target_model_type = 'SCD2'                                 │
 │                                                                              │
 │ View SQL Pattern:                                                            │
 │ MERGE INTO gold.dim_customer t                                              │
@@ -1243,9 +1243,9 @@ class SelfHealer:
 │ Gold Job: build_gold_layer.py with DV2 loading patterns                       │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • transformation_rule: dv_type (HUB/LINK/SAT), hash_columns                 │
-│ • view_definition: DV2 INSERT logic with hash generation                    │
-│ • data_contract: target_model_type = 'DATA_VAULT'                           │
+│ • platform_transformation_rule: dv_type (HUB/LINK/SAT), hash_columns                 │
+│ • platform_view_definition: DV2 INSERT logic with hash generation                    │
+│ • platform_data_contract: target_model_type = 'DATA_VAULT'                           │
 │                                                                              │
 │ View SQL Pattern (Hub):                                                      │
 │ INSERT INTO gold.hub_customer (hash_key, customer_bk, load_ts, record_source)│
@@ -1278,9 +1278,9 @@ class SelfHealer:
 │ Gold Job: build_gold_layer.py with dimensional loading                        │
 │                                                                              │
 │ Metadata Required:                                                           │
-│ • transformation_rule: table_type (FACT/DIM), grain_columns                 │
-│ • view_definition: Dimensional SQL with SK lookups                          │
-│ • data_contract: target_model_type = 'STAR_SCHEMA'                          │
+│ • platform_transformation_rule: table_type (FACT/DIM), grain_columns                 │
+│ • platform_view_definition: Dimensional SQL with SK lookups                          │
+│ • platform_data_contract: target_model_type = 'STAR_SCHEMA'                          │
 │                                                                              │
 │ View SQL Pattern (Fact):                                                     │
 │ INSERT INTO gold.fact_sales                                                  │
@@ -1707,7 +1707,7 @@ def select_pipeline_pattern(requirements: dict) -> PipelinePattern:
 ║  This catalog provides the agent with complete context for template          ║
 ║  selection. Before creating ANY pipeline, the agent MUST:                    ║
 ║                                                                              ║
-║  1. Query the dag_template table for active templates                        ║
+║  1. Query the platform_dag_template table for active templates                        ║
 ║  2. Query the template_reference_catalog for detailed context                ║
 ║  3. Match requirements against template capabilities                         ║
 ║  4. Select the BEST matching template (≥80% = REUSE)                         ║
@@ -1847,14 +1847,14 @@ required_spark_jobs:
   - "build_gold_layer.py"
 
 required_metadata_tables:
-  - "source_registry"
-  - "feed_group"
+  - "platform_source_registry"
+  - "platform_feed_group"
   - "feed"
-  - "data_contract"
-  - "schema_version"
-  - "view_definition"
-  - "validation_rule"
-  - "spark_config"
+  - "platform_data_contract"
+  - "platform_schema_version"
+  - "platform_view_definition"
+  - "platform_validation_rule"
+  - "platform_spark_config"
 
 task_groups:
   - "tg_initialize"
@@ -2463,7 +2463,7 @@ matching_keywords:
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- P01: FILE_MEDALLION
-INSERT INTO dag_template (
+INSERT INTO platform_dag_template (
     template_id, template_code, template_name, template_type, pattern_id,
     short_description, detailed_description, use_cases, source_types_supported,
     load_types_supported, target_models_supported, supports_streaming,
@@ -2484,7 +2484,7 @@ INSERT INTO dag_template (
     ARRAY['FULL', 'INCREMENTAL', 'APPEND'],
     ARRAY['FLAT', 'NORMALIZED'],
     false, false, false, false, false, false, false,
-    ARRAY['source_registry', 'feed_group', 'feed', 'data_contract', 'schema_version', 'view_definition', 'validation_rule', 'spark_config'],
+    ARRAY['platform_source_registry', 'platform_feed_group', 'feed', 'platform_data_contract', 'platform_schema_version', 'platform_view_definition', 'platform_validation_rule', 'platform_spark_config'],
     ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'promote_bronze_to_silver.py', 'silver_semantic_validation.py', 'build_gold_layer.py'],
     ARRAY['file', 'csv', 'json', 'parquet', 'avro', 'daily', 'weekly', 'batch', 'ingest', 'landing', 'vendor', 'export'],
     '{{ jinja_template_content }}',
@@ -2494,7 +2494,7 @@ INSERT INTO dag_template (
 );
 
 -- P02: BIGDATA_FILE
-INSERT INTO dag_template (
+INSERT INTO platform_dag_template (
     template_id, template_code, template_name, template_type, pattern_id,
     short_description, detailed_description, use_cases, source_types_supported,
     load_types_supported, target_models_supported, supports_large_files,
@@ -2513,7 +2513,7 @@ INSERT INTO dag_template (
     ARRAY['FULL', 'INCREMENTAL', 'PARTITIONED'],
     ARRAY['FLAT', 'PARTITIONED'],
     true,
-    ARRAY['source_registry', 'feed_group', 'feed', 'data_contract', 'schema_version', 'view_definition', 'validation_rule', 'spark_config'],
+    ARRAY['platform_source_registry', 'platform_feed_group', 'feed', 'platform_data_contract', 'platform_schema_version', 'platform_view_definition', 'platform_validation_rule', 'platform_spark_config'],
     ARRAY['raw_to_bronze.py', 'bronze_schema_validation.py', 'promote_bronze_to_silver.py', 'silver_semantic_validation.py', 'build_gold_layer.py'],
     ARRAY['large', 'big', 'huge', 'massive', 'terabyte', 'tb', 'compressed', 'archive', 'batch', 'parallel', 'partition'],
     '{"executor_instances": 10, "executor_memory": "8g", "executor_cores": 4, "driver_memory": "4g", "shuffle_partitions": 500, "adaptive_enabled": true}',
@@ -2542,7 +2542,7 @@ INSERT INTO dag_template (
 ║                                                                              ║
 ║  Before creating ANY new template, the agent MUST:                           ║
 ║                                                                              ║
-║  1. QUERY existing templates in dag_template table                           ║
+║  1. QUERY existing templates in platform_dag_template table                           ║
 ║  2. CALCULATE compatibility score against requirements                       ║
 ║  3. DETERMINE if existing template can be parameterized                      ║
 ║  4. ONLY create new template if NO existing template scores >80%             ║
@@ -2712,7 +2712,7 @@ class TemplateSelector:
                 jinja_template,
                 description,
                 created_at
-            FROM dag_template
+            FROM platform_dag_template
             WHERE is_active = true
             ORDER BY template_type, template_name
         """
@@ -2723,9 +2723,9 @@ class TemplateSelector:
         query = """
             SELECT 
                 COUNT(DISTINCT f.feed_id) as pipeline_count
-            FROM feed f
-            JOIN feed_group fg ON f.feed_group_id = fg.feed_group_id
-            JOIN dag_template dt ON fg.template_id = dt.template_id
+            FROM platform_feed f
+            JOIN platform_feed_group fg ON f.feed_group_id = fg.feed_group_id
+            JOIN platform_dag_template dt ON fg.template_id = dt.template_id
             WHERE dt.template_id = %s AND f.is_active = true
         """
         result = self.db.execute(query, [template_id]).fetchone()
@@ -2806,12 +2806,12 @@ class TemplateExtender:
         original_template = template.jinja_template  # Keep backup
         
         # Step 2: Validate extension doesn't break existing
-        validation_result = self._validate_extension_safety(
+        platform_validation_result = self._validate_extension_safety(
             template, extension_spec
         )
-        if not validation_result.is_safe:
+        if not platform_validation_result.is_safe:
             raise UnsafeExtensionError(
-                f"Extension would break existing pipelines: {validation_result.issues}"
+                f"Extension would break existing pipelines: {platform_validation_result.issues}"
             )
         
         # Step 3: Apply extension with safety wrappers
@@ -2907,10 +2907,10 @@ SELECT
     END AS utilization_status,
     dt.created_at,
     MAX(pe.start_ts) AS last_execution
-FROM dag_template dt
-LEFT JOIN feed_group fg ON fg.template_id = dt.template_id
-LEFT JOIN feed f ON f.feed_group_id = fg.feed_group_id AND f.is_active = true
-LEFT JOIN pipeline_execution pe ON pe.feed_id = f.feed_id
+FROM platform_dag_template dt
+LEFT JOIN platform_feed_group fg ON fg.template_id = dt.template_id
+LEFT JOIN platform_feed f ON f.feed_group_id = fg.feed_group_id AND f.is_active = true
+LEFT JOIN platform_pipeline_execution pe ON pe.feed_id = f.feed_id
 WHERE dt.is_active = true
 GROUP BY dt.template_id, dt.template_code, dt.template_name, 
          dt.template_type, dt.created_at
@@ -2925,10 +2925,10 @@ WITH template_features AS (
         COUNT(DISTINCT f.feed_id) AS pipeline_count,
         ARRAY_AGG(DISTINCT dc.contract_type) AS contract_types,
         ARRAY_AGG(DISTINCT dc.load_type) AS load_types
-    FROM dag_template dt
-    LEFT JOIN feed_group fg ON fg.template_id = dt.template_id
-    LEFT JOIN feed f ON f.feed_group_id = fg.feed_group_id
-    LEFT JOIN data_contract dc ON dc.feed_id = f.feed_id
+    FROM platform_dag_template dt
+    LEFT JOIN platform_feed_group fg ON fg.template_id = dt.template_id
+    LEFT JOIN platform_feed f ON f.feed_group_id = fg.feed_group_id
+    LEFT JOIN platform_data_contract dc ON dc.feed_id = f.feed_id
     WHERE dt.is_active = true
     GROUP BY dt.template_id, dt.template_code, dt.template_type
 )
@@ -2957,8 +2957,8 @@ SELECT
     tc.changed_by,
     tc.changed_at,
     tc.rollback_available
-FROM template_change_log tc
-JOIN dag_template dt ON dt.template_id = tc.template_id
+FROM platform_template_change_log tc
+JOIN platform_dag_template dt ON dt.template_id = tc.template_id
 ORDER BY tc.changed_at DESC
 LIMIT 50;
 ```
@@ -3026,7 +3026,7 @@ DECLARE
 BEGIN
     -- Validate source exists
     SELECT EXISTS(
-        SELECT 1 FROM source_registry 
+        SELECT 1 FROM platform_source_registry 
         WHERE source_id = '{{ source_id }}' AND is_active = true
     ) INTO v_source_exists;
     
@@ -3038,7 +3038,7 @@ BEGIN
 END $$;
 
 -- Step 2: Insert with conflict handling
-INSERT INTO feed_group (
+INSERT INTO platform_feed_group (
     feed_group_id,
     source_id,
     feed_group_code,
@@ -3065,7 +3065,7 @@ ON CONFLICT (feed_group_code) DO NOTHING  -- Idempotent insert
 RETURNING feed_group_id;
 
 -- Step 3: Log the insert
-INSERT INTO metadata_audit_log (
+INSERT INTO platform_metadata_audit_log (
     audit_id,
     table_name,
     operation_type,
@@ -3076,7 +3076,7 @@ INSERT INTO metadata_audit_log (
     created_at
 ) VALUES (
     uuid_generate_v4(),
-    'feed_group',
+    'platform_feed_group',
     'INSERT',
     '{{ feed_group_id }}',
     '{{ record_json | tojson }}',
@@ -3123,11 +3123,11 @@ SELECT
     CURRENT_TIMESTAMP,  -- Now becomes valid_to
     'APEX_AGENT',
     '{{ change_reason }}'
-FROM feed_group
+FROM platform_feed_group
 WHERE feed_group_id = '{{ feed_group_id }}';
 
 -- Step 2: Apply update
-UPDATE feed_group
+UPDATE platform_feed_group
 SET 
     feed_group_name = COALESCE('{{ new_feed_group_name }}', feed_group_name),
     notification_email = COALESCE('{{ new_notification_email }}', notification_email),
@@ -3137,7 +3137,7 @@ WHERE feed_group_id = '{{ feed_group_id }}'
     AND is_active = true;
 
 -- Step 3: Log the update
-INSERT INTO metadata_audit_log (
+INSERT INTO platform_metadata_audit_log (
     audit_id,
     table_name,
     operation_type,
@@ -3150,7 +3150,7 @@ INSERT INTO metadata_audit_log (
     created_at
 ) VALUES (
     uuid_generate_v4(),
-    'feed_group',
+    'platform_feed_group',
     'UPDATE',
     '{{ feed_group_id }}',
     '{{ old_values | tojson }}',
@@ -3170,7 +3170,7 @@ INSERT INTO metadata_audit_log (
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Step 1: Deactivate current schema version
-UPDATE schema_version
+UPDATE platform_schema_version
 SET 
     is_current = false,
     effective_to = CURRENT_DATE - 1,
@@ -3179,7 +3179,7 @@ WHERE contract_id = '{{ contract_id }}'
     AND is_current = true;
 
 -- Step 2: Insert new schema version
-INSERT INTO schema_version (
+INSERT INTO platform_schema_version (
     schema_version_id,
     contract_id,
     version_number,
@@ -3212,16 +3212,16 @@ SELECT
     NULL,
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
-FROM schema_version
+FROM platform_schema_version
 WHERE contract_id = '{{ contract_id }}'
     AND version_number = (
         SELECT MAX(version_number) 
-        FROM schema_version 
+        FROM platform_schema_version 
         WHERE contract_id = '{{ contract_id }}'
     );
 
 -- Step 3: Log schema evolution
-INSERT INTO metadata_audit_log (
+INSERT INTO platform_metadata_audit_log (
     audit_id,
     table_name,
     operation_type,
@@ -3231,7 +3231,7 @@ INSERT INTO metadata_audit_log (
     created_at
 ) VALUES (
     uuid_generate_v4(),
-    'schema_version',
+    'platform_schema_version',
     'SCHEMA_EVOLUTION',
     '{{ contract_id }}',
     '{{ evolution_reason }}',
@@ -3259,9 +3259,9 @@ BEGIN
     RETURN QUERY
     SELECT 
         'FEED_EXISTS'::VARCHAR,
-        EXISTS(SELECT 1 FROM feed WHERE feed_id = p_feed_id AND is_active = true),
+        EXISTS(SELECT 1 FROM platform_feed WHERE feed_id = p_feed_id AND is_active = true),
         CASE 
-            WHEN EXISTS(SELECT 1 FROM feed WHERE feed_id = p_feed_id AND is_active = true)
+            WHEN EXISTS(SELECT 1 FROM platform_feed WHERE feed_id = p_feed_id AND is_active = true)
             THEN 'Feed exists and is active'
             ELSE 'Feed does not exist or is inactive'
         END;
@@ -3270,9 +3270,9 @@ BEGIN
     RETURN QUERY
     SELECT 
         'CONTRACT_EXISTS'::VARCHAR,
-        EXISTS(SELECT 1 FROM data_contract WHERE feed_id = p_feed_id),
+        EXISTS(SELECT 1 FROM platform_data_contract WHERE feed_id = p_feed_id),
         CASE 
-            WHEN EXISTS(SELECT 1 FROM data_contract WHERE feed_id = p_feed_id)
+            WHEN EXISTS(SELECT 1 FROM platform_data_contract WHERE feed_id = p_feed_id)
             THEN 'Data contract exists'
             ELSE 'Missing data contract for feed'
         END;
@@ -3282,14 +3282,14 @@ BEGIN
     SELECT 
         'SCHEMA_EXISTS'::VARCHAR,
         EXISTS(
-            SELECT 1 FROM schema_version sv
-            JOIN data_contract dc ON dc.contract_id = sv.contract_id
+            SELECT 1 FROM platform_schema_version sv
+            JOIN platform_data_contract dc ON dc.contract_id = sv.contract_id
             WHERE dc.feed_id = p_feed_id AND sv.is_current = true
         ),
         CASE 
             WHEN EXISTS(
-                SELECT 1 FROM schema_version sv
-                JOIN data_contract dc ON dc.contract_id = sv.contract_id
+                SELECT 1 FROM platform_schema_version sv
+                JOIN platform_data_contract dc ON dc.contract_id = sv.contract_id
                 WHERE dc.feed_id = p_feed_id AND sv.is_current = true
             )
             THEN 'Current schema version exists'
@@ -3302,15 +3302,15 @@ BEGIN
         'VIEWS_COMPLETE'::VARCHAR,
         (
             SELECT COUNT(DISTINCT zone_level) = 3
-            FROM view_definition vd
-            JOIN data_contract dc ON dc.contract_id = vd.contract_id
+            FROM platform_view_definition vd
+            JOIN platform_data_contract dc ON dc.contract_id = vd.contract_id
             WHERE dc.feed_id = p_feed_id AND vd.is_active = true
         ),
         CASE 
             WHEN (
                 SELECT COUNT(DISTINCT zone_level) = 3
-                FROM view_definition vd
-                JOIN data_contract dc ON dc.contract_id = vd.contract_id
+                FROM platform_view_definition vd
+                JOIN platform_data_contract dc ON dc.contract_id = vd.contract_id
                 WHERE dc.feed_id = p_feed_id AND vd.is_active = true
             )
             THEN 'Views exist for BRONZE, SILVER, GOLD'
@@ -3322,14 +3322,14 @@ BEGIN
     SELECT 
         'VALIDATIONS_EXIST'::VARCHAR,
         EXISTS(
-            SELECT 1 FROM validation_rule vr
-            JOIN data_contract dc ON dc.contract_id = vr.contract_id
+            SELECT 1 FROM platform_validation_rule vr
+            JOIN platform_data_contract dc ON dc.contract_id = vr.contract_id
             WHERE dc.feed_id = p_feed_id AND vr.is_active = true
         ),
         CASE 
             WHEN EXISTS(
-                SELECT 1 FROM validation_rule vr
-                JOIN data_contract dc ON dc.contract_id = vr.contract_id
+                SELECT 1 FROM platform_validation_rule vr
+                JOIN platform_data_contract dc ON dc.contract_id = vr.contract_id
                 WHERE dc.feed_id = p_feed_id AND vr.is_active = true
             )
             THEN 'Validation rules exist'
@@ -3341,16 +3341,16 @@ BEGIN
     SELECT 
         'SPARK_CONFIG_EXISTS'::VARCHAR,
         EXISTS(
-            SELECT 1 FROM spark_config sc
-            JOIN feed_group fg ON fg.feed_group_id = sc.feed_group_id
-            JOIN feed f ON f.feed_group_id = fg.feed_group_id
+            SELECT 1 FROM platform_spark_config sc
+            JOIN platform_feed_group fg ON fg.feed_group_id = sc.feed_group_id
+            JOIN platform_feed f ON f.feed_group_id = fg.feed_group_id
             WHERE f.feed_id = p_feed_id
         ),
         CASE 
             WHEN EXISTS(
-                SELECT 1 FROM spark_config sc
-                JOIN feed_group fg ON fg.feed_group_id = sc.feed_group_id
-                JOIN feed f ON f.feed_group_id = fg.feed_group_id
+                SELECT 1 FROM platform_spark_config sc
+                JOIN platform_feed_group fg ON fg.feed_group_id = sc.feed_group_id
+                JOIN platform_feed f ON f.feed_group_id = fg.feed_group_id
                 WHERE f.feed_id = p_feed_id
             )
             THEN 'Spark configuration exists'
@@ -3381,21 +3381,21 @@ $$ LANGUAGE plpgsql;
 ║  │                         LOG TABLE HIERARCHY                            │ ║
 ║  ├────────────────────────────────────────────────────────────────────────┤ ║
 ║  │                                                                        │ ║
-║  │  pipeline_execution          ← Pipeline-level execution tracking       │ ║
+║  │  platform_pipeline_execution          ← Pipeline-level execution tracking       │ ║
 ║  │       │                                                                │ ║
-║  │       ├── task_execution     ← Task-level execution details            │ ║
+║  │       ├── platform_task_execution     ← Task-level execution details            │ ║
 ║  │       │                                                                │ ║
-║  │       ├── audit_log          ← Zone-level audit trail                  │ ║
+║  │       ├── platform_audit_log          ← Zone-level audit trail                  │ ║
 ║  │       │                                                                │ ║
-║  │       ├── data_lineage       ← Data flow tracking                      │ ║
+║  │       ├── platform_data_lineage       ← Data flow tracking                      │ ║
 ║  │       │                                                                │ ║
-║  │       ├── validation_log     ← Validation results                      │ ║
+║  │       ├── platform_validation_log     ← Validation results                      │ ║
 ║  │       │                                                                │ ║
-║  │       └── error_log          ← Error details and stack traces          │ ║
+║  │       └── platform_error_log          ← Error details and stack traces          │ ║
 ║  │                                                                        │ ║
-║  │  metadata_audit_log          ← Metadata change tracking (separate)     │ ║
+║  │  platform_metadata_audit_log          ← Metadata change tracking (separate)     │ ║
 ║  │                                                                        │ ║
-║  │  agent_decision_log          ← Agent decision tracking (separate)      │ ║
+║  │  platform_agent_decision_log          ← Agent decision tracking (separate)      │ ║
 ║  │                                                                        │ ║
 ║  └────────────────────────────────────────────────────────────────────────┘ ║
 ║                                                                              ║
@@ -3410,10 +3410,10 @@ $$ LANGUAGE plpgsql;
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Validation execution log
-CREATE TABLE validation_log (
+CREATE TABLE platform_validation_log (
     validation_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
-    validation_id UUID NOT NULL REFERENCES validation_rule(validation_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
+    validation_id UUID NOT NULL REFERENCES platform_validation_rule(validation_id),
     zone_level VARCHAR(20) NOT NULL,
     validation_type VARCHAR(50) NOT NULL,
     rule_name VARCHAR(200) NOT NULL,
@@ -3430,10 +3430,10 @@ CREATE TABLE validation_log (
 );
 
 -- Error log with full context
-CREATE TABLE error_log (
+CREATE TABLE platform_error_log (
     error_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
-    task_exec_id UUID REFERENCES task_execution(task_exec_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
+    task_exec_id UUID REFERENCES platform_task_execution(task_exec_id),
     error_type VARCHAR(100) NOT NULL,
     error_code VARCHAR(50),
     error_message TEXT NOT NULL,
@@ -3448,7 +3448,7 @@ CREATE TABLE error_log (
 );
 
 -- Metadata change audit log
-CREATE TABLE metadata_audit_log (
+CREATE TABLE platform_metadata_audit_log (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name VARCHAR(100) NOT NULL,
     operation_type VARCHAR(20) NOT NULL,  -- INSERT, UPDATE, DELETE, SCHEMA_EVOLUTION
@@ -3462,7 +3462,7 @@ CREATE TABLE metadata_audit_log (
 );
 
 -- Agent decision log (tracks autonomous decisions)
-CREATE TABLE agent_decision_log (
+CREATE TABLE platform_agent_decision_log (
     decision_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     decision_type VARCHAR(100) NOT NULL,  -- TEMPLATE_SELECTION, PATTERN_MATCH, etc.
     input_context JSONB NOT NULL,  -- What the agent was given
@@ -3470,14 +3470,14 @@ CREATE TABLE agent_decision_log (
     decision_rationale TEXT NOT NULL,  -- Why the agent decided this
     alternatives_considered JSONB,  -- Other options that were rejected
     confidence_score DECIMAL(3,2),  -- 0.00 to 1.00
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Template change log
-CREATE TABLE template_change_log (
+CREATE TABLE platform_template_change_log (
     change_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    template_id UUID NOT NULL REFERENCES dag_template(template_id),
+    template_id UUID NOT NULL REFERENCES platform_dag_template(template_id),
     change_type VARCHAR(50) NOT NULL,  -- EXTENSION, MODIFICATION, DEPRECATION
     change_description TEXT NOT NULL,
     previous_template TEXT,  -- Backup of previous version
@@ -3508,15 +3508,15 @@ CREATE TABLE feed_group_history (
 );
 
 -- Create indexes for log tables
-CREATE INDEX idx_validation_log_execution ON validation_log(execution_id);
-CREATE INDEX idx_validation_log_zone ON validation_log(zone_level);
-CREATE INDEX idx_error_log_execution ON error_log(execution_id);
-CREATE INDEX idx_error_log_type ON error_log(error_type);
-CREATE INDEX idx_error_log_status ON error_log(resolution_status);
-CREATE INDEX idx_metadata_audit_table ON metadata_audit_log(table_name);
-CREATE INDEX idx_metadata_audit_record ON metadata_audit_log(record_id);
-CREATE INDEX idx_agent_decision_type ON agent_decision_log(decision_type);
-CREATE INDEX idx_template_change_template ON template_change_log(template_id);
+CREATE INDEX idx_validation_log_execution ON platform_validation_log(execution_id);
+CREATE INDEX idx_validation_log_zone ON platform_validation_log(zone_level);
+CREATE INDEX idx_error_log_execution ON platform_error_log(execution_id);
+CREATE INDEX idx_error_log_type ON platform_error_log(error_type);
+CREATE INDEX idx_error_log_status ON platform_error_log(resolution_status);
+CREATE INDEX idx_metadata_audit_table ON platform_metadata_audit_log(table_name);
+CREATE INDEX idx_metadata_audit_record ON platform_metadata_audit_log(record_id);
+CREATE INDEX idx_agent_decision_type ON platform_agent_decision_log(decision_type);
+CREATE INDEX idx_template_change_template ON platform_template_change_log(template_id);
 ```
 
 ## 10C.3 Logging Utility Class
@@ -3553,7 +3553,7 @@ class PostgreSQLLogger:
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO pipeline_execution (
+                INSERT INTO platform_pipeline_execution (
                     execution_id, feed_id, dag_run_id, execution_date,
                     start_ts, status, trigger_type, parameters,
                     created_at, updated_at
@@ -3577,7 +3577,7 @@ class PostgreSQLLogger:
         """Update pipeline execution status."""
         with self.conn.cursor() as cur:
             cur.execute("""
-                UPDATE pipeline_execution
+                UPDATE platform_pipeline_execution
                 SET status = %s,
                     end_ts = %s,
                     updated_at = %s
@@ -3600,7 +3600,7 @@ class PostgreSQLLogger:
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO task_execution (
+                INSERT INTO platform_task_execution (
                     task_exec_id, execution_id, task_id, task_type,
                     start_ts, status, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -3624,7 +3624,7 @@ class PostgreSQLLogger:
         """Log task completion."""
         with self.conn.cursor() as cur:
             cur.execute("""
-                UPDATE task_execution
+                UPDATE platform_task_execution
                 SET status = %s,
                     end_ts = %s,
                     records_read = %s,
@@ -3655,7 +3655,7 @@ class PostgreSQLLogger:
         """Log audit event."""
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO audit_log (
+                INSERT INTO platform_audit_log (
                     audit_id, execution_id, zone_level, action_type,
                     entity_name, record_count, message, metadata, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -3691,7 +3691,7 @@ class PostgreSQLLogger:
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO validation_log (
+                INSERT INTO platform_validation_log (
                     validation_log_id, execution_id, validation_id, zone_level,
                     validation_type, rule_name, total_records, passed_records,
                     failed_records, pass_percentage, threshold_percentage,
@@ -3728,7 +3728,7 @@ class PostgreSQLLogger:
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO error_log (
+                INSERT INTO platform_error_log (
                     error_log_id, execution_id, task_exec_id, error_type,
                     error_code, error_message, stack_trace, error_context,
                     is_transient, created_at
@@ -3760,7 +3760,7 @@ class PostgreSQLLogger:
         """Log autonomous agent decision for traceability."""
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO agent_decision_log (
+                INSERT INTO platform_agent_decision_log (
                     decision_id, decision_type, input_context, decision_made,
                     decision_rationale, alternatives_considered, confidence_score,
                     execution_id, created_at
@@ -3789,7 +3789,7 @@ class PostgreSQLLogger:
         """Log data lineage."""
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO data_lineage (
+                INSERT INTO platform_data_lineage (
                     lineage_id, execution_id, source_entity, target_entity,
                     transform_type, column_mapping, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -3819,11 +3819,11 @@ SELECT
     pe.start_ts,
     pe.end_ts,
     EXTRACT(EPOCH FROM (pe.end_ts - pe.start_ts)) / 60 AS duration_minutes,
-    (SELECT COUNT(*) FROM task_execution te WHERE te.execution_id = pe.execution_id) AS task_count,
-    (SELECT COUNT(*) FROM task_execution te WHERE te.execution_id = pe.execution_id AND te.status = 'FAILED') AS failed_tasks,
-    (SELECT SUM(records_written) FROM task_execution te WHERE te.execution_id = pe.execution_id) AS total_records
-FROM pipeline_execution pe
-JOIN feed f ON f.feed_id = pe.feed_id
+    (SELECT COUNT(*) FROM platform_task_execution te WHERE te.execution_id = pe.execution_id) AS task_count,
+    (SELECT COUNT(*) FROM platform_task_execution te WHERE te.execution_id = pe.execution_id AND te.status = 'FAILED') AS failed_tasks,
+    (SELECT SUM(records_written) FROM platform_task_execution te WHERE te.execution_id = pe.execution_id) AS total_records
+FROM platform_pipeline_execution pe
+JOIN platform_feed f ON f.feed_id = pe.feed_id
 WHERE pe.start_ts >= NOW() - INTERVAL '24 hours'
 ORDER BY pe.start_ts DESC;
 
@@ -3839,9 +3839,9 @@ SELECT
     vl.is_passed,
     vl.is_blocking,
     vl.created_at
-FROM validation_log vl
-JOIN pipeline_execution pe ON pe.execution_id = vl.execution_id
-JOIN feed f ON f.feed_id = pe.feed_id
+FROM platform_validation_log vl
+JOIN platform_pipeline_execution pe ON pe.execution_id = vl.execution_id
+JOIN platform_feed f ON f.feed_id = pe.feed_id
 WHERE vl.is_passed = false
     AND vl.created_at >= NOW() - INTERVAL '7 days'
 ORDER BY vl.created_at DESC;
@@ -3854,7 +3854,7 @@ SELECT
     AVG(retry_count) AS avg_retries,
     COUNT(*) FILTER (WHERE resolution_status = 'RESOLVED') AS resolved_count,
     COUNT(*) FILTER (WHERE is_transient = true) AS transient_count
-FROM error_log
+FROM platform_error_log
 WHERE created_at >= NOW() - INTERVAL '7 days'
 GROUP BY error_type
 ORDER BY error_count DESC;
@@ -3868,7 +3868,7 @@ SELECT
     adl.input_context->>'requirements' AS requirements,
     adl.alternatives_considered,
     adl.created_at
-FROM agent_decision_log adl
+FROM platform_agent_decision_log adl
 WHERE adl.created_at >= NOW() - INTERVAL '24 hours'
 ORDER BY adl.created_at DESC;
 
@@ -3881,7 +3881,7 @@ WITH RECURSIVE lineage_trace AS (
         target_entity,
         transform_type,
         1 AS depth
-    FROM data_lineage
+    FROM platform_data_lineage
     WHERE execution_id = '{{ execution_id }}'
         AND target_entity LIKE 'gold.%'
     
@@ -3894,7 +3894,7 @@ WITH RECURSIVE lineage_trace AS (
         dl.target_entity,
         dl.transform_type,
         lt.depth + 1
-    FROM data_lineage dl
+    FROM platform_data_lineage dl
     JOIN lineage_trace lt ON dl.target_entity = lt.source_entity
     WHERE dl.execution_id = '{{ execution_id }}'
 )
@@ -3957,8 +3957,8 @@ class DependencyResolver:
                 pd.dependency_type,
                 pd.required_status,
                 pd.lookback_hours
-            FROM pipeline_dependency pd
-            JOIN feed f ON f.feed_id = pd.upstream_feed_id
+            FROM platform_pipeline_dependency pd
+            JOIN platform_feed f ON f.feed_id = pd.upstream_feed_id
             WHERE pd.downstream_feed_id = %s
                 AND pd.is_active = true
         """
@@ -3979,7 +3979,7 @@ class DependencyResolver:
             # Check if upstream ran successfully
             query = """
                 SELECT execution_id, status, end_ts
-                FROM pipeline_execution
+                FROM platform_pipeline_execution
                 WHERE feed_id = %s
                     AND execution_date >= %s - INTERVAL '%s hours'
                     AND status = %s
@@ -4016,9 +4016,9 @@ class DependencyResolver:
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Table: Track resource usage and costs
-CREATE TABLE execution_cost_log (
+CREATE TABLE platform_execution_cost_log (
     cost_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     resource_type VARCHAR(50) NOT NULL,  -- SPARK, STORAGE, NETWORK
     resource_details JSONB,
     quantity DECIMAL(15,4),
@@ -4037,9 +4037,9 @@ SELECT
     AVG(ecl.total_cost) AS avg_cost_per_run,
     SUM(ecl.quantity) FILTER (WHERE ecl.resource_type = 'SPARK') AS total_spark_hours,
     SUM(ecl.quantity) FILTER (WHERE ecl.resource_type = 'STORAGE') AS total_storage_gb
-FROM feed f
-JOIN pipeline_execution pe ON pe.feed_id = f.feed_id
-JOIN execution_cost_log ecl ON ecl.execution_id = pe.execution_id
+FROM platform_feed f
+JOIN platform_pipeline_execution pe ON pe.feed_id = f.feed_id
+JOIN platform_execution_cost_log ecl ON ecl.execution_id = pe.execution_id
 WHERE pe.start_ts >= NOW() - INTERVAL '30 days'
 GROUP BY f.feed_id, f.feed_code, f.feed_name
 ORDER BY total_cost DESC;
@@ -4053,9 +4053,9 @@ ORDER BY total_cost DESC;
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Table: SLA definitions
-CREATE TABLE sla_definition (
+CREATE TABLE platform_sla_definition (
     sla_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     sla_type VARCHAR(50) NOT NULL,  -- COMPLETION_TIME, DATA_FRESHNESS, QUALITY
     target_value INTEGER NOT NULL,  -- Minutes for time, percentage for quality
     warning_threshold INTEGER,
@@ -4066,10 +4066,10 @@ CREATE TABLE sla_definition (
 );
 
 -- Table: SLA breach log
-CREATE TABLE sla_breach_log (
+CREATE TABLE platform_sla_breach_log (
     breach_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    sla_id UUID NOT NULL REFERENCES sla_definition(sla_id),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    sla_id UUID NOT NULL REFERENCES platform_sla_definition(sla_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     breach_type VARCHAR(50) NOT NULL,  -- WARNING, CRITICAL
     expected_value INTEGER,
     actual_value INTEGER,
@@ -4091,11 +4091,11 @@ SELECT
     ROUND(100.0 * (COUNT(pe.execution_id) - COUNT(sbl.breach_id)) / 
           NULLIF(COUNT(pe.execution_id), 0), 2) AS compliance_percentage,
     MAX(sbl.created_at) AS last_breach
-FROM sla_definition sd
-JOIN feed f ON f.feed_id = sd.feed_id
-LEFT JOIN pipeline_execution pe ON pe.feed_id = f.feed_id
+FROM platform_sla_definition sd
+JOIN platform_feed f ON f.feed_id = sd.feed_id
+LEFT JOIN platform_pipeline_execution pe ON pe.feed_id = f.feed_id
     AND pe.start_ts >= NOW() - INTERVAL '30 days'
-LEFT JOIN sla_breach_log sbl ON sbl.sla_id = sd.sla_id
+LEFT JOIN platform_sla_breach_log sbl ON sbl.sla_id = sd.sla_id
     AND sbl.execution_id = pe.execution_id
 WHERE sd.is_active = true
 GROUP BY f.feed_id, f.feed_code, sd.sla_id, sd.sla_type, sd.target_value
@@ -4115,7 +4115,7 @@ ORDER BY compliance_percentage ASC;
 -- SOURCE REGISTRY INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO source_registry (
+INSERT INTO platform_source_registry (
     source_id,
     source_code,
     source_name,
@@ -4131,7 +4131,7 @@ INSERT INTO source_registry (
     '{{ source_code | upper }}',                 -- e.g., 'EXPERIAN'
     '{{ source_name }}',                         -- e.g., 'Experian Credit Bureau'
     '{{ source_type }}',                         -- FILE | DATABASE | API | KAFKA
-    {{ connection_id | nullable_uuid }},         -- FK to connection_registry (nullable)
+    {{ connection_id | nullable_uuid }},         -- FK to platform_connection_registry (nullable)
     '{{ business_unit }}',                       -- e.g., 'Risk Analytics'
     '{{ owner_email }}',                         -- e.g., 'data-owner@company.com'
     true,
@@ -4147,7 +4147,7 @@ INSERT INTO source_registry (
 -- FEED GROUP INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO feed_group (
+INSERT INTO platform_feed_group (
     feed_group_id,
     source_id,
     feed_group_code,
@@ -4160,7 +4160,7 @@ INSERT INTO feed_group (
     updated_at
 ) VALUES (
     '{{ feed_group_id | uuid }}',
-    '{{ source_id }}',                           -- FK to source_registry
+    '{{ source_id }}',                           -- FK to platform_source_registry
     '{{ feed_group_code | upper }}',             -- e.g., 'EXPERIAN_MAIN_QUEST'
     '{{ feed_group_name }}',                     -- e.g., 'Experian Main Quest Files'
     '{{ feed_group_type }}',                     -- FILE | DATABASE | API | STREAMING
@@ -4187,7 +4187,7 @@ INSERT INTO feed_group (
 -- FEED INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO feed (
+INSERT INTO platform_feed (
     feed_id,
     feed_group_id,
     feed_code,
@@ -4201,7 +4201,7 @@ INSERT INTO feed (
     updated_at
 ) VALUES (
     '{{ feed_id | uuid }}',
-    '{{ feed_group_id }}',                       -- FK to feed_group
+    '{{ feed_group_id }}',                       -- FK to platform_feed_group
     '{{ feed_code | upper }}',                   -- e.g., 'EXPERIAN_MONTHLY_MAIN_QUEST'
     '{{ feed_name }}',                           -- e.g., 'Experian Monthly Main Quest Load'
     '{{ feed_type }}',                           -- BATCH | STREAMING | HYBRID
@@ -4221,7 +4221,7 @@ INSERT INTO feed (
 -- DATA CONTRACT INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO data_contract (
+INSERT INTO platform_data_contract (
     contract_id,
     feed_id,
     contract_type,
@@ -4269,7 +4269,7 @@ INSERT INTO data_contract (
 -- SCHEMA VERSION INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO schema_version (
+INSERT INTO platform_schema_version (
     schema_version_id,
     contract_id,
     version_number,
@@ -4287,7 +4287,7 @@ INSERT INTO schema_version (
     updated_at
 ) VALUES (
     '{{ schema_version_id | uuid }}',
-    '{{ contract_id }}',                         -- FK to data_contract
+    '{{ contract_id }}',                         -- FK to platform_data_contract
     {{ version_number | int }},                  -- Starting at 1
     '{{ schema_json | json }}',                  -- Column definitions
     {{ record_length | nullable_int }},          -- For fixed-width files
@@ -4319,7 +4319,7 @@ INSERT INTO schema_version (
 -- VIEW DEFINITION INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO view_definition (
+INSERT INTO platform_view_definition (
     view_id,
     contract_id,
     zone_level,
@@ -4333,7 +4333,7 @@ INSERT INTO view_definition (
     updated_at
 ) VALUES (
     '{{ view_id | uuid }}',
-    '{{ contract_id }}',                         -- FK to data_contract
+    '{{ contract_id }}',                         -- FK to platform_data_contract
     '{{ zone_level }}',                          -- BRONZE | SILVER | GOLD
     '{{ view_name }}',                           -- e.g., 'vw_bronze_customer'
     $VIEW_SQL$
@@ -4355,7 +4355,7 @@ INSERT INTO view_definition (
 -- VALIDATION RULE INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO validation_rule (
+INSERT INTO platform_validation_rule (
     validation_id,
     contract_id,
     zone_level,
@@ -4370,7 +4370,7 @@ INSERT INTO validation_rule (
     updated_at
 ) VALUES (
     '{{ validation_id | uuid }}',
-    '{{ contract_id }}',                         -- FK to data_contract
+    '{{ contract_id }}',                         -- FK to platform_data_contract
     '{{ zone_level }}',                          -- BRONZE | SILVER | GOLD
     '{{ validation_type }}',                     -- SCHEMA | SEMANTIC | QUALITY
     '{{ rule_name }}',                           -- e.g., 'customer_id_not_null'
@@ -4393,7 +4393,7 @@ INSERT INTO validation_rule (
 -- SPARK CONFIG INSERT TEMPLATE
 -- ═══════════════════════════════════════════════════════════════════════════
 
-INSERT INTO spark_config (
+INSERT INTO platform_spark_config (
     spark_config_id,
     feed_group_id,
     executor_instances,
@@ -4407,7 +4407,7 @@ INSERT INTO spark_config (
     updated_at
 ) VALUES (
     '{{ spark_config_id | uuid }}',
-    '{{ feed_group_id }}',                       -- FK to feed_group
+    '{{ feed_group_id }}',                       -- FK to platform_feed_group
     {{ executor_instances | int }},              -- e.g., 4
     '{{ executor_memory }}',                     -- e.g., '4g'
     {{ executor_cores | int }},                  -- e.g., 2
@@ -4441,7 +4441,7 @@ INSERT INTO spark_config (
 -- │ 1. SOURCE REGISTRY                                                      │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO source_registry (
+INSERT INTO platform_source_registry (
     source_id, source_code, source_name, source_type,
     business_unit, owner_email, is_active, created_at, updated_at
 ) VALUES (
@@ -4460,7 +4460,7 @@ INSERT INTO source_registry (
 -- │ 2. FEED GROUP                                                           │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO feed_group (
+INSERT INTO platform_feed_group (
     feed_group_id, source_id, feed_group_code, feed_group_name,
     feed_group_type, notification_email, table_load_setting, is_active,
     created_at, updated_at
@@ -4486,7 +4486,7 @@ INSERT INTO feed_group (
 -- │ 3. FEED                                                                 │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO feed (
+INSERT INTO platform_feed (
     feed_id, feed_group_id, feed_code, feed_name, feed_type,
     schedule_cron, is_active, start_date, created_at, updated_at
 ) VALUES (
@@ -4506,7 +4506,7 @@ INSERT INTO feed (
 -- │ 4. DATA CONTRACT                                                        │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO data_contract (
+INSERT INTO platform_data_contract (
     contract_id, feed_id, contract_type, file_pattern, file_format,
     source_path, raw_path, transient_path, rejected_path,
     ingestion_freq, load_type, soft_fail, timeout_minutes,
@@ -4537,7 +4537,7 @@ INSERT INTO data_contract (
 -- │ 5. SCHEMA VERSION                                                       │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO schema_version (
+INSERT INTO platform_schema_version (
     schema_version_id, contract_id, version_number, schema_json,
     record_length, row_delimiter, col_delimiter, header_rows,
     footer_rows, encoding, is_current, effective_from,
@@ -4570,7 +4570,7 @@ INSERT INTO schema_version (
 -- └─────────────────────────────────────────────────────────────────────────┘
 
 -- Bronze View
-INSERT INTO view_definition (
+INSERT INTO platform_view_definition (
     view_id, contract_id, zone_level, view_name, view_sql,
     materialized, refresh_mode, dependencies, is_active,
     created_at, updated_at
@@ -4603,7 +4603,7 @@ WHERE exp_pin_id IS NOT NULL
 );
 
 -- Silver View
-INSERT INTO view_definition (
+INSERT INTO platform_view_definition (
     view_id, contract_id, zone_level, view_name, view_sql,
     materialized, refresh_mode, dependencies, is_active,
     created_at, updated_at
@@ -4642,7 +4642,7 @@ WHERE b._is_current = true
 );
 
 -- Gold View
-INSERT INTO view_definition (
+INSERT INTO platform_view_definition (
     view_id, contract_id, zone_level, view_name, view_sql,
     materialized, refresh_mode, dependencies, is_active,
     created_at, updated_at
@@ -4685,7 +4685,7 @@ WHERE score_validity = 'VALID'
 -- └─────────────────────────────────────────────────────────────────────────┘
 
 -- Schema Validation: exp_pin_id not null
-INSERT INTO validation_rule (
+INSERT INTO platform_validation_rule (
     validation_id, contract_id, zone_level, validation_type,
     rule_name, rule_expression, severity, threshold_pct,
     is_blocking, is_active, created_at, updated_at
@@ -4705,7 +4705,7 @@ INSERT INTO validation_rule (
 );
 
 -- Semantic Validation: score range
-INSERT INTO validation_rule (
+INSERT INTO platform_validation_rule (
     validation_id, contract_id, zone_level, validation_type,
     rule_name, rule_expression, severity, threshold_pct,
     is_blocking, is_active, created_at, updated_at
@@ -4728,7 +4728,7 @@ INSERT INTO validation_rule (
 -- │ 8. SPARK CONFIG                                                         │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-INSERT INTO spark_config (
+INSERT INTO platform_spark_config (
     spark_config_id, feed_group_id, executor_instances, executor_memory,
     executor_cores, driver_memory, shuffle_partitions, adaptive_enabled,
     extra_conf, created_at, updated_at
@@ -4811,7 +4811,7 @@ self_healer = SelfHealer()
 # Load configuration from metadata
 feed_config = metadata_client.get_feed_config(FEED_ID)
 contract = metadata_client.get_contract(CONTRACT_ID)
-spark_config = metadata_client.get_spark_config(FEED_GROUP_ID)
+platform_spark_config = metadata_client.get_spark_config(FEED_GROUP_ID)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DAG DEFAULT ARGUMENTS
@@ -4917,7 +4917,7 @@ def submit_spark_job(job_name: str, zone: str, **context):
     result = spark_submitter.submit_job(
         job_name=job_name,
         job_path=f'/opt/spark/jobs/{job_name}.py',
-        config=spark_config,
+        config=platform_spark_config,
         arguments={
             'feed_id': FEED_ID,
             'contract_id': CONTRACT_ID,
@@ -5268,13 +5268,13 @@ with DAG(
 │                                                                             │
 │  METADATA TABLES (core):                                                    │
 │  ─────────────────────────────────────────────────────────────────────────  │
-│  source_registry → feed_group → feed → data_contract → schema_version       │
-│  view_definition, validation_rule, spark_config, pipeline_execution         │
+│  platform_source_registry → platform_feed_group → feed → platform_data_contract → platform_schema_version       │
+│  platform_view_definition, platform_validation_rule, platform_spark_config, platform_pipeline_execution         │
 │                                                                             │
 │  LOGGING TABLES (PostgreSQL):                                               │
 │  ─────────────────────────────────────────────────────────────────────────  │
-│  pipeline_execution → task_execution → audit_log → validation_log           │
-│  error_log, data_lineage, agent_decision_log, metadata_audit_log            │
+│  platform_pipeline_execution → platform_task_execution → platform_audit_log → platform_validation_log           │
+│  platform_error_log, platform_data_lineage, platform_agent_decision_log, platform_metadata_audit_log            │
 │                                                                             │
 │  DAG PHASES (6 standard):                                                   │
 │  ─────────────────────────────────────────────────────────────────────────  │
@@ -5356,7 +5356,7 @@ with DAG(
 │                                  ▼                                          │
 │                        ┌─────────────────────┐                              │
 │                        │  Log decision in    │                              │
-│                        │ agent_decision_log  │                              │
+│                        │ platform_agent_decision_log  │                              │
 │                        └─────────────────────┘                              │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -5373,13 +5373,13 @@ with DAG(
 │  ─────────────────────────────────────────────────────────────────────────  │
 │  1. Validate FKs exist (DO $$ ... END $$)                                   │
 │  2. INSERT with ON CONFLICT DO NOTHING (idempotent)                         │
-│  3. Log to metadata_audit_log                                               │
+│  3. Log to platform_metadata_audit_log                                               │
 │                                                                             │
 │  UPDATE PATTERN:                                                            │
 │  ─────────────────────────────────────────────────────────────────────────  │
 │  1. Capture current state to *_history table                                │
 │  2. UPDATE with updated_at = CURRENT_TIMESTAMP                              │
-│  3. Log old_values + new_values to metadata_audit_log                       │
+│  3. Log old_values + new_values to platform_metadata_audit_log                       │
 │                                                                             │
 │  SOFT DELETE PATTERN:                                                       │
 │  ─────────────────────────────────────────────────────────────────────────  │
@@ -5392,7 +5392,7 @@ with DAG(
 │  1. Set is_current = false on old version                                   │
 │  2. INSERT new version with version_number + 1                              │
 │  3. Set is_current = true, effective_from = CURRENT_DATE                    │
-│  4. Log evolution in metadata_audit_log                                     │
+│  4. Log evolution in platform_metadata_audit_log                                     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -5406,33 +5406,33 @@ with DAG(
 ║                                                                              ║
 ║  PHASE 0: TEMPLATE SELECTION (MANDATORY FIRST STEP)                          ║
 ║  ─────────────────────────────────────────────────────────────────────────── ║
-║  □  0a. Query existing templates from dag_template table                     ║
+║  □  0a. Query existing templates from platform_dag_template table                     ║
 ║  □  0b. Calculate compatibility score for each template                      ║
 ║  □  0c. If ≥80% match → SELECT template for REUSE                            ║
 ║  □  0d. If 60-80% match → Plan EXTENSION (additive changes only)             ║
 ║  □  0e. If <60% match → Document justification for new template              ║
-║  □  0f. Log decision to agent_decision_log                                   ║
+║  □  0f. Log decision to platform_agent_decision_log                                   ║
 ║                                                                              ║
 ║  PHASE 1: METADATA CREATION (INSERT scripts)                                 ║
 ║  ─────────────────────────────────────────────────────────────────────────── ║
-║  □  1. Check if source exists, else INSERT into source_registry              ║
-║  □  2. Check if feed_group exists, else INSERT with notification settings    ║
+║  □  1. Check if source exists, else INSERT into platform_source_registry              ║
+║  □  2. Check if platform_feed_group exists, else INSERT with notification settings    ║
 ║  □  3. INSERT feed with schedule and ownership                               ║
-║  □  4. INSERT data_contract with paths and patterns                          ║
-║  □  5. INSERT schema_version with column definitions                         ║
-║  □  6. INSERT view_definition for BRONZE zone                                ║
-║  □  7. INSERT view_definition for SILVER zone                                ║
-║  □  8. INSERT view_definition for GOLD zone                                  ║
-║  □  9. INSERT validation_rule for BRONZE (schema validation)                 ║
-║  □ 10. INSERT validation_rule for SILVER (semantic validation)               ║
-║  □ 11. INSERT spark_config with appropriate resources                        ║
+║  □  4. INSERT platform_data_contract with paths and patterns                          ║
+║  □  5. INSERT platform_schema_version with column definitions                         ║
+║  □  6. INSERT platform_view_definition for BRONZE zone                                ║
+║  □  7. INSERT platform_view_definition for SILVER zone                                ║
+║  □  8. INSERT platform_view_definition for GOLD zone                                  ║
+║  □  9. INSERT platform_validation_rule for BRONZE (schema validation)                 ║
+║  □ 10. INSERT platform_validation_rule for SILVER (semantic validation)               ║
+║  □ 11. INSERT platform_spark_config with appropriate resources                        ║
 ║                                                                              ║
 ║  PHASE 2: TEMPLATE HANDLING                                                  ║
 ║  ─────────────────────────────────────────────────────────────────────────── ║
-║  □ 12a. If REUSE: Link feed_group to existing template_id                    ║
+║  □ 12a. If REUSE: Link platform_feed_group to existing template_id                    ║
 ║  □ 12b. If EXTEND: Add new vars/tasks with DEFAULTS, test all pipelines      ║
-║  □ 12c. If CREATE: Generate new template, INSERT into dag_template           ║
-║  □ 13. Log template decision to template_change_log                          ║
+║  □ 12c. If CREATE: Generate new template, INSERT into platform_dag_template           ║
+║  □ 13. Log template decision to platform_template_change_log                          ║
 ║                                                                              ║
 ║  PHASE 3: VALIDATION                                                         ║
 ║  ─────────────────────────────────────────────────────────────────────────── ║
@@ -5443,9 +5443,9 @@ with DAG(
 ║                                                                              ║
 ║  PHASE 4: LOGGING & DOCUMENTATION                                            ║
 ║  ─────────────────────────────────────────────────────────────────────────── ║
-║  □ 18. Log all INSERTs to metadata_audit_log                                 ║
+║  □ 18. Log all INSERTs to platform_metadata_audit_log                                 ║
 ║  □ 19. Document assumptions and decisions                                    ║
-║  □ 20. Create/update notification_config                                     ║
+║  □ 20. Create/update platform_notification_config                                     ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ```
@@ -5558,54 +5558,54 @@ class TestViewDefinitions:
     def validator(self):
         return SQLValidator()
     
-    def test_view_sql_syntax(self, validator, view_definition):
+    def test_view_sql_syntax(self, validator, platform_view_definition):
         """Test that view SQL is syntactically valid."""
-        result = validator.validate_syntax(view_definition.view_sql)
+        result = validator.validate_syntax(platform_view_definition.view_sql)
         assert result.is_valid, f"Syntax error: {result.error_message}"
     
-    def test_view_columns_exist(self, spark, view_definition):
+    def test_view_columns_exist(self, spark, platform_view_definition):
         """Test that referenced columns exist in source tables."""
         # Create mock source tables with expected schema
-        mock_schema = view_definition.get_expected_source_schema()
+        mock_schema = platform_view_definition.get_expected_source_schema()
         mock_df = spark.createDataFrame([], mock_schema)
         mock_df.createOrReplaceTempView("source_table")
         
         # Try to execute view SQL
         try:
-            result_df = spark.sql(view_definition.view_sql)
+            result_df = spark.sql(platform_view_definition.view_sql)
             assert result_df is not None
         except Exception as e:
             pytest.fail(f"Column reference error: {str(e)}")
     
-    def test_view_output_schema(self, spark, view_definition):
+    def test_view_output_schema(self, spark, platform_view_definition):
         """Test that view produces expected output schema."""
-        expected_columns = view_definition.get_expected_output_columns()
+        expected_columns = platform_view_definition.get_expected_output_columns()
         
         # Execute view with sample data
-        result_df = self._execute_view_with_sample_data(spark, view_definition)
+        result_df = self._execute_view_with_sample_data(spark, platform_view_definition)
         actual_columns = result_df.columns
         
         assert set(expected_columns) == set(actual_columns), \
             f"Schema mismatch. Expected: {expected_columns}, Got: {actual_columns}"
     
-    def test_view_handles_nulls(self, spark, view_definition):
+    def test_view_handles_nulls(self, spark, platform_view_definition):
         """Test that view handles null values correctly."""
         # Create sample data with nulls
-        sample_df = self._create_sample_data_with_nulls(spark, view_definition)
+        sample_df = self._create_sample_data_with_nulls(spark, platform_view_definition)
         sample_df.createOrReplaceTempView("source_table")
         
         # Execute view - should not fail on nulls
-        result_df = spark.sql(view_definition.view_sql)
+        result_df = spark.sql(platform_view_definition.view_sql)
         assert result_df.count() >= 0  # Should execute without error
     
-    def test_view_deterministic(self, spark, view_definition):
+    def test_view_deterministic(self, spark, platform_view_definition):
         """Test that view produces deterministic results."""
-        sample_df = self._create_sample_data(spark, view_definition)
+        sample_df = self._create_sample_data(spark, platform_view_definition)
         sample_df.createOrReplaceTempView("source_table")
         
         # Execute twice and compare
-        result1 = spark.sql(view_definition.view_sql).collect()
-        result2 = spark.sql(view_definition.view_sql).collect()
+        result1 = spark.sql(platform_view_definition.view_sql).collect()
+        result2 = spark.sql(platform_view_definition.view_sql).collect()
         
         assert result1 == result2, "View produces non-deterministic results"
 ```
@@ -6036,7 +6036,7 @@ CREATE TABLE test_case (
 CREATE TABLE test_execution (
     execution_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     suite_id UUID NOT NULL REFERENCES test_suite(suite_id),
-    pipeline_execution_id UUID REFERENCES pipeline_execution(execution_id),
+    pipeline_execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     environment VARCHAR(50) NOT NULL,  -- DEV, QA, STAGING, PROD
     start_ts TIMESTAMP NOT NULL,
     end_ts TIMESTAMP,
@@ -6110,9 +6110,9 @@ CREATE TABLE test_result (
 │  ═══════════════════════════════════════════════════════════════════════   │
 │                                                                             │
 │  INTEGRATION POINTS:                                                        │
-│  • Expectation suites stored in quality_expectation table                   │
+│  • Expectation suites stored in platform_quality_expectation table                   │
 │  • Checkpoint configs stored in checkpoint_config table                     │
-│  • Results logged to validation_log table                                   │
+│  • Results logged to platform_validation_log table                                   │
 │  • Data Docs hosted on cloud storage                                        │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -6135,7 +6135,7 @@ class DataQualityManager:
         self.context = DataContext(context_root_dir=context_root_dir)
     
     def create_suite_from_metadata(self, contract_id: UUID) -> ExpectationSuite:
-        """Create GE suite from quality_expectation metadata."""
+        """Create GE suite from platform_quality_expectation metadata."""
         
         # Load expectations from PostgreSQL
         expectations = self.metadata_client.get_quality_expectations(contract_id)
@@ -6416,9 +6416,9 @@ class DataProfiler:
 -- Data profile snapshots
 CREATE TABLE data_profile (
     profile_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     row_count BIGINT NOT NULL,
     column_count INTEGER NOT NULL,
     profile_json JSONB NOT NULL,  -- Full profile details
@@ -6445,7 +6445,7 @@ CREATE TABLE data_anomaly (
 -- Baseline management
 CREATE TABLE profile_baseline (
     baseline_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,
     profile_id UUID NOT NULL REFERENCES data_profile(profile_id),
     effective_from DATE NOT NULL,
@@ -6552,7 +6552,7 @@ class DataQualityScorer:
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Query 1: Overall quality score by pipeline (last 7 days)
-WITH validation_summary AS (
+WITH platform_validation_summary AS (
     SELECT 
         f.feed_id,
         f.feed_code,
@@ -6560,9 +6560,9 @@ WITH validation_summary AS (
         AVG(vl.pass_percentage) as avg_pass_rate,
         COUNT(*) as total_validations,
         SUM(CASE WHEN vl.is_passed = false AND vl.is_blocking THEN 1 ELSE 0 END) as blocking_failures
-    FROM validation_log vl
-    JOIN pipeline_execution pe ON pe.execution_id = vl.execution_id
-    JOIN feed f ON f.feed_id = pe.feed_id
+    FROM platform_validation_log vl
+    JOIN platform_pipeline_execution pe ON pe.execution_id = vl.execution_id
+    JOIN platform_feed f ON f.feed_id = pe.feed_id
     WHERE vl.created_at >= NOW() - INTERVAL '7 days'
     GROUP BY f.feed_id, f.feed_code, vl.zone_level
 )
@@ -6579,7 +6579,7 @@ SELECT
     END as grade,
     total_validations,
     blocking_failures
-FROM validation_summary
+FROM platform_validation_summary
 ORDER BY avg_pass_rate ASC;
 
 -- Query 2: Anomaly trend analysis
@@ -6602,10 +6602,10 @@ SELECT
     vl.failed_records,
     ROUND(100.0 * vl.failed_records / NULLIF(vl.total_records, 0), 2) as failure_rate,
     vl.sample_failures
-FROM validation_log vl
-JOIN validation_rule vr ON vr.validation_id = vl.validation_id
-JOIN pipeline_execution pe ON pe.execution_id = vl.execution_id
-JOIN feed f ON f.feed_id = pe.feed_id
+FROM platform_validation_log vl
+JOIN platform_validation_rule vr ON vr.validation_id = vl.validation_id
+JOIN platform_pipeline_execution pe ON pe.execution_id = vl.execution_id
+JOIN platform_feed f ON f.feed_id = pe.feed_id
 WHERE vl.is_passed = false
     AND vl.created_at >= NOW() - INTERVAL '24 hours'
 ORDER BY failure_rate DESC
@@ -6623,9 +6623,9 @@ SELECT
         WHEN NOW() - MAX(pe.end_ts) > INTERVAL '12 hours' THEN 'WARNING'
         ELSE 'FRESH'
     END as freshness_status
-FROM feed f
-JOIN data_contract dc ON dc.feed_id = f.feed_id
-LEFT JOIN pipeline_execution pe ON pe.feed_id = f.feed_id AND pe.status = 'SUCCESS'
+FROM platform_feed f
+JOIN platform_data_contract dc ON dc.feed_id = f.feed_id
+LEFT JOIN platform_pipeline_execution pe ON pe.feed_id = f.feed_id AND pe.status = 'SUCCESS'
 WHERE f.is_active = true
 GROUP BY f.feed_id, f.feed_code, dc.source_path
 ORDER BY hours_since_last_run DESC NULLS FIRST;
@@ -6748,7 +6748,7 @@ data-platform/
 ├── pipelines/                        # Pipeline definitions
 │   ├── sources/
 │   │   └── experian/
-│   │       ├── feed_group.sql
+│   │       ├── platform_feed_group.sql
 │   │       ├── feeds.sql
 │   │       ├── contracts.sql
 │   │       ├── schemas.sql
@@ -7279,7 +7279,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ───────────────────────────────────────────────────────────────────────────
 -- SOURCE REGISTRY
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE source_registry (
+CREATE TABLE platform_source_registry (
     source_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     source_code VARCHAR(50) NOT NULL UNIQUE,
     source_name VARCHAR(200) NOT NULL,
@@ -7295,7 +7295,7 @@ CREATE TABLE source_registry (
 -- ───────────────────────────────────────────────────────────────────────────
 -- DOMAIN REGISTRY
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE domain_registry (
+CREATE TABLE platform_domain_registry (
     domain_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     domain_code VARCHAR(50) NOT NULL UNIQUE,
     domain_name VARCHAR(200) NOT NULL,
@@ -7308,9 +7308,9 @@ CREATE TABLE domain_registry (
 -- ───────────────────────────────────────────────────────────────────────────
 -- FEED GROUP
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE feed_group (
+CREATE TABLE platform_feed_group (
     feed_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    source_id UUID NOT NULL REFERENCES source_registry(source_id),
+    source_id UUID NOT NULL REFERENCES platform_source_registry(source_id),
     feed_group_code VARCHAR(100) NOT NULL UNIQUE,
     feed_group_name VARCHAR(200) NOT NULL,
     feed_group_type VARCHAR(50) NOT NULL,
@@ -7326,7 +7326,7 @@ CREATE TABLE feed_group (
 -- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE feed (
     feed_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_group_id UUID NOT NULL REFERENCES feed_group(feed_group_id),
+    feed_group_id UUID NOT NULL REFERENCES platform_feed_group(feed_group_id),
     feed_code VARCHAR(100) NOT NULL UNIQUE,
     feed_name VARCHAR(200) NOT NULL,
     feed_type VARCHAR(50) NOT NULL,
@@ -7341,9 +7341,9 @@ CREATE TABLE feed (
 -- ───────────────────────────────────────────────────────────────────────────
 -- DATA CONTRACT
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE data_contract (
+CREATE TABLE platform_data_contract (
     contract_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     contract_type VARCHAR(50) NOT NULL,
     file_pattern VARCHAR(500),
     file_format VARCHAR(50),
@@ -7365,9 +7365,9 @@ CREATE TABLE data_contract (
 -- ───────────────────────────────────────────────────────────────────────────
 -- SCHEMA VERSION
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE schema_version (
+CREATE TABLE platform_schema_version (
     schema_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     version_number INTEGER NOT NULL,
     schema_json JSONB NOT NULL,
     record_length INTEGER,
@@ -7387,9 +7387,9 @@ CREATE TABLE schema_version (
 -- ───────────────────────────────────────────────────────────────────────────
 -- VIEW DEFINITION
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE view_definition (
+CREATE TABLE platform_view_definition (
     view_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL CHECK (zone_level IN ('BRONZE', 'SILVER', 'GOLD')),
     view_name VARCHAR(200) NOT NULL,
     view_sql TEXT NOT NULL,
@@ -7405,9 +7405,9 @@ CREATE TABLE view_definition (
 -- ───────────────────────────────────────────────────────────────────────────
 -- TRANSFORMATION RULE
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE transformation_rule (
+CREATE TABLE platform_transformation_rule (
     transform_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_target VARCHAR(20) NOT NULL,
     rule_type VARCHAR(50) NOT NULL,
     rule_order INTEGER NOT NULL,
@@ -7422,9 +7422,9 @@ CREATE TABLE transformation_rule (
 -- ───────────────────────────────────────────────────────────────────────────
 -- VALIDATION RULE
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE validation_rule (
+CREATE TABLE platform_validation_rule (
     validation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,
     validation_type VARCHAR(50) NOT NULL,
     rule_name VARCHAR(200) NOT NULL,
@@ -7440,9 +7440,9 @@ CREATE TABLE validation_rule (
 -- ───────────────────────────────────────────────────────────────────────────
 -- QUALITY EXPECTATION
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE quality_expectation (
+CREATE TABLE platform_quality_expectation (
     expectation_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     expectation_type VARCHAR(100) NOT NULL,
     suite_name VARCHAR(200) NOT NULL,
     checkpoint_name VARCHAR(200),
@@ -7455,9 +7455,9 @@ CREATE TABLE quality_expectation (
 -- ───────────────────────────────────────────────────────────────────────────
 -- SPARK CONFIG
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE spark_config (
+CREATE TABLE platform_spark_config (
     spark_config_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_group_id UUID NOT NULL REFERENCES feed_group(feed_group_id),
+    feed_group_id UUID NOT NULL REFERENCES platform_feed_group(feed_group_id),
     executor_instances INTEGER DEFAULT 2,
     executor_memory VARCHAR(20) DEFAULT '2g',
     executor_cores INTEGER DEFAULT 1,
@@ -7472,7 +7472,7 @@ CREATE TABLE spark_config (
 -- ───────────────────────────────────────────────────────────────────────────
 -- CONNECTION REGISTRY
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE connection_registry (
+CREATE TABLE platform_connection_registry (
     connection_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     connection_code VARCHAR(100) NOT NULL UNIQUE,
     connection_type VARCHAR(50) NOT NULL,
@@ -7490,7 +7490,7 @@ CREATE TABLE connection_registry (
 -- ───────────────────────────────────────────────────────────────────────────
 -- DAG TEMPLATE (Enhanced with agent-readable descriptions)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE dag_template (
+CREATE TABLE platform_dag_template (
     template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_code VARCHAR(100) NOT NULL UNIQUE,
     template_name VARCHAR(200) NOT NULL,
@@ -7546,7 +7546,7 @@ CREATE TABLE dag_template (
 -- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE template_reference_catalog (
     catalog_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    template_id UUID NOT NULL REFERENCES dag_template(template_id),
+    template_id UUID NOT NULL REFERENCES platform_dag_template(template_id),
     
     -- DETAILED AGENT GUIDANCE
     when_to_use TEXT NOT NULL,                          -- Conditions when to select this
@@ -7581,9 +7581,9 @@ CREATE TABLE template_reference_catalog (
 -- ───────────────────────────────────────────────────────────────────────────
 -- PIPELINE EXECUTION
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE pipeline_execution (
+CREATE TABLE platform_pipeline_execution (
     execution_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     dag_run_id VARCHAR(200),
     execution_date DATE NOT NULL,
     start_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -7598,9 +7598,9 @@ CREATE TABLE pipeline_execution (
 -- ───────────────────────────────────────────────────────────────────────────
 -- TASK EXECUTION
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE task_execution (
+CREATE TABLE platform_task_execution (
     task_exec_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     task_id VARCHAR(200) NOT NULL,
     task_type VARCHAR(100),
     start_ts TIMESTAMP NOT NULL,
@@ -7616,9 +7616,9 @@ CREATE TABLE task_execution (
 -- ───────────────────────────────────────────────────────────────────────────
 -- AUDIT LOG
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE audit_log (
+CREATE TABLE platform_audit_log (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     zone_level VARCHAR(20),
     action_type VARCHAR(100) NOT NULL,
     entity_name VARCHAR(500),
@@ -7631,9 +7631,9 @@ CREATE TABLE audit_log (
 -- ───────────────────────────────────────────────────────────────────────────
 -- DATA LINEAGE
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE data_lineage (
+CREATE TABLE platform_data_lineage (
     lineage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     source_entity VARCHAR(500) NOT NULL,
     target_entity VARCHAR(500) NOT NULL,
     transform_type VARCHAR(100),
@@ -7644,9 +7644,9 @@ CREATE TABLE data_lineage (
 -- ───────────────────────────────────────────────────────────────────────────
 -- NOTIFICATION CONFIG
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE notification_config (
+CREATE TABLE platform_notification_config (
     notification_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_group_id UUID NOT NULL REFERENCES feed_group(feed_group_id),
+    feed_group_id UUID NOT NULL REFERENCES platform_feed_group(feed_group_id),
     event_type VARCHAR(100) NOT NULL,
     channel VARCHAR(50) NOT NULL,
     recipients JSONB NOT NULL,
@@ -7659,24 +7659,24 @@ CREATE TABLE notification_config (
 -- ───────────────────────────────────────────────────────────────────────────
 -- INDEXES
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE INDEX idx_feed_group_source ON feed_group(source_id);
-CREATE INDEX idx_feed_feed_group ON feed(feed_group_id);
-CREATE INDEX idx_contract_feed ON data_contract(feed_id);
-CREATE INDEX idx_schema_contract ON schema_version(contract_id);
-CREATE INDEX idx_view_contract_zone ON view_definition(contract_id, zone_level);
-CREATE INDEX idx_validation_contract_zone ON validation_rule(contract_id, zone_level);
-CREATE INDEX idx_execution_feed_date ON pipeline_execution(feed_id, execution_date);
-CREATE INDEX idx_task_execution ON task_execution(execution_id);
-CREATE INDEX idx_audit_execution ON audit_log(execution_id);
-CREATE INDEX idx_lineage_execution ON data_lineage(execution_id);
+CREATE INDEX idx_feed_group_source ON platform_feed_group(source_id);
+CREATE INDEX idx_feed_feed_group ON platform_feed(feed_group_id);
+CREATE INDEX idx_contract_feed ON platform_data_contract(feed_id);
+CREATE INDEX idx_schema_contract ON platform_schema_version(contract_id);
+CREATE INDEX idx_view_contract_zone ON platform_view_definition(contract_id, zone_level);
+CREATE INDEX idx_validation_contract_zone ON platform_validation_rule(contract_id, zone_level);
+CREATE INDEX idx_execution_feed_date ON platform_pipeline_execution(feed_id, execution_date);
+CREATE INDEX idx_task_execution ON platform_task_execution(execution_id);
+CREATE INDEX idx_audit_execution ON platform_audit_log(execution_id);
+CREATE INDEX idx_lineage_execution ON platform_data_lineage(execution_id);
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- VALIDATION LOG (for execution-level validation tracking)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE validation_log (
+CREATE TABLE platform_validation_log (
     validation_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
-    validation_id UUID NOT NULL REFERENCES validation_rule(validation_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
+    validation_id UUID NOT NULL REFERENCES platform_validation_rule(validation_id),
     zone_level VARCHAR(20) NOT NULL,
     validation_type VARCHAR(50) NOT NULL,
     rule_name VARCHAR(200) NOT NULL,
@@ -7695,10 +7695,10 @@ CREATE TABLE validation_log (
 -- ───────────────────────────────────────────────────────────────────────────
 -- ERROR LOG (detailed error tracking)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE error_log (
+CREATE TABLE platform_error_log (
     error_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
-    task_exec_id UUID REFERENCES task_execution(task_exec_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
+    task_exec_id UUID REFERENCES platform_task_execution(task_exec_id),
     error_type VARCHAR(100) NOT NULL,
     error_code VARCHAR(50),
     error_message TEXT NOT NULL,
@@ -7715,7 +7715,7 @@ CREATE TABLE error_log (
 -- ───────────────────────────────────────────────────────────────────────────
 -- METADATA AUDIT LOG (tracks all INSERT/UPDATE operations)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE metadata_audit_log (
+CREATE TABLE platform_metadata_audit_log (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name VARCHAR(100) NOT NULL,
     operation_type VARCHAR(20) NOT NULL,
@@ -7731,7 +7731,7 @@ CREATE TABLE metadata_audit_log (
 -- ───────────────────────────────────────────────────────────────────────────
 -- AGENT DECISION LOG (tracks autonomous agent decisions)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE agent_decision_log (
+CREATE TABLE platform_agent_decision_log (
     decision_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     decision_type VARCHAR(100) NOT NULL,
     input_context JSONB NOT NULL,
@@ -7739,16 +7739,16 @@ CREATE TABLE agent_decision_log (
     decision_rationale TEXT NOT NULL,
     alternatives_considered JSONB,
     confidence_score DECIMAL(3,2),
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- TEMPLATE CHANGE LOG (tracks template modifications)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE template_change_log (
+CREATE TABLE platform_template_change_log (
     change_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    template_id UUID NOT NULL REFERENCES dag_template(template_id),
+    template_id UUID NOT NULL REFERENCES platform_dag_template(template_id),
     change_type VARCHAR(50) NOT NULL,
     change_description TEXT NOT NULL,
     previous_template TEXT,
@@ -7762,7 +7762,7 @@ CREATE TABLE template_change_log (
 );
 
 -- ───────────────────────────────────────────────────────────────────────────
--- FEED GROUP HISTORY (temporal tracking for feed_group changes)
+-- FEED GROUP HISTORY (temporal tracking for platform_feed_group changes)
 -- ───────────────────────────────────────────────────────────────────────────
 CREATE TABLE feed_group_history (
     history_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -7783,10 +7783,10 @@ CREATE TABLE feed_group_history (
 -- ───────────────────────────────────────────────────────────────────────────
 -- PIPELINE DEPENDENCY (for dependency management)
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE TABLE pipeline_dependency (
+CREATE TABLE platform_pipeline_dependency (
     dependency_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    downstream_feed_id UUID NOT NULL REFERENCES feed(feed_id),
-    upstream_feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    downstream_feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
+    upstream_feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     dependency_type VARCHAR(50) NOT NULL,
     required_status VARCHAR(50) DEFAULT 'SUCCESS',
     lookback_hours INTEGER DEFAULT 24,
@@ -7797,17 +7797,17 @@ CREATE TABLE pipeline_dependency (
 -- ───────────────────────────────────────────────────────────────────────────
 -- ADDITIONAL INDEXES FOR NEW TABLES
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE INDEX idx_validation_log_execution ON validation_log(execution_id);
-CREATE INDEX idx_validation_log_zone ON validation_log(zone_level);
-CREATE INDEX idx_error_log_execution ON error_log(execution_id);
-CREATE INDEX idx_error_log_type ON error_log(error_type);
-CREATE INDEX idx_error_log_status ON error_log(resolution_status);
-CREATE INDEX idx_metadata_audit_table ON metadata_audit_log(table_name);
-CREATE INDEX idx_metadata_audit_record ON metadata_audit_log(record_id);
-CREATE INDEX idx_agent_decision_type ON agent_decision_log(decision_type);
-CREATE INDEX idx_template_change_template ON template_change_log(template_id);
-CREATE INDEX idx_pipeline_dep_downstream ON pipeline_dependency(downstream_feed_id);
-CREATE INDEX idx_pipeline_dep_upstream ON pipeline_dependency(upstream_feed_id);
+CREATE INDEX idx_validation_log_execution ON platform_validation_log(execution_id);
+CREATE INDEX idx_validation_log_zone ON platform_validation_log(zone_level);
+CREATE INDEX idx_error_log_execution ON platform_error_log(execution_id);
+CREATE INDEX idx_error_log_type ON platform_error_log(error_type);
+CREATE INDEX idx_error_log_status ON platform_error_log(resolution_status);
+CREATE INDEX idx_metadata_audit_table ON platform_metadata_audit_log(table_name);
+CREATE INDEX idx_metadata_audit_record ON platform_metadata_audit_log(record_id);
+CREATE INDEX idx_agent_decision_type ON platform_agent_decision_log(decision_type);
+CREATE INDEX idx_template_change_template ON platform_template_change_log(template_id);
+CREATE INDEX idx_pipeline_dep_downstream ON platform_pipeline_dependency(downstream_feed_id);
+CREATE INDEX idx_pipeline_dep_upstream ON platform_pipeline_dependency(upstream_feed_id);
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- TEST FRAMEWORK TABLES
@@ -7840,7 +7840,7 @@ CREATE TABLE test_case (
 CREATE TABLE test_execution (
     test_exec_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     suite_id UUID NOT NULL REFERENCES test_suite(suite_id),
-    pipeline_execution_id UUID REFERENCES pipeline_execution(execution_id),
+    pipeline_execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     environment VARCHAR(50) NOT NULL,
     start_ts TIMESTAMP NOT NULL,
     end_ts TIMESTAMP,
@@ -7872,9 +7872,9 @@ CREATE TABLE test_result (
 -- Data profile snapshots
 CREATE TABLE data_profile (
     profile_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     row_count BIGINT NOT NULL,
     column_count INTEGER NOT NULL,
     profile_json JSONB NOT NULL,
@@ -7901,7 +7901,7 @@ CREATE TABLE data_anomaly (
 -- Baseline management
 CREATE TABLE profile_baseline (
     baseline_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,
     profile_id UUID NOT NULL REFERENCES data_profile(profile_id),
     effective_from DATE NOT NULL,
@@ -7914,8 +7914,8 @@ CREATE TABLE profile_baseline (
 -- Data quality scores
 CREATE TABLE quality_score (
     score_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     zone_level VARCHAR(20) NOT NULL,
     completeness_score DECIMAL(5,4),
     uniqueness_score DECIMAL(5,4),

@@ -1618,7 +1618,7 @@ HTTP/1.1 403 Forbidden
 2. Poll until `COMPLETE`
 3. Verify `pii_detections` field in pipeline status shows `customer_ssn` flagged as `SSN`
 4. Verify Silver zone Spark job applies `sha2("customer_ssn", 256)` or replaces with `[REDACTED-SSN]`
-5. Verify `data_lineage` record notes the PII masking applied
+5. Verify `platform_data_lineage` record notes the PII masking applied
 
 **Expected Result:** `PIIDetection` returns SSN match; REDACT mask applied; `[REDACTED-SSN]` in Silver output
 
@@ -1637,7 +1637,7 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
-Silver zone Spark job confirmed: `customer_ssn` column output as `[REDACTED-SSN]` literal. Landing and Bronze zones retain original value under access-controlled schema. PII masking noted in `data_lineage.pii_columns_masked = ["customer_ssn"]`.
+Silver zone Spark job confirmed: `customer_ssn` column output as `[REDACTED-SSN]` literal. Landing and Bronze zones retain original value under access-controlled schema. PII masking noted in `platform_data_lineage.pii_columns_masked = ["customer_ssn"]`.
 
 ---
 
@@ -1683,19 +1683,19 @@ Request submitted at `10:17:44.000Z`. Audit row `created_at = 10:17:44.012Z` —
 | **Duration** | 180ms (lineage write) |
 | **Status** | PASS |
 
-**Description:** Verify that running a CSV pipeline through the Bronze zone creates a `data_lineage` record linking source GCS path to the Bronze BigQuery table.
+**Description:** Verify that running a CSV pipeline through the Bronze zone creates a `platform_data_lineage` record linking source GCS path to the Bronze BigQuery table.
 
 **Pre-conditions:**
 - DAG-01 pipeline successfully completed
-- `data_lineage` table exists in PostgreSQL
+- `platform_data_lineage` table exists in PostgreSQL
 
 **Test Steps:**
 
-1. After DAG-01 pipeline completes, query: `SELECT * FROM data_lineage WHERE pipeline_id = 'pip-sales-daily-001';`
+1. After DAG-01 pipeline completes, query: `SELECT * FROM platform_data_lineage WHERE pipeline_id = 'pip-sales-daily-001';`
 2. Verify row exists with `source_path`, `target_table`, `zone`, `created_at`
 3. Verify the lineage record is retrievable via the `/api/v2/pipelines/{id}/lineage` endpoint
 
-**Expected Result:** `data_lineage` table row: `source="gs://apex-raw-data/sales/daily_sales_20260622.csv"`, `target="bq_dataset.bronze_table"`
+**Expected Result:** `platform_data_lineage` table row: `source="gs://apex-raw-data/sales/daily_sales_20260622.csv"`, `target="bq_dataset.bronze_table"`
 
 **Actual Result:**
 

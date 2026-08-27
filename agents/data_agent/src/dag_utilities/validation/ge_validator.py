@@ -182,7 +182,7 @@ class GEValidator:
         execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
         # Build result
-        validation_result = ValidationResult(
+        platform_validation_result = ValidationResult(
             feed_id=feed_id,
             zone=zone,
             batch_id=batch_id,
@@ -200,9 +200,9 @@ class GEValidator:
         )
 
         # Record results to metadata
-        self._record_validation_result(validation_result)
+        self._record_validation_result(platform_validation_result)
 
-        return validation_result
+        return platform_validation_result
 
     def validate_schema(
         self,

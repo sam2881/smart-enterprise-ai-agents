@@ -2,7 +2,7 @@
 APEX Data Agent — Governance Enforcer
 
 Enforces data governance policies:
-1. PII masking based on data_classification table
+1. PII masking based on platform_data_classification table
 2. BigQuery policy tag generation
 3. Access policy validation
 
@@ -25,7 +25,7 @@ class GovernanceEnforcer:
     Enforces governance policies on data in transit.
 
     Flow:
-    1. PII detection runs → results stored in data_classification
+    1. PII detection runs → results stored in platform_data_classification
     2. GovernanceEnforcer reads classifications → applies masking
     3. Also generates BigQuery policy tag DDL for downstream access control
     """
@@ -49,7 +49,7 @@ class GovernanceEnforcer:
         classifications: Optional[List[Dict]] = None,
     ) -> Tuple[DataFrame, int]:
         """
-        Apply masking transforms based on data_classification records.
+        Apply masking transforms based on platform_data_classification records.
 
         Args:
             df: Input Spark DataFrame
@@ -102,7 +102,7 @@ class GovernanceEnforcer:
         query = """
             SELECT column_name, classification_type, pii_type,
                    confidence, masking_strategy, policy_tag, is_enforced
-            FROM data_classification
+            FROM platform_data_classification
             WHERE asset_id = %s
             ORDER BY column_name
         """
@@ -204,7 +204,7 @@ class GovernanceEnforcer:
         required_rank = level_hierarchy.get(required_level, 1)
 
         query = """
-            SELECT access_level FROM access_policy
+            SELECT access_level FROM platform_access_policy
             WHERE principal_id = %s
               AND principal_type = %s
               AND resource_id = %s
@@ -232,11 +232,11 @@ class GovernanceEnforcer:
         """
         query = """
             SELECT dc.column_name
-            FROM data_classification dc
+            FROM platform_data_classification dc
             WHERE dc.asset_id = %s
               AND dc.classification_type IN ('PII', 'PHI')
               AND dc.column_name NOT IN (
-                  SELECT ap.resource_id FROM access_policy ap
+                  SELECT ap.resource_id FROM platform_access_policy ap
                   WHERE ap.principal_id = %s
                     AND ap.resource_type = 'COLUMN'
                     AND ap.access_level IN ('READ', 'WRITE', 'ADMIN')

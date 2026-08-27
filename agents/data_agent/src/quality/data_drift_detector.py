@@ -450,7 +450,7 @@ def persist_observability_metrics(
         conn = psycopg2.connect(pg_connection_string)
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO observability_metrics (
+                INSERT INTO platform_observability_metrics (
                     feed_id, execution_id, execution_date, zone_level,
                     row_count, quality_score, column_stats,
                     schema_drift, volume_drift, freshness_drift, statistical_drift

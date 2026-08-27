@@ -60,7 +60,7 @@ from .promotion import EnvironmentPromoter, PromotionRequest, PromotionResult
 from .common.dag_tasks import (
     PgConnInfo, TransientError, PermanentError,
     generate_pg_conn_info, get_pg_connection,
-    get_file_run_id, audit_log, update_ingestion_status,
+    get_file_run_id, platform_audit_log, update_ingestion_status,
     check_ge_status, get_feed_config, get_feed_group_config,
     check_is_posting_date, get_feed_target_details, get_cz_schema_version,
     move_to_rejected, send_notification_file_count,
@@ -134,7 +134,7 @@ __all__ = [
     "generate_pg_conn_info",
     "get_pg_connection",
     "get_file_run_id",
-    "audit_log",
+    "platform_audit_log",
     "update_ingestion_status",
     "check_ge_status",
     "get_feed_config",

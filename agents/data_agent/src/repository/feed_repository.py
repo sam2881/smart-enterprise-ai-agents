@@ -40,7 +40,7 @@ class FeedRepository:
             conn.close()
 
     def upsert_feed_group(self, feed_group_id: str, config: Dict[str, Any]):
-        """Insert or update feed group configuration."""
+        """Insert or update platform_feed group configuration."""
         conn = self._get_conn()
         cur = conn.cursor()
         try:

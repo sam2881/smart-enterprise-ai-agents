@@ -3,7 +3,7 @@ StoredProcReader — Fetch stored procedure definitions from live databases.
 
 Supports SQL Server, Oracle, and PostgreSQL. Falls back to static .sql file
 scanning when the DB is unreachable. Credential resolution mirrors
-connection_test_agent.py: query connection_registry, resolve secret via
+connection_test_agent.py: query platform_connection_registry, resolve secret via
 the credentials_secret_path field.
 """
 
@@ -506,7 +506,7 @@ class StoredProcReader:
                     defn_text = defn_row[0] if defn_row else None
                 else:
                     cur.execute(
-                        "SELECT view_definition FROM information_schema.views WHERE table_schema = %s AND table_name = %s",
+                        "SELECT platform_view_definition FROM information_schema.views WHERE table_schema = %s AND table_name = %s",
                         (schema, name),
                     )
                     defn_row = cur.fetchone()
@@ -616,7 +616,7 @@ class StoredProcReader:
     def _get_connection(self) -> Any:
         """
         Build a live DB connection from the connection_record dict.
-        connection_record comes from connection_registry + optional Secret Manager
+        connection_record comes from platform_connection_registry + optional Secret Manager
         resolution (already resolved by the caller via database_source.get_jdbc_connection).
         """
         record = self._conn_record

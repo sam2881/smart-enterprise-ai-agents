@@ -6,7 +6,7 @@ component. In production, EVERY Spark zone job goes through this wrapper which
 creates an Airflow TaskGroup containing:
 
     1. DataprocSubmitJobOperator  — submits PySpark to Dataproc
-    2. BranchPythonOperator       — checks validation_result table
+    2. BranchPythonOperator       — checks platform_validation_result table
     3. EmptyOperator (ge_pass)    — success branch
     4. EmptyOperator (ge_fail)    — failure branch
 
@@ -71,7 +71,7 @@ def get_spark_tg_wrapper_v2(
     spark_script_path: str = "",
     positional_args_list: Optional[List[str]] = None,
     pg_conn_info_dict: Optional[Dict[str, str]] = None,
-    spark_config: Optional[Dict[str, Any]] = None,
+    platform_spark_config: Optional[Dict[str, Any]] = None,
     dataproc_config: Optional[Any] = None,
     use_serverless: bool = True,
     ge_check_enabled: bool = True,
@@ -191,9 +191,9 @@ def get_spark_tg_wrapper_v2(
     }
     if exec_size and exec_size.lower() in exec_size_presets:
         spark_properties.update(exec_size_presets[exec_size.lower()])
-    if spark_config:
+    if platform_spark_config:
         spark_properties.update({
-            k: str(v) for k, v in spark_config.items()
+            k: str(v) for k, v in platform_spark_config.items()
             if k.startswith("spark.")
         })
 

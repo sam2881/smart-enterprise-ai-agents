@@ -343,7 +343,7 @@ All personal data transfers outside the European Economic Area (EEA) require a v
 | Data Category | Retention Period | Legal Basis for Retention | Deletion Method | Implementation |
 |--------------|------------------|--------------------------|-----------------|----------------|
 | Audit logs | 7 years | EU AI Act Art 12 legal obligation | Logical delete (soft delete flag); data remains queryable by authorized auditors | `backend/governance/data_retention.py` |
-| Human approval records | 7 years | EU AI Act Art 14 legal obligation | Same as audit logs (records within audit log table) | PostgreSQL audit_log table |
+| Human approval records | 7 years | EU AI Act Art 14 legal obligation | Same as audit logs (records within audit log table) | PostgreSQL platform_audit_log table |
 | IT Incident data | 2 years from closure | Business need — legitimate interests | Hard delete from PostgreSQL after retention period | `data_retention.py` scheduled task |
 | Pipeline metadata (active) | Duration of pipeline + 90 days | Contract — Art 6(1)(b) | Soft delete on pipeline archive; hard delete at 90 days | PostgreSQL TTL + `data_retention.py` |
 | GCS pipeline artifacts | 90 days | Data minimization — Art 5(1)(e) | GCS lifecycle policy: `DELETE` action after 90 days | GCS bucket lifecycle rule |

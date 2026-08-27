@@ -81,7 +81,7 @@ class PipelineIntent(BaseModel):
     source_config: Dict[str, Any] = Field(..., description="Source configuration")
     schema_definition: Dict[str, Any] = Field(..., description="Schema definition")
     target_config: Dict[str, Any] = Field(..., description="Target configuration")
-    transformation_rules: list = Field(default_factory=list)
+    platform_transformation_rules: list = Field(default_factory=list)
     data_quality_rules: list = Field(default_factory=list)
     execution_policy: Dict[str, Any] = Field(default_factory=dict)
     jira_ticket: Optional[str] = None

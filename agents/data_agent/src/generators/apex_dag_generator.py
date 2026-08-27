@@ -213,7 +213,7 @@ class APEXDAGGenerator:
             ),
             schemas={},
             views={},
-            transformation_rules=[],
+            platform_transformation_rules=[],
             validation_rules=request.validation_rules,
         )
 
@@ -463,7 +463,7 @@ class APEXDAGGenerator:
                 context["gold_view_sql"] = config.views[ZoneLevel.GOLD].view_sql
 
         # Add transformation rules
-        context["transformation_rules"] = [
+        context["platform_transformation_rules"] = [
             rule.model_dump() for rule in (config.transformations or [])
         ]
 
@@ -534,9 +534,9 @@ class APEXDAGGenerator:
             # Big data pattern needs resource configuration
             context["file_size_threshold_gb"] = 10
             context["partition_size_mb"] = 256
-            context["executor_memory"] = config.spark_config.executor_memory if config.spark_config else "8g"
-            context["executor_cores"] = config.spark_config.executor_cores if config.spark_config else 4
-            context["num_executors"] = config.spark_config.num_executors if config.spark_config else 10
+            context["executor_memory"] = config.platform_spark_config.executor_memory if config.platform_spark_config else "8g"
+            context["executor_cores"] = config.platform_spark_config.executor_cores if config.platform_spark_config else 4
+            context["num_executors"] = config.platform_spark_config.num_executors if config.platform_spark_config else 10
 
         elif pattern == PatternCode.P03_DATABASE_LAKEHOUSE:
             # Database pattern needs connection and watermark config
@@ -616,7 +616,7 @@ class APEXDAGGenerator:
     def _get_tracked_columns(self, config: APEXPipelineConfig) -> List[str]:
         """Get columns to track for SCD2 from transformation rules."""
         tracked = []
-        for rule in config.transformation_rules:
+        for rule in config.platform_transformation_rules:
             if rule.rule_type == "SCD2" and rule.tracked_columns:
                 tracked.extend(rule.tracked_columns)
         # If no tracked columns defined, use all non-key columns from schema

@@ -1,5 +1,5 @@
 """
-Source configuration models matching pipeline_sources table.
+Source configuration models matching platform_pipeline_sources table.
 
 Supports ALL source types:
 - File: CSV, JSON, XML, Parquet, Avro, Excel
@@ -346,7 +346,7 @@ class DTSXSourceConfig(BaseModel):
     column_mappings: List[Dict[str, Any]] = Field(default_factory=list)
 
     # SP migration fields (populated by LegacyMigrationAgent)
-    migration_job_id: Optional[str] = Field(default=None, description="UUID of the migration_job row")
+    migration_job_id: Optional[str] = Field(default=None, description="UUID of the platform_migration_job row")
     sp_objects: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Stored procedure definitions extracted from the live DB or .sql files",
@@ -357,7 +357,7 @@ class DTSXSourceConfig(BaseModel):
     )
     connection_code: Optional[str] = Field(
         default=None,
-        description="connection_registry.connection_code for live SP extraction",
+        description="platform_connection_registry.connection_code for live SP extraction",
     )
 
 
@@ -368,7 +368,7 @@ class DTSXSourceConfig(BaseModel):
 
 class SourceConfig(BaseModel):
     """
-    Unified source configuration matching pipeline_sources table.
+    Unified source configuration matching platform_pipeline_sources table.
 
     All source types are normalized to this structure.
     """

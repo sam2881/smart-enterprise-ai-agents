@@ -13,7 +13,7 @@ following the production pattern where pg_conn_info flows:
 
 Categories:
     1. Connection Management (PgConnInfo, get_pg_connection)
-    2. Run ID & Audit (get_file_run_id, audit_log, update_ingestion_status)
+    2. Run ID & Audit (get_file_run_id, platform_audit_log, update_ingestion_status)
     3. Schema & Configuration (get_schema_version5, get_spark_submit_config, etc.)
     4. File Operations (source_to_transient, archive_files, check_dup_file, etc.)
     5. GE / Notifications / External (check_ge_status, send_notification, etc.)
@@ -498,7 +498,7 @@ def get_or_reuse_file_run_id(
         raise TransientError(f"Failed to get_or_reuse_file_run_id: {exc}") from exc
 
 
-def audit_log(
+def platform_audit_log(
     feed_id: int,
     file_run_id: int,
     status: str,
@@ -510,7 +510,7 @@ def audit_log(
     **extra,
 ) -> None:
     """
-    Write an audit record to the audit_log table.
+    Write an audit record to the platform_audit_log table.
 
     Called at each major pipeline milestone (zone start, zone end,
     validation pass/fail, archive, etc.).
@@ -527,7 +527,7 @@ def audit_log(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO audit_log
+            INSERT INTO platform_audit_log
                 (event_type, severity, feed_id, execution_id, event_data, created_at)
             VALUES (%s, %s, %s, %s, %s, NOW())
             """,
@@ -549,7 +549,7 @@ def audit_log(
         conn.commit()
     except Exception as exc:
         conn.rollback()
-        logger.warning("audit_log write failed: %s", exc)
+        logger.warning("platform_audit_log write failed: %s", exc)
 
 
 def update_ingestion_status(
@@ -663,7 +663,7 @@ def get_spark_submit_config(
     pg_conn_info: PgConnInfo,
 ) -> Dict[str, Any]:
     """
-    Get Spark submit configuration from feed metadata.
+    Get Spark submit configuration from platform_feed metadata.
 
     Returns executor/driver memory, cores, extra Spark properties.
     """
@@ -675,7 +675,7 @@ def get_spark_submit_config(
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT spark_config
+            SELECT platform_spark_config
             FROM feed_details
             WHERE feed_id = %s
             """,
@@ -905,7 +905,7 @@ def source_to_transient(
             result["files_copied"] += 1
             result["bytes_copied"] += blob.size or 0
 
-        audit_log(
+        platform_audit_log(
             feed_id, file_run_id or 0, "source_to_transient",
             pg_conn_info, zone="transient",
             records_read=result["files_copied"],
@@ -1116,7 +1116,7 @@ def check_ge_status(
     """
     Check Great Expectations validation result for a zone.
 
-    Reads from validation_result table. Used by the BranchPythonOperator
+    Reads from platform_validation_result table. Used by the BranchPythonOperator
     in spark_wrapper's TaskGroup to decide ge_pass vs ge_fail branch.
 
     Returns: "pass" or "fail"
@@ -1131,7 +1131,7 @@ def check_ge_status(
         cursor.execute(
             """
             SELECT validation_status
-            FROM validation_result
+            FROM platform_validation_result
             WHERE feed_id = %s
               AND file_run_id = %s
               AND zone = %s
@@ -1443,7 +1443,7 @@ def move_to_rejected(
             delete_source=True,
         )
 
-        audit_log(
+        platform_audit_log(
             feed_id, file_run_id or 0, "rejected", pg_conn_info,
             zone="transient", error_message=reason,
         )
@@ -1577,9 +1577,9 @@ def group_audit_log(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO audit_log
+            INSERT INTO platform_audit_log
                 (entity_type, entity_id, run_id, status, feed_count, error_message, logged_at)
-            VALUES ('feed_group', %s, %s, %s, %s, %s, NOW())
+            VALUES ('platform_feed_group', %s, %s, %s, %s, %s, NOW())
             """,
             (feed_group_id, group_run_id, status, feed_count, error_message),
         )
@@ -1609,7 +1609,7 @@ def get_environment_recipients(
     """
     Get environment-aware notification recipients.
 
-    Reads from notification_config table. In dev/qa, sends to team only.
+    Reads from platform_notification_config table. In dev/qa, sends to team only.
     In prod, sends to stakeholders + oncall.
 
     Args:
@@ -1638,7 +1638,7 @@ def get_environment_recipients(
         cursor.execute(
             """
             SELECT recipients
-            FROM notification_config
+            FROM platform_notification_config
             WHERE feed_id = %s AND environment = %s AND is_active = true
             """,
             (feed_id, environment),
@@ -1686,7 +1686,7 @@ def dag_init(feed_id: int, pg_conn_info_dict: Dict[str, str], **context) -> int:
     file_run_id, run_tag, is_rerun = get_or_reuse_file_run_id(feed_id, file_name, pg)
     reporting_date = extract_reporting_date(file_name)
 
-    audit_log(feed_id, file_run_id, "started", pg,
+    platform_audit_log(feed_id, file_run_id, "started", pg,
               reporting_date=reporting_date, run_tag=run_tag, is_rerun=is_rerun)
 
     ti = context["ti"]
@@ -1712,7 +1712,7 @@ def dag_dup_check(feed_id: int, pg_conn_info_dict: Dict[str, str], **context) ->
     run_tag = context["ti"].xcom_pull(key="run_tag")
 
     if is_rerun:
-        audit_log(feed_id, context["ti"].xcom_pull(key="file_run_id") or 0,
+        platform_audit_log(feed_id, context["ti"].xcom_pull(key="file_run_id") or 0,
                   "rerun_detected", pg, file_name=file_name, run_tag=run_tag)
 
     return "source_to_transient"
@@ -1751,7 +1751,7 @@ def dag_final_audit(feed_id: int, pg_conn_info_dict: Dict[str, str], **context) 
     pg = PgConnInfo.from_dict(pg_conn_info_dict)
     file_run_id = context["ti"].xcom_pull(key="file_run_id")
     update_ingestion_status(feed_id, file_run_id or 0, "success", pg)
-    audit_log(feed_id, file_run_id or 0, "completed", pg)
+    platform_audit_log(feed_id, file_run_id or 0, "completed", pg)
     send_notification_file_count(feed_id, file_run_id or 0, pg, status="success")
 
 
@@ -1783,7 +1783,7 @@ def dag_handle_failure(
         file_run_id = ti.xcom_pull(key="file_run_id")
     update_ingestion_status(feed_id, file_run_id or 0, "failed", pg,
                             error_message=str(context.get("exception", "")))
-    audit_log(feed_id, file_run_id or 0, "failed", pg)
+    platform_audit_log(feed_id, file_run_id or 0, "failed", pg)
     recipients = get_environment_recipients(feed_id, pg, environment)
     send_notification(
         feed_id=feed_id,
@@ -2244,7 +2244,7 @@ __all__ = [
     # Run ID & Audit (with re-run lineage)
     "get_file_run_id",
     "get_or_reuse_file_run_id",
-    "audit_log",
+    "platform_audit_log",
     "update_ingestion_status",
     # Schema & Configuration
     "get_schema_version5",

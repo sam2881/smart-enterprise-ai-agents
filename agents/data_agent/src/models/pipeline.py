@@ -1,5 +1,5 @@
 """
-Pipeline registry models matching pipeline_registry table.
+Pipeline registry models matching platform_pipeline_registry table.
 
 Maps to: agents/data_agent/src/templates/sql/metadata/schema.sql
 """
@@ -28,7 +28,7 @@ class PipelineStatus(str, Enum):
 
 class PipelineConfig(BaseModel):
     """
-    Pipeline configuration matching pipeline_registry table.
+    Pipeline configuration matching platform_pipeline_registry table.
 
     This is the core identity for a data pipeline.
     """

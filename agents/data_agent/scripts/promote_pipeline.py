@@ -85,9 +85,9 @@ def get_pipeline_config(feed_id: str, env: str) -> Optional[Dict[str, Any]]:
                 SELECT f.feed_id, f.feed_code, f.schedule_cron, f.owner,
                        fg.feed_group_code, fg.table_load_setting,
                        dt.pattern_code, dt.template_code
-                FROM feed f
-                JOIN feed_group fg ON f.feed_group_id = fg.feed_group_id
-                JOIN dag_template dt ON fg.template_id = dt.template_id
+                FROM platform_feed f
+                JOIN platform_feed_group fg ON f.feed_group_id = fg.feed_group_id
+                JOIN platform_dag_template dt ON fg.template_id = dt.template_id
                 WHERE f.feed_code = %s AND f.is_active = true
             """, [feed_id])
             row = cur.fetchone()

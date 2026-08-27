@@ -121,8 +121,8 @@ class GeneratorAgent(BaseAgent):
             context = self._build_context(intent, planner_output, metadata_context)
 
             # Generate DAG code
-            dag_template = template_selection.get("dag_template", "file_ingest_dag")
-            dag_code = self._generate_dag(dag_template, context)
+            platform_dag_template = template_selection.get("platform_dag_template", "file_ingest_dag")
+            dag_code = self._generate_dag(platform_dag_template, context)
 
             # Generate Spark jobs
             spark_templates = template_selection.get("spark_templates", [])
@@ -155,7 +155,7 @@ class GeneratorAgent(BaseAgent):
                 "current_phase": "generating",
                 "generator_output": generator_output,
                 "decision_reasoning": f"Generated {len(spark_jobs)} Spark jobs and 1 DAG "
-                    f"using {dag_template} template.",
+                    f"using {platform_dag_template} template.",
             }
 
         except TemplateNotFoundError as e:
@@ -259,7 +259,7 @@ class GeneratorAgent(BaseAgent):
             "partition_columns": schema_definition.get("partition_columns", []),
 
             # Transformation rules
-            "transformation_rules": intent.get("transformation_rules", []),
+            "platform_transformation_rules": intent.get("platform_transformation_rules", []),
 
             # Data quality rules
             "data_quality_rules": intent.get("data_quality_rules", []),
@@ -274,7 +274,7 @@ class GeneratorAgent(BaseAgent):
             # Metadata
             "jira_ticket": intent.get("jira_ticket", ""),
             "created_by": intent.get("created_by", "data-agent"),
-            "schema_version": planner_output.get("schema_plan", {}).get("new_version", 1),
+            "platform_schema_version": planner_output.get("schema_plan", {}).get("new_version", 1),
         }
 
         return context
@@ -332,7 +332,7 @@ class GeneratorAgent(BaseAgent):
             )
 
         # Generate transformation rules SQL if present
-        if context.get("transformation_rules"):
+        if context.get("platform_transformation_rules"):
             sql_statements.append(
                 self.metadata_generator.generate_transformation_rules(context)
             )

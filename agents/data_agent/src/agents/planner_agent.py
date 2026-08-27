@@ -95,7 +95,7 @@ class PlannerAgent(BaseAgent):
                 pipeline_action = "create"
                 is_new = True
                 pipeline_id = None
-                schema_changes = []
+                platform_schema_changes = []
                 current_schema_version = None
 
                 self.log_decision(
@@ -113,19 +113,19 @@ class PlannerAgent(BaseAgent):
 
                 # Detect schema changes
                 new_schema = intent.get("schema_definition", {})
-                schema_changes = self._detect_schema_changes(
+                platform_schema_changes = self._detect_schema_changes(
                     current_schema.schema_json if current_schema else {},
                     new_schema,
                 )
 
                 # Determine action based on changes
-                if schema_changes:
+                if platform_schema_changes:
                     pipeline_action = "upgrade_schema"
                     self.log_decision(
                         decision="Upgrade schema",
-                        reasoning=f"Detected {len(schema_changes)} schema changes",
+                        reasoning=f"Detected {len(platform_schema_changes)} schema changes",
                         alternatives=["No change", "Modify config only"],
-                        context={"changes": schema_changes[:5]},
+                        context={"changes": platform_schema_changes[:5]},
                     )
                 elif self._config_changed(existing_pipeline, intent):
                     pipeline_action = "modify"
@@ -159,9 +159,9 @@ class PlannerAgent(BaseAgent):
                 "new_version": (current_schema_version or 0) + 1 if pipeline_action in [
                     "create", "upgrade_schema"
                 ] else current_schema_version,
-                "changes": schema_changes,
+                "changes": platform_schema_changes,
                 "breaking_changes": [
-                    c for c in schema_changes
+                    c for c in platform_schema_changes
                     if c.get("change_type") in ["removed", "type_changed"]
                 ],
             }
@@ -200,7 +200,7 @@ class PlannerAgent(BaseAgent):
                 },
                 "decision_reasoning": f"Action: {pipeline_action}. "
                     f"{'New pipeline' if is_new else f'Existing pipeline #{pipeline_id}'} "
-                    f"with {len(schema_changes)} schema changes.",
+                    f"with {len(platform_schema_changes)} schema changes.",
             }
 
         except PlanningError as e:
@@ -327,13 +327,13 @@ class PlannerAgent(BaseAgent):
         """
         # DAG template selection
         if source_type == "file":
-            dag_template = "streaming_ingest_dag" if processing_mode == "micro_batch" else "file_ingest_dag"
+            platform_dag_template = "streaming_ingest_dag" if processing_mode == "micro_batch" else "file_ingest_dag"
         elif source_type == "database":
-            dag_template = "cdc_ingest_dag" if cdc_enabled else "db_snapshot_dag"
+            platform_dag_template = "cdc_ingest_dag" if cdc_enabled else "db_snapshot_dag"
         elif source_type == "streaming":
-            dag_template = "streaming_ingest_dag"
+            platform_dag_template = "streaming_ingest_dag"
         elif source_type == "api":
-            dag_template = "api_ingest_dag"
+            platform_dag_template = "api_ingest_dag"
         else:
             raise TemplateSelectionError(f"Unknown source_type: {source_type}")
 
@@ -355,7 +355,7 @@ class PlannerAgent(BaseAgent):
         spark_templates.append("gold_load_bq")
 
         return {
-            "dag_template": dag_template,
+            "platform_dag_template": platform_dag_template,
             "spark_templates": spark_templates,
             "source_type": source_type,
             "processing_mode": processing_mode,

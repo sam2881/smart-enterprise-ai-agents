@@ -131,7 +131,7 @@ def main():
     # Create execution record
     execution_id = f"exec_{FEED_ID}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     cur.execute(
-        "INSERT INTO pipeline_executions (pipeline_id, run_id, status, started_at) "
+        "INSERT INTO platform_pipeline_executions (pipeline_id, run_id, status, started_at) "
         "VALUES (%s, %s, %s, NOW()) RETURNING id",
         (FEED_ID, execution_id, "RUNNING"),
     )
@@ -349,13 +349,13 @@ def main():
     }
 
     cur.execute(
-        "UPDATE pipeline_executions SET status = %s, completed_at = NOW(), "
+        "UPDATE platform_pipeline_executions SET status = %s, completed_at = NOW(), "
         "input_rows = %s, output_rows = %s, metrics = %s WHERE id = %s",
         ("COMPLETED", records_read, records_after, json.dumps(metrics), db_exec_id),
     )
 
     cur.execute(
-        "INSERT INTO audit_log (event_id, event_type, actor, action, resource, outcome, details) "
+        "INSERT INTO platform_audit_log (event_id, event_type, actor, action, resource, outcome, details) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
         (
             str(uuid.uuid4()),

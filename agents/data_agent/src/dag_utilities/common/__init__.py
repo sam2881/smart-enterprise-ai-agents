@@ -21,7 +21,7 @@ from .dag_tasks import (
     extract_reporting_date,
     get_file_run_id,
     get_or_reuse_file_run_id,
-    audit_log,
+    platform_audit_log,
     update_ingestion_status,
     get_schema_version5,
     get_spark_submit_config,
@@ -105,7 +105,7 @@ __all__ = [
     # Run ID & Audit (with re-run lineage)
     "get_file_run_id",
     "get_or_reuse_file_run_id",
-    "audit_log",
+    "platform_audit_log",
     "update_ingestion_status",
     # Schema & Configuration
     "get_schema_version5",

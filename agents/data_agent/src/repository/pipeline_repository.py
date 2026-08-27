@@ -214,7 +214,7 @@ class PipelineRepository:
             set_parts.append("updated_at = NOW()")
 
             query = text(f"""
-                UPDATE pipeline_registry
+                UPDATE platform_pipeline_registry
                 SET {', '.join(set_parts)}
                 WHERE dag_id = :dag_id AND environment = :environment
             """)
@@ -238,7 +238,7 @@ class PipelineRepository:
         async with self.db.get_async_session() as session:
             result = await session.execute(
                 text("""
-                    DELETE FROM pipeline_registry
+                    DELETE FROM platform_pipeline_registry
                     WHERE dag_id = :dag_id AND environment = :environment
                 """),
                 {"dag_id": dag_id, "environment": environment},
@@ -273,7 +273,7 @@ class PipelineRepository:
             query = """
                 SELECT dag_id, pipeline_name, domain, environment, status,
                        owner_team, jira_ticket, created_at, updated_at
-                FROM pipeline_registry
+                FROM platform_pipeline_registry
                 WHERE 1=1
             """
             params = {"limit": limit}
@@ -373,7 +373,7 @@ class PipelineRepository:
         async with self.db.get_async_session() as session:
             result = await session.execute(
                 text("""
-                    INSERT INTO pipeline_events (
+                    INSERT INTO platform_pipeline_events (
                         dag_id, event_type, event_data,
                         execution_date, jira_ticket, environment
                     ) VALUES (
@@ -419,7 +419,7 @@ class PipelineRepository:
             result = await session.execute(
                 text("""
                     SELECT last_watermark
-                    FROM pipeline_watermarks
+                    FROM platform_pipeline_watermarks
                     WHERE dag_id = :dag_id AND environment = :environment
                 """),
                 {"dag_id": dag_id, "environment": environment},
@@ -444,7 +444,7 @@ class PipelineRepository:
         async with self.db.get_async_session() as session:
             await session.execute(
                 text("""
-                    INSERT INTO pipeline_watermarks (dag_id, environment, last_watermark)
+                    INSERT INTO platform_pipeline_watermarks (dag_id, environment, last_watermark)
                     VALUES (:dag_id, :environment, :watermark)
                     ON CONFLICT (dag_id, environment)
                     DO UPDATE SET last_watermark = :watermark, updated_at = NOW()
@@ -469,7 +469,7 @@ class PipelineRepository:
 
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_sources (
+                INSERT INTO platform_pipeline_sources (
                     pipeline_id, source_type, source_format,
                     source_bucket, source_prefix, file_pattern,
                     delimiter, has_header, encoding,
@@ -539,12 +539,12 @@ class PipelineRepository:
 
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_schemas (
-                    pipeline_id, schema_version, is_current,
+                INSERT INTO platform_pipeline_schemas (
+                    pipeline_id, platform_schema_version, is_current,
                     columns, primary_keys, partition_columns, cluster_columns,
                     created_by
                 ) VALUES (
-                    :pipeline_id, :schema_version, :is_current,
+                    :pipeline_id, :platform_schema_version, :is_current,
                     :columns, :primary_keys, :partition_columns, :cluster_columns,
                     :created_by
                 )
@@ -552,7 +552,7 @@ class PipelineRepository:
             """),
             {
                 "pipeline_id": pipeline_id,
-                "schema_version": schema.schema_version,
+                "platform_schema_version": schema.platform_schema_version,
                 "is_current": schema.is_current,
                 "columns": json.dumps(columns_json),
                 "primary_keys": json.dumps(schema.primary_keys),
@@ -572,7 +572,7 @@ class PipelineRepository:
         """Insert target configuration."""
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_targets (
+                INSERT INTO platform_pipeline_targets (
                     pipeline_id, target_zone,
                     bq_project, bq_dataset, bq_table, bq_location,
                     write_mode, merge_keys, destination_model,
@@ -611,7 +611,7 @@ class PipelineRepository:
         """Insert transformation rule."""
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_transformations (
+                INSERT INTO platform_pipeline_transformations (
                     pipeline_id, transform_type, transform_order, zone,
                     config, nl_description, generated_pyspark, generated_sql,
                     is_active
@@ -645,7 +645,7 @@ class PipelineRepository:
         """Insert quality rule."""
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_quality_rules (
+                INSERT INTO platform_pipeline_quality_rules (
                     pipeline_id, rule_name, rule_type, column_name,
                     config, severity, threshold_pct, is_active
                 ) VALUES (
@@ -676,7 +676,7 @@ class PipelineRepository:
         """Insert execution policy."""
         result = await session.execute(
             text("""
-                INSERT INTO pipeline_execution_policies (
+                INSERT INTO platform_pipeline_execution_policies (
                     pipeline_id, schedule_interval, start_date, end_date, catchup,
                     processing_mode, max_active_runs,
                     retry_count, retry_delay_minutes, timeout_hours,

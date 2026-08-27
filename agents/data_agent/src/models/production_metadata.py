@@ -327,7 +327,7 @@ class SchemaDetails(BaseModel):
 
     schema_id: int = Field(..., description="Numeric ID (max() + 1)")
     feed_id: int = Field(..., description="Associated feed ID")
-    schema_version: int = Field(default=1)
+    platform_schema_version: int = Field(default=1)
 
     # Zone this schema applies to
     zone: ZoneType = Field(default=ZoneType.RAW)

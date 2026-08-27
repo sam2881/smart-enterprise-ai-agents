@@ -251,7 +251,7 @@ class DTSXNormalizer(BaseNormalizer):
         ]
 
         return SchemaConfig(
-            schema_version="1.0.0",
+            platform_schema_version="1.0.0",
             is_current=True,
             columns=columns,
         )

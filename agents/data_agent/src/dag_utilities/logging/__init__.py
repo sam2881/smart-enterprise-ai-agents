@@ -91,7 +91,7 @@ class AuditLogger:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO audit_log (
+                INSERT INTO platform_audit_log (
                     event_type, severity, feed_id, feed_group_id,
                     execution_id, event_data, created_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, NOW())

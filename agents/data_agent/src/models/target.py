@@ -1,5 +1,5 @@
 """
-Target configuration models matching pipeline_targets table.
+Target configuration models matching platform_pipeline_targets table.
 
 Supports medallion architecture zones and multiple destination types.
 """
@@ -45,7 +45,7 @@ class DestinationModel(str, Enum):
 
 class TargetConfig(BaseModel):
     """
-    Target configuration matching pipeline_targets table.
+    Target configuration matching platform_pipeline_targets table.
     """
     model_config = ConfigDict(from_attributes=True)
 

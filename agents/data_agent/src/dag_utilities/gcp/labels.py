@@ -22,7 +22,7 @@ def build_cost_labels(
     extra_labels: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """
-    Build GCP cost labels from feed metadata.
+    Build GCP cost labels from platform_feed metadata.
 
     Args:
         feed_id: Numeric feed ID
@@ -61,7 +61,7 @@ def build_labels_from_metadata(
     feed_config: Dict[str, Any],
     environment: str = "dev"
 ) -> Dict[str, str]:
-    """Build labels from feed metadata dict."""
+    """Build labels from platform_feed metadata dict."""
     return build_cost_labels(
         feed_id=feed_config.get("feed_id", 0),
         domain=feed_config.get("domain", ""),

@@ -388,8 +388,8 @@ with DAG(
 {% endif %}
 
         # --- Audit ---
-        audit_log = PythonOperator(
-            task_id="audit_log",
+        platform_audit_log = PythonOperator(
+            task_id="platform_audit_log",
             python_callable=pipeline_tasks.audit_execution,
             op_kwargs={
                 "metadata": metadata,
@@ -417,10 +417,10 @@ with DAG(
         commit_offsets >> load_sat_{{ sat.satellite_name }}
 {% endfor %}
 {% for hub in feed.gold_model.hubs %}
-        load_hub_{{ hub.hub_name }} >> audit_log
+        load_hub_{{ hub.hub_name }} >> platform_audit_log
 {% endfor %}
 {% for sat in feed.gold_model.satellites %}
-        load_sat_{{ sat.satellite_name }} >> audit_log
+        load_sat_{{ sat.satellite_name }} >> platform_audit_log
 {% endfor %}
 {% elif feed.gold_model and feed.gold_model.model_type == 'star_schema' %}
 {% for dim in feed.gold_model.dimensions %}
@@ -430,10 +430,10 @@ with DAG(
 {% for dim in feed.gold_model.dimensions %}
         load_dim_{{ dim.dimension_name }} >> load_fact_{{ fact.fact_name }}
 {% endfor %}
-        load_fact_{{ fact.fact_name }} >> audit_log
+        load_fact_{{ fact.fact_name }} >> platform_audit_log
 {% endfor %}
 {% else %}
-        commit_offsets >> audit_log
+        commit_offsets >> platform_audit_log
 {% endif %}
 
         schema_validation >> handle_validation_failure

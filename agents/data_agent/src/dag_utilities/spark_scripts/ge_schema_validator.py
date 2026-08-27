@@ -625,11 +625,11 @@ def run_ge_validation(
 
         datasource_name = f"spark_ds_{suite_name}"
         context.sources.add_or_update_spark(name=datasource_name)
-        data_asset = context.get_datasource(datasource_name).add_dataframe_asset(
+        platform_data_asset = context.get_datasource(datasource_name).add_dataframe_asset(
             name=f"df_{suite_name}",
         )
 
-        batch_request = data_asset.build_batch_request(dataframe=df)
+        batch_request = platform_data_asset.build_batch_request(dataframe=df)
         checkpoint = context.add_or_update_checkpoint(
             name=f"ckpt_{suite_name}",
             validations=[{
@@ -640,7 +640,7 @@ def run_ge_validation(
 
         result = checkpoint.run()
         run_result = list(result.run_results.values())[0]
-        results_list = run_result["validation_result"]["results"]
+        results_list = run_result["platform_validation_result"]["results"]
 
         for r in results_list:
             if r["success"]:
@@ -827,7 +827,7 @@ def write_ge_results_to_db(
     results: Dict[str, Any],
 ) -> None:
     """
-    Write GE validation results to validation_result and ge_validation_detail.
+    Write GE validation results to platform_validation_result and ge_validation_detail.
 
     Production pattern: writes directly via psycopg2 (no dag_utilities dependency).
     """
@@ -837,7 +837,7 @@ def write_ge_results_to_db(
     try:
         cursor.execute(
             """
-            INSERT INTO validation_result
+            INSERT INTO platform_validation_result
                 (feed_id, file_run_id, zone, batch_id, suite_name,
                  validation_status, success_rate,
                  total_expectations, passed_expectations, failed_expectations,
@@ -868,7 +868,7 @@ def write_ge_results_to_db(
         )
     except Exception as exc:
         logger.warning(
-            "validation_result insert failed (table may not exist): %s", exc,
+            "platform_validation_result insert failed (table may not exist): %s", exc,
         )
         conn.rollback()
         _ensure_ge_tables(conn)
@@ -929,7 +929,7 @@ def _ensure_ge_tables(conn):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS validation_result (
+            CREATE TABLE IF NOT EXISTS platform_validation_result (
                 id SERIAL PRIMARY KEY,
                 feed_id INTEGER NOT NULL,
                 file_run_id INTEGER NOT NULL,
@@ -961,7 +961,7 @@ def _ensure_ge_tables(conn):
             )
         """)
         conn.commit()
-        logger.info("Created validation_result and ge_validation_detail tables")
+        logger.info("Created platform_validation_result and ge_validation_detail tables")
     except Exception as exc:
         logger.warning("Failed to create GE tables: %s", exc)
         conn.rollback()
@@ -1019,7 +1019,7 @@ def main():
     data_docs_prefix = sys.argv[12] if len(sys.argv) > 12 else ""
 
     logger.info(
-        "Starting GE validation: feed=%s run_id=%s data_asset=%s",
+        "Starting GE validation: feed=%s run_id=%s platform_data_asset=%s",
         feed_id, run_id, data_asset_name,
     )
 

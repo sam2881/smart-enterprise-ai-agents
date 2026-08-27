@@ -297,7 +297,7 @@ def generate_artifacts_node(state: APEXWorkflowState) -> Dict[str, Any]:
                 source_type=SourceCategory.FILE,
             )
 
-        # Build DAG ID from feed name
+        # Build DAG ID from platform_feed name
         dag_id = feed.feed_name.lower().replace(" ", "_")
 
         # Extract bronze schema if available

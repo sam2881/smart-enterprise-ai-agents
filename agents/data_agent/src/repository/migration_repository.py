@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 
 class MigrationRepository:
-    """CRUD for migration_job, migration_object, migration_lineage, migration_artifact."""
+    """CRUD for platform_migration_job, platform_migration_object, platform_migration_lineage, platform_migration_artifact."""
 
     def __init__(self, connection_string: str) -> None:
         self._connection_string = connection_string
@@ -27,7 +27,7 @@ class MigrationRepository:
         return psycopg2.connect(self._connection_string)
 
     # ------------------------------------------------------------------
-    # migration_job
+    # platform_migration_job
     # ------------------------------------------------------------------
 
     def create_migration_job(
@@ -41,14 +41,14 @@ class MigrationRepository:
         dtsx_summary: Optional[Dict[str, Any]] = None,
         created_by: Optional[str] = None,
     ) -> str:
-        """Insert a new migration_job row and return its job_id (UUID string)."""
+        """Insert a new platform_migration_job row and return its job_id (UUID string)."""
         job_id = str(uuid.uuid4())
         conn = self._get_conn()
         cur = conn.cursor()
         try:
             cur.execute(
                 """
-                INSERT INTO migration_job (
+                INSERT INTO platform_migration_job (
                     job_id, connection_id, dtsx_source_path, schema_filter,
                     proc_name_pattern, target_feed_group_id, status,
                     extraction_source, dtsx_summary, created_by
@@ -102,7 +102,7 @@ class MigrationRepository:
                 sets.append("completed_at = NOW()")
             values.append(job_id)
             cur.execute(
-                f"UPDATE migration_job SET {', '.join(sets)} WHERE job_id = %s",
+                f"UPDATE platform_migration_job SET {', '.join(sets)} WHERE job_id = %s",
                 values,
             )
             conn.commit()
@@ -120,7 +120,7 @@ class MigrationRepository:
                        failed_objects, skipped_objects, extraction_source,
                        dtsx_summary, error_message, started_at, completed_at,
                        created_by, created_at
-                FROM migration_job WHERE job_id = %s
+                FROM platform_migration_job WHERE job_id = %s
                 """,
                 (job_id,),
             )
@@ -147,7 +147,7 @@ class MigrationRepository:
                 SELECT job_id, status, extraction_source, total_objects,
                        extracted_objects, failed_objects, started_at, completed_at,
                        created_by
-                FROM migration_job ORDER BY created_at DESC LIMIT %s
+                FROM platform_migration_job ORDER BY created_at DESC LIMIT %s
                 """,
                 (limit,),
             )
@@ -161,7 +161,7 @@ class MigrationRepository:
             conn.close()
 
     # ------------------------------------------------------------------
-    # migration_object
+    # platform_migration_object
     # ------------------------------------------------------------------
 
     def upsert_migration_object(
@@ -180,13 +180,13 @@ class MigrationRepository:
         extraction_status: str = "EXTRACTED",
         error_message: Optional[str] = None,
     ) -> str:
-        """Upsert a migration_object row and return its object_id."""
+        """Upsert a platform_migration_object row and return its object_id."""
         conn = self._get_conn()
         cur = conn.cursor()
         try:
             cur.execute(
                 """
-                INSERT INTO migration_object (
+                INSERT INTO platform_migration_object (
                     job_id, object_schema, object_name, object_type, db_platform,
                     definition_text, parameter_list, referenced_objects,
                     extraction_source, char_count, is_encrypted,
@@ -227,7 +227,7 @@ class MigrationRepository:
                 SELECT object_id, object_schema, object_name, object_type,
                        db_platform, extraction_status, char_count, is_encrypted,
                        error_message, created_at
-                FROM migration_object WHERE job_id = %s
+                FROM platform_migration_object WHERE job_id = %s
                 ORDER BY object_schema, object_name
                 """,
                 (job_id,),
@@ -250,7 +250,7 @@ class MigrationRepository:
         }
 
     # ------------------------------------------------------------------
-    # migration_lineage
+    # platform_migration_lineage
     # ------------------------------------------------------------------
 
     def persist_lineage(
@@ -277,7 +277,7 @@ class MigrationRepository:
                     continue
                 cur.execute(
                     """
-                    INSERT INTO migration_lineage (
+                    INSERT INTO platform_migration_lineage (
                         job_id, parent_object_id, child_object_id,
                         reference_type, is_cross_schema, topo_level
                     ) VALUES (%s, %s, %s, %s, %s, %s)
@@ -301,7 +301,7 @@ class MigrationRepository:
             conn.close()
 
     # ------------------------------------------------------------------
-    # migration_artifact
+    # platform_migration_artifact
     # ------------------------------------------------------------------
 
     def save_artifact(
@@ -319,14 +319,14 @@ class MigrationRepository:
         validation_errors: Optional[List[Any]] = None,
         generation_ms: Optional[int] = None,
     ) -> str:
-        """Insert a migration_artifact row and return its artifact_id."""
+        """Insert a platform_migration_artifact row and return its artifact_id."""
         artifact_id = str(uuid.uuid4())
         conn = self._get_conn()
         cur = conn.cursor()
         try:
             cur.execute(
                 """
-                INSERT INTO migration_artifact (
+                INSERT INTO platform_migration_artifact (
                     artifact_id, object_id, job_id, artifact_type,
                     artifact_content, artifact_path,
                     llm_model, llm_prompt_tokens, llm_output_tokens,
@@ -360,8 +360,8 @@ class MigrationRepository:
                        a.llm_model, a.confidence_score,
                        a.validation_status, a.generation_ms, a.created_at,
                        mo.object_schema, mo.object_name
-                FROM migration_artifact a
-                JOIN migration_object mo ON mo.object_id = a.object_id
+                FROM platform_migration_artifact a
+                JOIN platform_migration_object mo ON mo.object_id = a.object_id
                 WHERE a.job_id = %s
                 ORDER BY a.created_at
                 """,

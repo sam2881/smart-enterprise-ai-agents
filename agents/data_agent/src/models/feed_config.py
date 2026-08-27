@@ -211,7 +211,7 @@ class FeedConfig(BaseModel):
     read_as_csv: bool = False
 
     # Schema
-    schema_version: int = 1
+    platform_schema_version: int = 1
     columns: List[ColumnDef] = Field(default_factory=list)
     business_keys: List[str] = Field(default_factory=list)
     partition_keys: List[str] = Field(default_factory=list)
