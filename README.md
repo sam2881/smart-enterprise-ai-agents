@@ -29,6 +29,12 @@ An event-driven, multi-agent platform for **governed IT incident remediation** a
 
 The platform is intentionally designed around a clear boundary: **AI proposes; policy and deterministic runtime services decide what can execute.**
 
+## See the Product
+
+The local dashboard brings incidents, approvals, workflows, pipeline status, governance, and service health into one operations view.
+
+![AI Agent Platform dashboard](docs/assets/dashboard.png)
+
 ```mermaid
 flowchart LR
        A["ServiceNow / Jira / Data Sources"] --> B["MCP Integrations"]
