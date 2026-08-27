@@ -31,14 +31,14 @@ The platform is intentionally designed around a clear boundary: **AI proposes; p
 
 ```mermaid
 flowchart LR
-       A[ServiceNow / Jira / Data Sources] --> B[MCP Integrations]
-       B --> C[(Kafka Event Log)]
-       C --> D[LangGraph Workflows]
-       D --> E[Policy, Security & Human Approval]
-       E --> F[FastAPI Control Plane]
-       F --> G[Airflow / Spark / Cloud Runtime]
-       D --> H[Next.js Operations UI]
-       G --> I[Metrics, Logs, Lineage & Audit]
+       A["ServiceNow / Jira / Data Sources"] --> B["MCP Integrations"]
+       B --> C[("Kafka Event Log")]
+       C --> D["LangGraph Workflows"]
+       D --> E["Policy, Security & Human Approval"]
+       E --> F["FastAPI Control Plane"]
+       F --> G["Airflow / Spark / Cloud Runtime"]
+       D --> H["Next.js Operations UI"]
+       G --> I["Metrics, Logs, Lineage & Audit"]
        I --> H
 ```
 
