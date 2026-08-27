@@ -157,7 +157,7 @@ def run_great_expectations(
 
     Args:
         feed_id: Numeric feed ID
-        zone: Zone being validated (raw, refined, gold)
+        zone: Zone being validated (raw, silver, gold)
         suite_name: GE suite name
         expectations: List of expectation configurations
         metadata_client: MetadataClient instance

@@ -58,7 +58,7 @@ def get_zone_table_path(
     Get BigQuery table path for a zone.
 
     Args:
-        zone: Zone name (raw, refined, gold, etc.)
+        zone: Zone name (raw, silver, gold, etc.)
         dataset: BigQuery dataset
         table: Table name
         partition_column: Optional partition column

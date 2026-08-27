@@ -466,7 +466,7 @@ class MetadataClient:
 
         Args:
             feed_id: Numeric feed ID
-            zone: Zone level (transient, raw, refined, gold, consumption)
+            zone: Zone level (transient, raw, silver, gold, consumption)
 
         Returns:
             Zone configuration dictionary

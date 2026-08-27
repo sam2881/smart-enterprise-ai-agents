@@ -1961,7 +1961,7 @@ def check_gold_ge_status(
     """
     BranchPythonOperator callable: Check gold zone GE validation result.
 
-    Gold is the final medallion layer (previously called trusted).
+    Gold is the final medallion layer.
     Production pattern: extra_func inside get_spark_tg_wrapper_v2.
     """
     pg = PgConnInfo.from_dict(pg_conn_info_dict or {})

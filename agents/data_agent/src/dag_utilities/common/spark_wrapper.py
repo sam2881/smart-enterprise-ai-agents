@@ -351,7 +351,7 @@ def build_zone_gcs_paths(
     Build input/output GCS paths for a zone based on the 5-zone medallion architecture.
 
     Each zone reads from the previous zone's bucket and writes to its own bucket.
-    Zone ordering: transient → raw → refined → gold → consumption
+    Zone ordering: transient → raw → silver → gold → consumption
 
     Args:
         feed_id: Feed ID for path construction

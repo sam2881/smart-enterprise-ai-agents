@@ -147,7 +147,7 @@ class GEValidator:
 
         Args:
             feed_id: Numeric feed ID
-            zone: Zone to validate (raw, refined, gold, consumption)
+            zone: Zone to validate (raw, silver, gold, consumption)
             batch_id: Batch identifier
             df: Optional Spark DataFrame (loads from zone if not provided)
 

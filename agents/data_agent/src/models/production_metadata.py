@@ -519,7 +519,7 @@ class ProductionExecutionPlan(BaseModel):
     # Zone-specific configurations
     zones: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict,
-        description="Per-zone config: transient, raw, refined, gold, consumption"
+        description="Per-zone config: transient, raw, silver, gold, consumption"
     )
 
     # Great Expectations configuration

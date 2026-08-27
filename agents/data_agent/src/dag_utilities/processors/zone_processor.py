@@ -5,8 +5,8 @@ DATA PLANE: Executes ONLY, never decides.
 
 This is the SINGLE Spark script that handles ALL zone transitions:
 - Transient → Raw
-- Raw → Refined
-- Refined → Gold (final medallion layer)
+    - Raw → Silver
+    - Silver → Gold (final medallion layer)
 - Gold → Consumption (Data Vault)
 
 Same code handles ALL zones - behavior changes ONLY via metadata, never code edits.
@@ -14,7 +14,7 @@ Same code handles ALL zones - behavior changes ONLY via metadata, never code edi
 Usage:
     spark-submit zone_processor.py \\
         --feed-id 1001 \\
-        --zone refined \\
+        --zone silver \\
         --batch-id 20260205 \\
         --metadata-url postgresql://...
 
@@ -91,10 +91,10 @@ class ZoneProcessor:
     """
     Generic zone processor - ALL logic from metadata.
 
-    Same code handles: transient, raw, refined, gold, consumption.
+    Same code handles: transient, raw, silver, gold, consumption.
     """
 
-    # Zone transition order — gold is the final medallion layer (replaces trusted)
+    # Zone transition order — gold is the final medallion layer
     ZONE_ORDER = ["transient", "raw", "silver", "gold", "consumption"]
 
     def __init__(self, config: ZoneProcessorConfig):
@@ -405,7 +405,7 @@ class ZoneProcessor:
             )
 
         elif zone == "silver":
-            # Refined: Data cleaning, deduplication, standardization
+            # Silver: Data cleaning, deduplication, standardization
             # Apply type casting from schema
             schema = zone_config.get("schema", {})
             for col_spec in schema.get("columns", []):
@@ -424,8 +424,8 @@ class ZoneProcessor:
                 if col in df.columns:
                     df = df.withColumn(col, F.trim(F.col(col)))
 
-            # Add refined audit columns
-            df = df.withColumn("_refined_timestamp", F.current_timestamp())
+            # Add silver audit columns
+            df = df.withColumn("_silver_timestamp", F.current_timestamp())
 
         elif zone == "gold":
             # Gold: Business logic, calculations (final layer)
@@ -714,7 +714,7 @@ def process_zone(
 
     Args:
         feed_id: Numeric feed ID
-        zone: Zone to process (transient, raw, refined, gold, consumption)
+        zone: Zone to process (transient, raw, silver, gold, consumption)
         batch_id: Batch identifier (usually YYYYMMDD)
         metadata_url: PostgreSQL connection URL
         execution_id: Optional execution ID for tracking

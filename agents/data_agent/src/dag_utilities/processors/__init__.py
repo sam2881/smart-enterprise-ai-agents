@@ -3,7 +3,7 @@ APEX Data Plane - Zone Processors
 
 This module contains the DATA PLANE components that EXECUTE (never decide).
 
-Key Principle: Same zone_processor.py handles ALL zones (Transient, Raw, Refined, Gold, Consumption).
+Key Principle: Same zone_processor.py handles ALL zones (Transient, Raw, Silver, Gold, Consumption).
 Behavior changes ONLY via metadata, never code edits.
 
 Zone Processing Pattern (UNIFORM FOR ALL ZONES):

@@ -5,7 +5,7 @@ Utilities for REST, GraphQL, and SaaS API sources used by zone_processor.py.
 
 This module provides source handlers for API-based data ingestion in the APEX
 Data Plane. All functions return structured dicts that can be consumed by
-ZoneProcessor for zone transitions (Transient -> Raw -> Refined -> Gold ->
+ZoneProcessor for zone transitions (Transient -> Raw -> Silver -> Gold ->
 Consumption).
 
 Supported source types:
