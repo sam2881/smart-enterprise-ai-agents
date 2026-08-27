@@ -35,6 +35,18 @@ The local dashboard brings incidents, approvals, workflows, pipeline status, gov
 
 ![AI Agent Platform dashboard](docs/assets/dashboard.png)
 
+### L1 Support Operations
+
+The IT Service Agent view presents ServiceNow incident automation, approval workload, resolution performance, and success rate in one operator-facing surface.
+
+![L1 support operations](docs/assets/l1-support.png)
+
+### Data Pipeline Generation
+
+The Data Pipeline Agent view gives teams a guided path from source metadata to generated, validated, and deployable pipeline assets.
+
+![Data Agent pipeline operations](docs/assets/data-agent-pipeline.png)
+
 ```mermaid
 flowchart LR
        A["ServiceNow / Jira / Data Sources"] --> B["MCP Integrations"]
