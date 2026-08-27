@@ -6,7 +6,7 @@ component. In production, EVERY Spark zone job goes through this wrapper which
 creates an Airflow TaskGroup containing:
 
     1. DataprocSubmitJobOperator  — submits PySpark to Dataproc
-    2. BranchPythonOperator       — checks ge_validation_result table
+    2. BranchPythonOperator       — checks validation_result table
     3. EmptyOperator (ge_pass)    — success branch
     4. EmptyOperator (ge_fail)    — failure branch
 

@@ -1116,7 +1116,7 @@ def check_ge_status(
     """
     Check Great Expectations validation result for a zone.
 
-    Reads from ge_validation_result table. Used by the BranchPythonOperator
+    Reads from validation_result table. Used by the BranchPythonOperator
     in spark_wrapper's TaskGroup to decide ge_pass vs ge_fail branch.
 
     Returns: "pass" or "fail"
@@ -1131,7 +1131,7 @@ def check_ge_status(
         cursor.execute(
             """
             SELECT validation_status
-            FROM ge_validation_result
+            FROM validation_result
             WHERE feed_id = %s
               AND file_run_id = %s
               AND zone = %s

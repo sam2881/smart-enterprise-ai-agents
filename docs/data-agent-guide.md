@@ -367,7 +367,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 |--------|--------|
 | **Source** | Bronze zone |
 | **Operations** | Column presence → Not-null → Primary key uniqueness → Data type validation → Custom GE expectations |
-| **Output** | Quality score (0-100), validation results to `ge_validation_result` table |
+| **Output** | Quality score (0-100), validation results to `validation_result` table |
 | **Branch** | Pass → bronze_to_silver; Fail → handle_validation_failure |
 
 ### 3. promote_bronze_to_silver.py
@@ -386,7 +386,7 @@ All Spark jobs are **metadata-driven** — they fetch config from PostgreSQL at 
 |--------|--------|
 | **Source** | Silver zone |
 | **Operations** | Business rules → Referential integrity → Cross-field validation → Range checks → Custom GE expectations |
-| **Output** | Quality score (0-100), validation results to `ge_validation_result` table |
+| **Output** | Quality score (0-100), validation results to `validation_result` table |
 | **Branch** | Pass → silver_to_gold; Fail → handle_validation_failure |
 
 ### 5. build_gold_layer.py
@@ -444,7 +444,7 @@ Shared library imported by all generated DAGs at runtime. Installed via pip in t
 |--------|---------|
 | `ge_helper.py` | Great Expectations integration: build suite, validate DataFrame, return results |
 | `ge_configs.py` | GE expectation builder: maps validation_rules to GE expectations |
-| `ge_result_writer.py` | Persist GE results to `ge_validation_result` table |
+| `ge_result_writer.py` | Persist GE results to `validation_result` table |
 | `schema_validator.py` | Bronze column presence + type checks |
 | `semantic_validator.py` | Silver business rule + referential integrity checks |
 | `quality_checker.py` | Completeness, freshness, accuracy scoring |
@@ -487,7 +487,7 @@ metadata validation_rule
     → GEConfigBuilder.build_expectations()
     → GEHelper.validate_dataframe()
     → GEResultWriter.write_results()
-    → ge_validation_result table
+    → validation_result table
 ```
 
 Quality scoring uses Airbnb Midas pattern: weighted 0-100 score based on rule severity.
@@ -663,7 +663,7 @@ agent_decision_log
 | 03 | `view_definition` | SQL view definitions for Bronze→Silver and Silver→Gold transitions. |
 | 04 | `validation_rule` | SQL boolean expressions, with severity and blocking flag. |
 | 05 | `pipeline_execution` | One row per DAG run. Includes `sequence` (auto-incrementing per feed+date). |
-| 07 | `ge_validation_result` | Great Expectations validation results per checkpoint. |
+| 07 | `validation_result` | Great Expectations validation results per checkpoint. |
 | 08 | `join_dependency` | Multi-table join definitions (table, keys, type, order). |
 | 09 | `pipeline_dependency` | Cross-DAG dependencies for ExternalTaskSensor generation. |
 | 10 | `observability_metrics` | Historical metrics for anomaly detection baselines. |
@@ -692,7 +692,7 @@ After execution:
   +---> Writes: task_execution (per-task metrics)
   +---> Writes: audit_log (zone-level actions)
   +---> Writes: data_lineage (source-to-target mapping)
-  +---> Writes: ge_validation_result (GE validation outcomes)
+  +---> Writes: validation_result (GE validation outcomes)
   +---> Writes: observability_metrics (for baseline computation)
   +---> Emits: OpenLineage JSON (to Marquez/DataHub/file)
   +---> Updates: watermark_tracking (new bookmark value)
@@ -959,7 +959,7 @@ python scripts/promote_pipeline.py --feed-id sales_daily --from dev --to staging
 | 04 | `04_validation_and_quality.sql` | validation_rule, quality_expectation, sla_definition |
 | 05 | `05_execution_and_logging.sql` | pipeline_execution, audit_log, error_log, cost_log (11 tables) |
 | 06 | `06_component_registry.sql` | template_registry, utility_registry, spark_job_registry |
-| 07 | `07_ge_validation.sql` | ge_validation_result, ge_validation_summary |
+| 07 | `07_ge_validation.sql` | validation_result, validation_summary |
 | 08 | `08_join_dependency.sql` | join_dependency |
 | 09 | `09_pipeline_dependency.sql` | pipeline_dependency |
 | 10 | `10_observability_metrics.sql` | observability_metrics, v_observability_baseline |

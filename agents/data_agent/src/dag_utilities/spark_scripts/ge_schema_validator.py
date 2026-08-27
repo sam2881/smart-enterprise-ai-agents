@@ -827,7 +827,7 @@ def write_ge_results_to_db(
     results: Dict[str, Any],
 ) -> None:
     """
-    Write GE validation results to ge_validation_result and ge_validation_detail.
+    Write GE validation results to validation_result and ge_validation_detail.
 
     Production pattern: writes directly via psycopg2 (no dag_utilities dependency).
     """
@@ -837,7 +837,7 @@ def write_ge_results_to_db(
     try:
         cursor.execute(
             """
-            INSERT INTO ge_validation_result
+            INSERT INTO validation_result
                 (feed_id, file_run_id, zone, batch_id, suite_name,
                  validation_status, success_rate,
                  total_expectations, passed_expectations, failed_expectations,
@@ -868,7 +868,7 @@ def write_ge_results_to_db(
         )
     except Exception as exc:
         logger.warning(
-            "ge_validation_result insert failed (table may not exist): %s", exc,
+            "validation_result insert failed (table may not exist): %s", exc,
         )
         conn.rollback()
         _ensure_ge_tables(conn)
@@ -929,7 +929,7 @@ def _ensure_ge_tables(conn):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ge_validation_result (
+            CREATE TABLE IF NOT EXISTS validation_result (
                 id SERIAL PRIMARY KEY,
                 feed_id INTEGER NOT NULL,
                 file_run_id INTEGER NOT NULL,
@@ -961,7 +961,7 @@ def _ensure_ge_tables(conn):
             )
         """)
         conn.commit()
-        logger.info("Created ge_validation_result and ge_validation_detail tables")
+        logger.info("Created validation_result and ge_validation_detail tables")
     except Exception as exc:
         logger.warning("Failed to create GE tables: %s", exc)
         conn.rollback()
