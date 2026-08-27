@@ -28,6 +28,12 @@ import type {
   PipelineMetadata,
   ExecutionRecord,
 } from '@/types/pipeline-canonical'
+import type {
+  ObservabilityServicesResponse,
+  IncidentStateCount,
+  KafkaEventItem,
+  MetricsSummary,
+} from '@/types/observability'
 
 class ApiClient {
   private client: AxiosInstance
@@ -203,6 +209,25 @@ class ApiClient {
     return response.data
   }
 
+  async overrideIncident(incidentId: string, data: {
+    approver: string
+    reason: string
+    override_script: {
+      script_id: string
+      workflow_name: string
+      action_type: string
+      parameters?: Record<string, string>
+    }
+  }) {
+    const response = await this.client.post(`/api/langgraph/override/${incidentId}`, data)
+    return response.data
+  }
+
+  async getAvailableScripts() {
+    const response = await this.client.get('/api/langgraph/scripts')
+    return response.data
+  }
+
   // Legacy HITL endpoints (kept for compatibility)
   async approveRouting(id: string, data: ApproveRoutingRequest) {
     const response = await this.client.post(`/api/hitl/approvals/${id}/approve-routing`, data)
@@ -328,6 +353,30 @@ class ApiClient {
     const response = await this.client.post(`/api/jira/tickets/${ticketId}/process`, {}, {
       timeout: 120000  // 2 minute timeout for code generation
     })
+    return response.data
+  }
+
+  async createJiraTicket(data: {
+    summary: string
+    description: string
+    issue_type?: string
+    priority?: string
+    labels?: string[]
+    project_key?: string
+  }) {
+    const response = await this.client.post('/api/jira/tickets', data)
+    return response.data
+  }
+
+  async pushIncidentToJira(data: {
+    incident_id: string
+    short_description: string
+    description?: string
+    priority?: string
+    category?: string
+    labels?: string[]
+  }) {
+    const response = await this.client.post('/api/jira/push-incident', data)
     return response.data
   }
 
@@ -671,6 +720,42 @@ class ApiClient {
       natural_language: naturalLanguage,
       created_by: createdBy,
     })
+    return response.data
+  }
+
+  // ==========================================================================
+  // Observability API
+  // ==========================================================================
+
+  /**
+   * Get live health status of all platform services.
+   */
+  async getObservabilityServices(): Promise<ObservabilityServicesResponse> {
+    const response = await this.client.get('/api/v1/observability/services')
+    return response.data
+  }
+
+  /**
+   * Get incident state distribution from PostgreSQL.
+   */
+  async getIncidentStates(): Promise<{ states: IncidentStateCount[] }> {
+    const response = await this.client.get('/api/v1/observability/incidents/states')
+    return response.data
+  }
+
+  /**
+   * Get recent Kafka events from the audit log.
+   */
+  async getKafkaEvents(limit = 20): Promise<{ events: KafkaEventItem[] }> {
+    const response = await this.client.get(`/api/v1/observability/kafka/events?limit=${limit}`)
+    return response.data
+  }
+
+  /**
+   * Get platform metrics summary from Prometheus.
+   */
+  async getMetricsSummary(): Promise<MetricsSummary> {
+    const response = await this.client.get('/api/v1/observability/metrics/summary')
     return response.data
   }
 }

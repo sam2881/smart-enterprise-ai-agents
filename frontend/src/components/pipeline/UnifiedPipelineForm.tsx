@@ -45,13 +45,20 @@ import { SourceTypeSelector } from './SourceTypeSelector'
 import {
   FileSourceConfigForm,
   DatabaseSourceConfigForm,
+  NoSQLSourceConfigForm,
   StreamingSourceConfigForm,
   APISourceConfigForm,
   EBCDICSourceConfigForm,
   DTSXSourceConfigForm,
+  LogsSourceConfigForm,
+  NestedSourceConfigForm,
+  SpecialSourceConfigForm,
 } from './SourceConfigForms'
 import { NLTransformInput } from './NLTransformInput'
 import { GoldModelingSelector } from './GoldModelingSelector'
+import { TransformationsPanel } from './TransformationsPanel'
+import { SchemaDefinitionPanel } from './SchemaDefinitionPanel'
+import { TargetConfigurationPanel } from './TargetConfigurationPanel'
 
 // =============================================================================
 // Props
@@ -419,8 +426,8 @@ export function UnifiedPipelineForm({
       )
     }
 
-    // Database sources
-    if (sourceTypeStr.startsWith('database_') || sourceTypeStr.startsWith('nosql_')) {
+    // Database sources (RDBMS)
+    if (sourceTypeStr.startsWith('database_')) {
       return (
         <DatabaseSourceConfigForm
           config={source.database_config || {}}
@@ -429,12 +436,54 @@ export function UnifiedPipelineForm({
       )
     }
 
+    // NoSQL sources
+    if (sourceTypeStr.startsWith('nosql_')) {
+      return (
+        <NoSQLSourceConfigForm
+          config={source.nosql_config || {}}
+          onChange={(nosqlConfig) => setSource({ ...source, nosql_config: nosqlConfig })}
+          sourceType={selectedSourceType}
+        />
+      )
+    }
+
     // Streaming sources
-    if (sourceTypeStr.startsWith('streaming_') || sourceTypeStr.startsWith('log_')) {
+    if (sourceTypeStr.startsWith('streaming_')) {
       return (
         <StreamingSourceConfigForm
           config={source.streaming_config || {}}
           onChange={(streamConfig) => setSource({ ...source, streaming_config: streamConfig })}
+          sourceType={selectedSourceType}
+        />
+      )
+    }
+
+    // Logs sources
+    if (sourceTypeStr.startsWith('logs_')) {
+      return (
+        <LogsSourceConfigForm
+          config={source.logs_config || {}}
+          onChange={(logsConfig) => setSource({ ...source, logs_config: logsConfig })}
+        />
+      )
+    }
+
+    // Nested sources
+    if (sourceTypeStr.startsWith('nested_')) {
+      return (
+        <NestedSourceConfigForm
+          config={source.nested_config || {}}
+          onChange={(nestedConfig) => setSource({ ...source, nested_config: nestedConfig })}
+        />
+      )
+    }
+
+    // Special sources (IoT, Timeseries, Geospatial, ML Features, Open Data)
+    if (sourceTypeStr.startsWith('special_')) {
+      return (
+        <SpecialSourceConfigForm
+          config={source.special_config || {}}
+          onChange={(specialConfig) => setSource({ ...source, special_config: specialConfig })}
           sourceType={selectedSourceType}
         />
       )
@@ -788,6 +837,214 @@ export function UnifiedPipelineForm({
         </div>
       </Card>
 
+      {/* Contract Type & Pattern Selection */}
+      <Card className="p-6 bg-gray-800/50 border-gray-700">
+        <div className="flex items-center gap-2 mb-4">
+          <Database className="w-5 h-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-gray-100">
+            1.5. Contract Type & Data Model
+          </h3>
+          <div className="ml-2 group relative">
+            <Info className="w-4 h-4 text-gray-400 cursor-help" />
+            <div className="absolute left-0 top-6 w-80 p-3 bg-gray-900 border border-gray-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              <p className="text-sm text-gray-300">
+                <strong>Contract Type</strong> determines the pipeline pattern and data model:
+                <br />• <strong>STANDARD</strong>: Simple ETL/ELT (P01-P03)
+                <br />• <strong>SCD2</strong>: Slowly Changing Dimension Type 2 with history tracking (P07)
+                <br />• <strong>DATA_VAULT</strong>: Data Vault 2.0 with Hubs, Links, Satellites (P08)
+                <br />• <strong>STAR_SCHEMA</strong>: Star Schema with Facts and Dimensions (P09)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* STANDARD */}
+          <button
+            type="button"
+            onClick={() => setPipeline({ ...pipeline, contract_type: 'STANDARD' })}
+            className={cn(
+              'p-4 rounded-lg border-2 transition-all text-left',
+              pipeline.contract_type === 'STANDARD'
+                ? 'border-blue-500 bg-blue-900/30 ring-2 ring-blue-500/50'
+                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+            )}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className={cn(
+                'w-5 h-5',
+                pipeline.contract_type === 'STANDARD' ? 'text-blue-400' : 'text-gray-400'
+              )} />
+              <span className={cn(
+                'font-semibold',
+                pipeline.contract_type === 'STANDARD' ? 'text-blue-300' : 'text-gray-300'
+              )}>
+                STANDARD
+              </span>
+              {pipeline.contract_type === 'STANDARD' && (
+                <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
+                  Selected
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400">
+              Standard ETL/ELT pipeline for batch or streaming data. Medallion architecture (Landing → Bronze → Silver → Gold).
+            </p>
+            <div className="mt-2 text-xs text-gray-500">
+              Patterns: P01 (File), P03 (Database), P05 (Streaming)
+            </div>
+          </button>
+
+          {/* SCD2 */}
+          <button
+            type="button"
+            onClick={() => setPipeline({ ...pipeline, contract_type: 'SCD2' })}
+            className={cn(
+              'p-4 rounded-lg border-2 transition-all text-left',
+              pipeline.contract_type === 'SCD2'
+                ? 'border-amber-500 bg-amber-900/30 ring-2 ring-amber-500/50'
+                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+            )}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Database className={cn(
+                'w-5 h-5',
+                pipeline.contract_type === 'SCD2' ? 'text-amber-400' : 'text-gray-400'
+              )} />
+              <span className={cn(
+                'font-semibold',
+                pipeline.contract_type === 'SCD2' ? 'text-amber-300' : 'text-gray-300'
+              )}>
+                SCD TYPE 2
+              </span>
+              {pipeline.contract_type === 'SCD2' && (
+                <span className="ml-auto text-xs bg-amber-600 text-white px-2 py-0.5 rounded">
+                  Selected
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400">
+              Slowly Changing Dimension Type 2 with historical tracking. Hash-based change detection.
+            </p>
+            <div className="mt-2 text-xs text-gray-500">
+              Pattern: P07 (SCD2 Pipeline)
+            </div>
+          </button>
+
+          {/* DATA_VAULT */}
+          <button
+            type="button"
+            onClick={() => setPipeline({ ...pipeline, contract_type: 'DATA_VAULT' })}
+            className={cn(
+              'p-4 rounded-lg border-2 transition-all text-left',
+              pipeline.contract_type === 'DATA_VAULT'
+                ? 'border-purple-500 bg-purple-900/30 ring-2 ring-purple-500/50'
+                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+            )}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className={cn(
+                'w-5 h-5',
+                pipeline.contract_type === 'DATA_VAULT' ? 'text-purple-400' : 'text-gray-400'
+              )} />
+              <span className={cn(
+                'font-semibold',
+                pipeline.contract_type === 'DATA_VAULT' ? 'text-purple-300' : 'text-gray-300'
+              )}>
+                DATA VAULT 2.0
+              </span>
+              {pipeline.contract_type === 'DATA_VAULT' && (
+                <span className="ml-auto text-xs bg-purple-600 text-white px-2 py-0.5 rounded">
+                  Selected
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400">
+              Data Vault 2.0 methodology with Hubs, Links, and Satellites for enterprise data warehousing.
+            </p>
+            <div className="mt-2 text-xs text-gray-500">
+              Pattern: P08 (Data Vault Pipeline)
+            </div>
+          </button>
+
+          {/* STAR_SCHEMA */}
+          <button
+            type="button"
+            onClick={() => setPipeline({ ...pipeline, contract_type: 'STAR_SCHEMA' })}
+            className={cn(
+              'p-4 rounded-lg border-2 transition-all text-left',
+              pipeline.contract_type === 'STAR_SCHEMA'
+                ? 'border-green-500 bg-green-900/30 ring-2 ring-green-500/50'
+                : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+            )}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Database className={cn(
+                'w-5 h-5',
+                pipeline.contract_type === 'STAR_SCHEMA' ? 'text-green-400' : 'text-gray-400'
+              )} />
+              <span className={cn(
+                'font-semibold',
+                pipeline.contract_type === 'STAR_SCHEMA' ? 'text-green-300' : 'text-gray-300'
+              )}>
+                STAR SCHEMA
+              </span>
+              {pipeline.contract_type === 'STAR_SCHEMA' && (
+                <span className="ml-auto text-xs bg-green-600 text-white px-2 py-0.5 rounded">
+                  Selected
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400">
+              Star Schema with fact tables and dimensions for OLAP and business intelligence.
+            </p>
+            <div className="mt-2 text-xs text-gray-500">
+              Pattern: P09 (Star Schema Pipeline)
+            </div>
+          </button>
+        </div>
+
+        {/* SCD2-specific configuration */}
+        {pipeline.contract_type === 'SCD2' && (
+          <div className="mt-4 p-4 bg-amber-900/20 border border-amber-700 rounded-lg">
+            <h4 className="text-sm font-semibold text-amber-300 mb-3">
+              SCD2 Configuration
+            </h4>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Keys
+                  <span className="text-amber-400 ml-1">*</span>
+                </label>
+                <Input
+                  placeholder="customer_id, account_id (comma-separated)"
+                  value={pipeline.business_keys?.join(', ') || ''}
+                  onChange={(e) => {
+                    const keys = e.target.value.split(',').map(k => k.trim()).filter(Boolean)
+                    setPipeline({ ...pipeline, business_keys: keys })
+                  }}
+                  helperText="Columns that uniquely identify a business entity"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Tracked Columns (Optional)
+                </label>
+                <Input
+                  placeholder="name, email, address (comma-separated, or leave empty to track all)"
+                  value={pipeline.tracked_columns?.join(', ') || ''}
+                  onChange={(e) => {
+                    const cols = e.target.value.split(',').map(c => c.trim()).filter(Boolean)
+                    setPipeline({ ...pipeline, tracked_columns: cols })
+                  }}
+                  helperText="Columns to track for changes. Leave empty to track all columns."
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
       {/* File References */}
       <FileReferencesSection
         value={fileReferences}
@@ -1097,50 +1354,33 @@ balance: decimal`}
         targetZone={target.target_zone as TargetZone || 'bronze'}
       />
 
-      {/* Transformations */}
+      {/* Transformations - Zone-Aware Builder */}
       <Card className="p-6 bg-gray-800/50 border-gray-700">
         <h3 className="text-lg font-semibold text-gray-100 mb-4">
-          4. Transformations (Optional)
+          4. Transformations
         </h3>
-        <p className="text-sm text-gray-400 mb-4">
-          Add specific transformations using Natural Language, SQL, or the Structured Builder.
-        </p>
 
-        {transformations.length > 0 && (
-          <div className="mb-6 space-y-2">
-            <h4 className="text-sm font-medium text-gray-300">
-              Added Transformations ({transformations.length})
-            </h4>
-            {transformations.map((transform, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-blue-900/20 border border-blue-800 rounded-lg"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded">
-                    {transform.transform_type}
-                  </span>
-                  <span className="text-sm text-gray-300">
-                    {transform.nl_description || JSON.stringify(transform.config).slice(0, 50) + '...'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeTransform(index)}
-                  className="text-red-400 hover:text-red-300 text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Zone-Aware Transform Builder */}
+        <div className="mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+          <TransformationsPanel
+            schema={schema}
+            contractType={pipeline.contract_type}
+            transforms={transformations}
+            onChange={setTransformations}
+          />
+        </div>
 
-        <NLTransformInput
-          zone={(target.target_zone as TargetZone) || 'bronze'}
-          schema={(schema.columns || []) as ColumnDefinition[]}
-          onTransformAdd={handleAddTransform}
-        />
+        {/* NL Transform Input - Additional custom transforms */}
+        <div className="border-t border-gray-700 pt-4">
+          <p className="text-sm text-gray-400 mb-3">
+            Or add transforms using Natural Language, SQL, or PySpark:
+          </p>
+          <NLTransformInput
+            zone={(target.target_zone as TargetZone) || 'bronze'}
+            schema={(schema.columns || []) as ColumnDefinition[]}
+            onTransformAdd={handleAddTransform}
+          />
+        </div>
       </Card>
 
       {/* Gold Zone Modeling */}
@@ -1206,8 +1446,7 @@ balance: decimal`}
               { value: 'landing', label: 'Landing' },
               { value: 'bronze', label: 'Bronze (Raw)' },
               { value: 'silver', label: 'Silver (Cleaned)' },
-              { value: 'gold', label: 'Gold (Business)' },
-              { value: 'trusted', label: 'Trusted' },
+              { value: 'gold', label: 'Gold (Final)' },
             ]}
           />
           <Input

@@ -278,9 +278,10 @@ class ServiceNowEventProducer:
 class ServiceNowCommandConsumer:
     """Kafka consumer for ServiceNow commands (close, update, etc.)"""
 
-    def __init__(self, config: KafkaConfig, snow_client: ServiceNowClient):
+    def __init__(self, config: KafkaConfig, snow_client: ServiceNowClient, producer: "ServiceNowEventProducer" = None):
         self.config = config
         self.snow_client = snow_client
+        self.producer = producer
         self.running = False
 
         # Topics to consume
@@ -294,8 +295,9 @@ class ServiceNowCommandConsumer:
             bootstrap_servers=config.bootstrap_servers,
             group_id=config.consumer_group,
             value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-            auto_offset_reset='latest',
-            enable_auto_commit=True
+            auto_offset_reset='earliest',
+            enable_auto_commit=False,
+            max_poll_records=50,
         )
         logger.info(f"Kafka consumer initialized for topics: {self.topics}")
 
@@ -312,6 +314,10 @@ class ServiceNowCommandConsumer:
                 for topic_partition, records in messages.items():
                     for record in records:
                         await self._handle_command(record.topic, record.value)
+
+                # Commit offsets only after successful processing
+                if messages:
+                    self.consumer.commit()
 
                 # Yield to other tasks
                 await asyncio.sleep(0.1)
@@ -338,11 +344,12 @@ class ServiceNowCommandConsumer:
             logger.error(f"Error handling command: {e}")
 
     async def _handle_close_execute(self, message: Dict[str, Any]):
-        """Handle incident closure command"""
+        """Handle incident closure command and publish incident.closed confirmation"""
         sys_id = message.get("servicenow_sys_id")
         incident_id = message.get("incident_id")
         resolution = message.get("resolution_notes", "Resolved by AI Agent Platform")
         close_code = message.get("close_code", "Resolved")
+        correlation_id = message.get("correlation_id", "")
 
         if not sys_id:
             logger.error("Missing servicenow_sys_id in close_execute command")
@@ -356,6 +363,31 @@ class ServiceNowCommandConsumer:
 
         if success:
             logger.info(f"Successfully closed incident {incident_id} ({sys_id})")
+
+            # Publish incident.closed confirmation back to Kafka
+            if self.producer:
+                try:
+                    closed_event = {
+                        "event_type": "incident.closed",
+                        "timestamp": datetime.now().isoformat(),
+                        "source": "servicenow_mcp",
+                        "incident_id": incident_id,
+                        "servicenow_sys_id": sys_id,
+                        "correlation_id": correlation_id,
+                        "close_code": close_code,
+                        "resolution_notes": resolution,
+                        "status": "closed",
+                        "closed_by": "AI Agent Platform",
+                    }
+                    self.producer.producer.send(
+                        "incident.closed",
+                        key=incident_id.encode("utf-8") if incident_id else None,
+                        value=closed_event,
+                    )
+                    self.producer.producer.flush(timeout=5)
+                    logger.info(f"Published incident.closed for {incident_id}")
+                except Exception as e:
+                    logger.error(f"Failed to publish incident.closed: {e}")
         else:
             logger.error(f"Failed to close incident {incident_id} ({sys_id})")
 
@@ -495,7 +527,8 @@ class ServiceNowEventDrivenServer:
         )
         self.consumer = ServiceNowCommandConsumer(
             config=self.kafka_config,
-            snow_client=self.snow_client
+            snow_client=self.snow_client,
+            producer=self.producer,
         )
 
     async def run(self):

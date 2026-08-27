@@ -25,17 +25,29 @@ try:
 except ImportError:
     GUARDRAILS_ENABLED = False
 
+# Security plugin chain — wraps every LLM call with PII redaction, guardrails,
+# rate-limiting, Model Armor, and audit logging.
+try:
+    from agents.servicenow_agent.src.security import secure_llm_call, incident_plugin_chain
+    _SECURITY_CHAIN = incident_plugin_chain()
+    SECURITY_ENABLED = True
+except ImportError:
+    SECURITY_ENABLED = False
+    def secure_llm_call(chain=None):  # type: ignore[misc]
+        def _noop(func):
+            return func
+        return _noop
+
 # Import audit logger for EU AI Act compliance
 try:
-    from governance.audit_logger import audit_logger, AuditEventType, RiskLevel
+    from governance.audit_logger import audit_logger, RiskLevel
     AUDIT_ENABLED = True
 except ImportError:
     AUDIT_ENABLED = False
 
 # Import LangFuse for observability
 try:
-    from langfuse import Langfuse
-    from langfuse.decorators import observe, langfuse_context
+    from langfuse import Langfuse, observe
     LANGFUSE_ENABLED = True
 except ImportError:
     LANGFUSE_ENABLED = False
@@ -141,6 +153,7 @@ def _track_llm_call(
 # LLM-Based Incident Analysis
 # =============================================================================
 
+@secure_llm_call(_SECURITY_CHAIN if SECURITY_ENABLED else None)
 def analyze_incident_with_llm(incident: Dict[str, Any]) -> Dict[str, Any]:
     """
     Use LLM to deeply analyze an incident and extract:
@@ -288,6 +301,7 @@ Respond in JSON format:
         }
 
 
+@secure_llm_call(_SECURITY_CHAIN if SECURITY_ENABLED else None)
 def match_scripts_with_llm(
     incident: Dict[str, Any],
     available_scripts: List[Dict[str, Any]],
@@ -399,6 +413,7 @@ Respond in JSON format:
         return []
 
 
+@secure_llm_call(_SECURITY_CHAIN if SECURITY_ENABLED else None)
 def generate_execution_plan_with_llm(
     incident: Dict[str, Any],
     script: Dict[str, Any],
@@ -499,6 +514,7 @@ Respond in JSON format:
         }
 
 
+@secure_llm_call(_SECURITY_CHAIN if SECURITY_ENABLED else None)
 def validate_plan_safety_with_llm(
     incident: Dict[str, Any],
     plan: Dict[str, Any],
@@ -594,6 +610,7 @@ Respond in JSON format:
         }
 
 
+@secure_llm_call(_SECURITY_CHAIN if SECURITY_ENABLED else None)
 def extract_parameters_with_llm(
     incident: Dict[str, Any],
     required_params: List[str]
@@ -716,7 +733,7 @@ class LLMIntelligence:
         self,
         incident: Dict[str, Any],
         available_scripts: List[Dict[str, Any]],
-        rag_results: Optional[List[Dict[str, Any]]] = None
+        incident_analysis: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Match remediation scripts to an incident using LLM reasoning.
@@ -724,12 +741,14 @@ class LLMIntelligence:
         Args:
             incident: Incident data
             available_scripts: List of available remediation scripts
-            rag_results: Optional RAG search results for context
+            incident_analysis: LLM analysis result (from analyze_incident)
 
         Returns:
             Matching results with confidence scores
         """
-        return match_scripts_with_llm(incident, available_scripts, rag_results)
+        # match_scripts_with_llm expects incident_analysis dict, not rag_results list
+        analysis = incident_analysis or {}
+        return match_scripts_with_llm(incident, available_scripts, analysis)
 
     def generate_execution_plan(
         self,
@@ -743,17 +762,21 @@ class LLMIntelligence:
         Args:
             incident: Incident data
             matched_scripts: Scripts matched for this incident
-            context: Additional context (graph data, similar incidents)
+            context: Additional context (extracted_params, graph data, etc.)
 
         Returns:
             Execution plan with steps and safety checks
         """
-        return generate_execution_plan_with_llm(incident, matched_scripts, context)
+        # generate_execution_plan_with_llm expects a single script dict, not a list
+        script = matched_scripts[0] if matched_scripts else {}
+        extracted_params = context or {}
+        return generate_execution_plan_with_llm(incident, script, extracted_params)
 
     def validate_plan_safety(
         self,
         plan: Dict[str, Any],
-        incident: Dict[str, Any]
+        incident: Dict[str, Any],
+        script: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Validate that an execution plan is safe to run.
@@ -761,11 +784,13 @@ class LLMIntelligence:
         Args:
             plan: The execution plan to validate
             incident: Original incident data
+            script: The remediation script being executed
 
         Returns:
             Safety validation results
         """
-        return validate_plan_safety_with_llm(plan, incident)
+        # validate_plan_safety_with_llm expects (incident, plan, script) order
+        return validate_plan_safety_with_llm(incident, plan, script or {})
 
     def extract_parameters(
         self,

@@ -42,6 +42,8 @@ class Topics:
     LangGraph workflows consume and publish here.
 
     Naming: {domain}.{event_type} or {domain}.{action}
+
+    Topic count: 47 (reduced from 62 — removed 16 unused legacy/duplicate topics)
     """
     # =========================================================================
     # INCIDENT LIFECYCLE (ServiceNow → LangGraph → GitHub Actions → Close)
@@ -61,25 +63,19 @@ class Topics:
     INCIDENT_CLOSE_EXECUTE = "incident.close_execute"  # Orchestrator approved
     INCIDENT_CLOSED = "incident.closed"             # ServiceNow ticket closed
     INCIDENT_FAILED = "incident.failed"             # Workflow failed
+    INCIDENT_L1_ATTEMPTED = "incident.l1_attempted" # L1 SOP triage result (resolved or escalated)
 
-    # Legacy alias
-    INCIDENT_ENRICHED_LEGACY = "incident.enriched"
-
-    # Plan events (separate namespace for clarity)
+    # Plan events
     PLAN_GENERATED = "plan.generated"
-    PLAN_JUDGED = "plan.judged"
 
-    # Remediation events
+    # Remediation events (published by LangGraph for audit trail)
     REMEDIATION_STARTED = "remediation.started"
     REMEDIATION_EXECUTED = "remediation.executed"
-    REMEDIATION_FAILED = "remediation.failed"
-    REMEDIATION_ROLLBACK = "remediation.rollback"
 
     # =========================================================================
     # DATA PIPELINE LIFECYCLE (Jira/UI → LangGraph → Airflow → Complete)
     # =========================================================================
 
-    # State transition events (Data Agent LangGraph publishes these)
     PIPELINE_REQUESTED = "pipeline.requested"       # New request from Jira/UI
     PIPELINE_PLANNED = "pipeline.planned"           # Planner agent complete
     PIPELINE_GENERATED = "pipeline.generated"       # Generator agent complete
@@ -90,83 +86,47 @@ class Topics:
     PIPELINE_DEPLOY_EXECUTE = "pipeline.deploy_execute"  # Ready for deployment
     PIPELINE_DEPLOYED = "pipeline.deployed"         # Deployment completed
     PIPELINE_FAILED = "pipeline.failed"             # Any stage failed
-
-    # Legacy aliases for backward compatibility
-    PIPELINE_INTENTS = "pipeline.intents"
-    PIPELINE_STATUS = "pipeline.status"
-    PIPELINE_PLANNING = "pipeline.planning"
-    PIPELINE_GENERATING = "pipeline.generating"
-    PIPELINE_VALIDATING = "pipeline.validating"
-    PIPELINE_AWAITING_APPROVAL = "pipeline.awaiting_approval"
-    PIPELINE_DEPLOYING = "pipeline.deploying"
-    PIPELINE_COMPLETED = "pipeline.completed"
-    PIPELINE_MR_CREATED = "pipeline.mr.created"
+    PIPELINE_STATUS = "pipeline.status"             # Status updates (data_agent_handler)
+    PIPELINE_COMPLETED = "pipeline.completed"       # Final success (Jira MCP consumes)
+    PIPELINE_MR_CREATED = "pipeline.mr.created"     # MR/PR created (consumers use)
 
     # =========================================================================
     # EXTERNAL SYSTEM INTEGRATION (MCP servers publish to these)
     # =========================================================================
 
-    # ServiceNow MCP publishes normalized incidents here
-    SERVICENOW_INCIDENTS = "servicenow.incidents"
-    SERVICENOW_UPDATES = "servicenow.updates"
-
-    # Jira MCP publishes pipeline requests here
-    JIRA_TICKETS = "jira.tickets"
-    JIRA_UPDATES = "jira.updates"
-
-    # GCP monitoring alerts
-    GCP_ALERTS = "gcp.alerts"
-
-    # Agent coordination events
-    AGENT_EVENTS = "agent.events"
+    SERVICENOW_INCIDENTS = "servicenow.incidents"   # ServiceNow MCP → incidents
+    JIRA_TICKETS = "jira.tickets"                   # Jira MCP → pipeline requests
+    GCP_ALERTS = "gcp.alerts"                       # Infra monitor alerts
+    AGENT_EVENTS = "agent.events"                   # Agent coordination
 
     # =========================================================================
-    # MCP COMMAND TOPICS (FastAPI/Orchestrator publish commands here)
+    # MCP COMMAND TOPICS (FastAPI/Orchestrator → MCPs)
     # =========================================================================
 
-    # Commands for MCPs to execute (consumer-side)
     MCP_SERVICENOW_COMMANDS = "mcp.servicenow.commands"  # close ticket, update
     MCP_GITHUB_COMMANDS = "mcp.github.commands"          # trigger workflow
     MCP_AIRFLOW_COMMANDS = "mcp.airflow.commands"        # trigger DAG
 
-    # Legacy MCP topics (kept for backward compatibility)
-    MCP_SERVICENOW_REQUESTS = "mcp.servicenow.requests"
-    MCP_SERVICENOW_RESPONSES = "mcp.servicenow.responses"
-    MCP_GITHUB_REQUESTS = "mcp.github.requests"
-    MCP_GITHUB_RESPONSES = "mcp.github.responses"
-
     # =========================================================================
-    # AIRFLOW MCP TOPICS (DAG Orchestration via MCP - not direct REST API)
+    # AIRFLOW MCP TOPICS (DAG Orchestration via Kafka)
     # =========================================================================
 
-    # LangGraph publishes to trigger DAG operations
-    AIRFLOW_TRIGGER_DAG = "airflow.trigger_dag"
-    AIRFLOW_RETRY_DAG = "airflow.retry_dag"
-    AIRFLOW_GET_STATUS = "airflow.get_dag_status"
-
-    # Airflow MCP publishes results
-    AIRFLOW_DAG_COMPLETED = "airflow.dag_completed"
-    AIRFLOW_DAG_FAILED = "airflow.dag_failed"
+    AIRFLOW_TRIGGER_DAG = "airflow.trigger_dag"     # LangGraph → Airflow MCP
+    AIRFLOW_RETRY_DAG = "airflow.retry_dag"         # LangGraph → Airflow MCP
+    AIRFLOW_GET_STATUS = "airflow.get_dag_status"   # LangGraph → Airflow MCP
+    AIRFLOW_DAG_COMPLETED = "airflow.dag_completed" # Airflow MCP → result
+    AIRFLOW_DAG_FAILED = "airflow.dag_failed"       # Airflow MCP → result
 
     # =========================================================================
-    # GITHUB MCP TOPICS (Workflow Dispatch for Remediation Scripts)
+    # GITHUB MCP TOPICS (Workflow Dispatch for Remediation & Deployment)
     # =========================================================================
-    # Used to trigger GitHub Actions workflows in test_01 repo for:
-    # - Terraform scripts (GCP VM operations)
-    # - Ansible playbooks (infrastructure fixes)
-    # - Shell scripts (remediation commands)
 
-    # LangGraph publishes to trigger workflow operations
-    GITHUB_TRIGGER_WORKFLOW = "github.trigger_workflow"
+    GITHUB_TRIGGER_WORKFLOW = "github.trigger_workflow"    # LangGraph → GitHub MCP
     GITHUB_GET_WORKFLOW_STATUS = "github.get_workflow_status"
-
-    # GitHub MCP publishes results
-    GITHUB_WORKFLOW_COMPLETED = "github.workflow_completed"
-    GITHUB_WORKFLOW_FAILED = "github.workflow_failed"
-
-    # Pipeline deployment (enterprise-data-pipelines repo)
-    GITHUB_COMMIT_FILE = "github.commit_file"
-    GITHUB_CREATE_PR = "github.create_pr"
+    GITHUB_WORKFLOW_COMPLETED = "github.workflow_completed" # GitHub MCP → result
+    GITHUB_WORKFLOW_FAILED = "github.workflow_failed"       # GitHub MCP → result
+    GITHUB_COMMIT_FILE = "github.commit_file"              # Pipeline deployment
+    GITHUB_CREATE_PR = "github.create_pr"                  # Pipeline deployment
 
     @classmethod
     def all(cls) -> List[str]:
@@ -185,13 +145,10 @@ class Topics:
             cls.INCIDENT_CLOSE_EXECUTE,
             cls.INCIDENT_CLOSED,
             cls.INCIDENT_FAILED,
-            # Plan events
+            # Plan + remediation
             cls.PLAN_GENERATED,
-            cls.PLAN_JUDGED,
-            # Remediation
             cls.REMEDIATION_STARTED,
             cls.REMEDIATION_EXECUTED,
-            cls.REMEDIATION_FAILED,
             # Pipeline lifecycle
             cls.PIPELINE_REQUESTED,
             cls.PIPELINE_PLANNED,
@@ -203,11 +160,12 @@ class Topics:
             cls.PIPELINE_DEPLOY_EXECUTE,
             cls.PIPELINE_DEPLOYED,
             cls.PIPELINE_FAILED,
+            cls.PIPELINE_STATUS,
+            cls.PIPELINE_COMPLETED,
+            cls.PIPELINE_MR_CREATED,
             # External integrations
             cls.SERVICENOW_INCIDENTS,
-            cls.SERVICENOW_UPDATES,
             cls.JIRA_TICKETS,
-            cls.JIRA_UPDATES,
             cls.GCP_ALERTS,
             cls.AGENT_EVENTS,
             # MCP commands
@@ -248,6 +206,9 @@ class Topics:
             cls.PIPELINE_DEPLOY_EXECUTE,
             cls.PIPELINE_DEPLOYED,
             cls.PIPELINE_FAILED,
+            cls.PIPELINE_STATUS,
+            cls.PIPELINE_COMPLETED,
+            cls.PIPELINE_MR_CREATED,
         ]
 
 
@@ -962,29 +923,22 @@ def event_from_json(json_str: str, event_type: str) -> EventBase:
         "incident.close_execute": IncidentCloseExecuteEvent,
         "incident.closed": IncidentClosedEvent,
         "incident.failed": IncidentFailedEvent,
-        # Plan events
+        # Plan + remediation events
         "plan.generated": PlanGeneratedEvent,
         "plan.judged": PlanJudgedEvent,
-        # Remediation events
         "remediation.started": RemediationStartedEvent,
         "remediation.executed": RemediationExecutedEvent,
         "remediation.rollback": RemediationRollbackEvent,
         # Pipeline lifecycle events
-        "pipeline.intent": PipelineIntentEvent,
         "pipeline.status": PipelineStatusEvent,
         "pipeline.requested": PipelineRequestedEvent,
-        "pipeline.planning": PipelinePlanningEvent,
-        "pipeline.planned": PipelinePlanningEvent,  # Alias
-        "pipeline.generating": PipelineGeneratingEvent,
-        "pipeline.generated": PipelineGeneratingEvent,  # Alias
-        "pipeline.validating": PipelineValidatingEvent,
-        "pipeline.validated": PipelineValidatingEvent,  # Alias
+        "pipeline.planned": PipelinePlanningEvent,
+        "pipeline.generated": PipelineGeneratingEvent,
+        "pipeline.validated": PipelineValidatingEvent,
         "pipeline.requires_approval": PipelineRequiresApprovalEvent,
-        "pipeline.awaiting_approval": PipelineAwaitingApprovalEvent,  # Legacy
         "pipeline.approved": PipelineApprovedEvent,
         "pipeline.rejected": PipelineRejectedEvent,
         "pipeline.deploy_execute": PipelineDeployExecuteEvent,
-        "pipeline.deploying": PipelineDeployingEvent,
         "pipeline.deployed": PipelineDeployedEvent,
         "pipeline.completed": PipelineCompletedEvent,
         "pipeline.failed": PipelineFailedEvent,

@@ -33,6 +33,7 @@ import {
   V2DimensionConfig,
   V2FactConfig,
   V2MeasureConfig,
+  V2AggFunction,
   V2DimensionLookup,
   V2SCDType,
 } from '@/types/pipeline-canonical'
@@ -820,7 +821,7 @@ function V2StarSchemaConfigForm({
 
   const addMeasure = () => {
     if (!tmpMeasureName || !tmpMeasureAgg) return
-    setNewFactMeasures((prev) => [...prev, { name: tmpMeasureName, source_column: tmpMeasureCol || undefined, agg: tmpMeasureAgg }])
+    setNewFactMeasures((prev) => [...prev, { name: tmpMeasureName, source_column: tmpMeasureCol || tmpMeasureName, agg_function: tmpMeasureAgg as V2AggFunction }])
     setTmpMeasureName('')
     setTmpMeasureCol('')
     setTmpMeasureAgg('sum')
@@ -964,7 +965,7 @@ function V2StarSchemaConfigForm({
           <p className="text-xs font-medium text-gray-400">Measures ({newFactMeasures.length})</p>
           {newFactMeasures.map((m, i) => (
             <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
-              <span>{m.name} ({m.agg}{m.source_column ? ` on ${m.source_column}` : ''})</span>
+              <span>{m.name} ({m.agg_function}{m.source_column ? ` on ${m.source_column}` : ''})</span>
               <button onClick={() => setNewFactMeasures((prev) => prev.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300">
                 <Trash2 className="w-3 h-3" />
               </button>

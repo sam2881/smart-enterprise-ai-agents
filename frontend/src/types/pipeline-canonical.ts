@@ -92,7 +92,17 @@ export type SourceType =
   | 'legacy_vsam'
   | 'legacy_as400'
   | 'legacy_mainframe'
-  // F. Semi-Structured / Nested
+  // F. NoSQL Databases
+  | 'nosql_mongodb'
+  | 'nosql_cassandra'
+  | 'nosql_dynamodb'
+  | 'nosql_redis'
+  | 'nosql_couchbase'
+  | 'nosql_neo4j'
+  | 'nosql_elasticsearch'
+  | 'nosql_solr'
+  | 'nosql_hbase'
+  // G. Semi-Structured / Nested
   | 'nested_json'
   | 'nested_xml'
   | 'nested_avro'
@@ -135,7 +145,7 @@ export type ExtractionMode = 'full' | 'incremental' | 'cdc'
 // Medallion Architecture
 // =============================================================================
 
-export type TargetZone = 'landing' | 'bronze' | 'silver' | 'gold' | 'trusted'
+export type TargetZone = 'landing' | 'bronze' | 'silver' | 'gold'
 
 export type WriteMode = 
   | 'append' 
@@ -354,6 +364,70 @@ export interface DTSXSourceConfig {
   column_mappings?: Array<Record<string, any>>
 }
 
+export interface NoSQLSourceConfig {
+  connection_string: string
+  // MongoDB-specific
+  database_name?: string
+  collection_name?: string
+  query_filter?: string  // JSON query filter
+  // Cassandra-specific
+  keyspace?: string
+  table_name?: string
+  // ElasticSearch/Solr-specific
+  index_name?: string
+  search_query?: string
+  // Neo4j-specific
+  cypher_query?: string
+  // Common
+  extraction_mode?: ExtractionMode
+  batch_size?: number
+  read_preference?: string
+}
+
+export interface LogsSourceConfig {
+  log_source: 'gcs' | 'stackdriver' | 'elasticsearch' | 'splunk' | 'datadog'
+  log_path?: string
+  log_pattern?: string  // Regex or grok pattern
+  start_time?: string
+  end_time?: string
+  query?: string  // For log aggregation services
+  project_id?: string  // For Stackdriver
+  log_name?: string
+  severity_filter?: string[]  // ERROR, WARNING, INFO, DEBUG
+  parse_format?: 'json' | 'regex' | 'grok' | 'unstructured'
+}
+
+export interface NestedSourceConfig {
+  max_depth?: number
+  flatten_strategy: 'explode' | 'struct' | 'json_string'
+  array_handling: 'explode' | 'collect' | 'first' | 'json_array'
+  null_handling: 'keep' | 'remove' | 'default'
+  schema_inference?: boolean
+  schema_sample_size?: number
+  preserve_paths?: boolean
+}
+
+export interface SpecialSourceConfig {
+  source_category: 'iot' | 'timeseries' | 'geospatial' | 'ml_features' | 'open_data'
+  // IoT-specific
+  device_registry?: string
+  protocol?: 'mqtt' | 'http' | 'coap'
+  // Time-series-specific
+  metric_name?: string
+  aggregation_window?: string
+  // Geospatial-specific
+  srid?: number  // Spatial Reference ID
+  geometry_column?: string
+  geometry_type?: 'point' | 'polygon' | 'linestring' | 'multipolygon'
+  // ML Features-specific
+  feature_group?: string
+  entity_columns?: string[]
+  // Open Data-specific
+  dataset_url?: string
+  api_key?: string
+  refresh_interval?: string
+}
+
 export interface SourceConfig {
   source_id?: string
   pipeline_id?: string
@@ -361,10 +435,14 @@ export interface SourceConfig {
   source_format?: SourceFormat
   file_config?: Partial<FileSourceConfig>
   database_config?: Partial<DatabaseSourceConfig>
+  nosql_config?: Partial<NoSQLSourceConfig>
   streaming_config?: Partial<StreamingSourceConfig>
   api_config?: Partial<APISourceConfig>
   ebcdic_config?: Partial<EBCDICSourceConfig>
   dtsx_config?: Partial<DTSXSourceConfig>
+  logs_config?: Partial<LogsSourceConfig>
+  nested_config?: Partial<NestedSourceConfig>
+  special_config?: Partial<SpecialSourceConfig>
   field_specs?: Array<Record<string, any>>
   copybook?: Record<string, any>
   record_length?: number
@@ -788,6 +866,23 @@ export const SOURCE_TYPE_CATEGORIES: SourceTypeCategory[] = [
     ],
   },
   {
+    id: 'nosql',
+    label: 'NoSQL Databases',
+    icon: '🗄️',
+    description: 'Document, key-value, graph, and search databases',
+    types: [
+      { value: 'nosql_mongodb', label: 'MongoDB', description: 'Document database' },
+      { value: 'nosql_cassandra', label: 'Cassandra', description: 'Wide-column store' },
+      { value: 'nosql_dynamodb', label: 'DynamoDB', description: 'AWS key-value store' },
+      { value: 'nosql_redis', label: 'Redis', description: 'In-memory data store' },
+      { value: 'nosql_couchbase', label: 'Couchbase', description: 'JSON document database' },
+      { value: 'nosql_neo4j', label: 'Neo4j', description: 'Graph database' },
+      { value: 'nosql_elasticsearch', label: 'Elasticsearch', description: 'Search & analytics engine' },
+      { value: 'nosql_solr', label: 'Solr', description: 'Apache Solr search' },
+      { value: 'nosql_hbase', label: 'HBase', description: 'Hadoop database' },
+    ],
+  },
+  {
     id: 'nested',
     label: 'Semi-Structured / Nested',
     icon: '📦',
@@ -1126,39 +1221,65 @@ export type V2SqlLoadType = 'insert' | 'merge' | 'delete_insert'
 export type V2GoldModelType = 'flat' | 'scd2' | 'data_vault' | 'star_schema'
 export type V2SCDType = 0 | 1 | 2 | 3
 
+export type V2DataType =
+  | 'STRING' | 'INTEGER' | 'BIGINT' | 'FLOAT' | 'DOUBLE' | 'DECIMAL'
+  | 'BOOLEAN' | 'DATE' | 'TIMESTAMP' | 'BINARY' | 'ARRAY' | 'STRUCT' | 'MAP'
+
+export type V2PiiClassification = 'PII' | 'PHI' | 'PCI' | 'SENSITIVE'
+
 export interface V2ColumnDef {
   name: string
-  data_type: string
+  data_type: V2DataType
   nullable?: boolean
-  pii_classification?: string
+  precision?: number
+  scale?: number
+  pii_classification?: V2PiiClassification
   description?: string
+  default_value?: string
 }
 
+export type V2TransformType =
+  | 'rename' | 'cast' | 'derive' | 'filter' | 'dedup' | 'null_fill'
+  | 'mask' | 'hash' | 'trim' | 'standardize_date' | 'regex_replace'
+  | 'window' | 'aggregate' | 'join' | 'pivot' | 'unpivot'
+
 export interface V2TransformRule {
-  type: string  // rename, cast, derive, filter, dedup, null_fill, mask, hash, trim, standardize_date, regex_replace
+  type: V2TransformType
   config: Record<string, any>
 }
 
+export type V2QualityRuleType =
+  | 'not_null' | 'unique' | 'range' | 'regex' | 'in_set'
+  | 'row_count' | 'freshness' | 'custom_sql' | 'compound_unique'
+  | 'column_pair_comparison' | 'completeness'
+
+export type V2QualitySeverity = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
+
 export interface V2QualityRule {
   column?: string
-  rule_type: string  // not_null, unique, range, regex, in_set, row_count, freshness, custom_sql
+  rule_type: V2QualityRuleType
   params: Record<string, any>
-  severity?: 'ERROR' | 'WARNING' | 'INFO'
+  severity?: V2QualitySeverity
 }
 
 export interface V2SnowflakeTarget {
   account: string
   database: string
-  schema: string
+  schema_name: string
   table: string
   warehouse: string
+  role?: string
 }
 
+export type V2PartitionType = 'DAY' | 'MONTH' | 'YEAR' | 'HOUR'
+
 export interface V2BigQueryTarget {
-  project: string
+  project?: string
   dataset: string
   table: string
-  location?: string
+  partition_field?: string
+  partition_type?: V2PartitionType
+  clustering_fields?: string[]
 }
 
 export interface V2HubConfig {
@@ -1188,10 +1309,13 @@ export interface V2DimensionConfig {
   target_table: string
 }
 
+export type V2AggFunction = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct'
+
 export interface V2MeasureConfig {
   name: string
-  source_column?: string
-  agg: string
+  source_column: string
+  agg_function?: V2AggFunction
+  is_additive?: boolean
 }
 
 export interface V2DimensionLookup {
@@ -1206,6 +1330,7 @@ export interface V2FactConfig {
   measures: V2MeasureConfig[]
   dimension_lookups: V2DimensionLookup[]
   target_table: string
+  date_dimension_key?: string
 }
 
 export interface V2GoldModelConfig {
@@ -1262,11 +1387,23 @@ export interface V2FeedGroupConfig {
   dag_id: string
   domain: string
   owner?: string
+  description?: string
   feeds: V2FeedConfig[]
   consumption_feeds?: V2FeedConfig[]
   enable_duplicate_detection?: boolean
   enable_self_retrigger?: boolean
   dependencies?: V2DagDependency[]
+  schedule?: Record<string, string>
+  notification_emails?: Record<string, string[]>
+  retry_count?: number
+  retry_delay_minutes?: number
+  timeout_hours?: number
+  max_active_runs?: number
+  catchup?: boolean
+  start_year?: number
+  start_month?: number
+  start_day?: number
+  tags?: string[]
 }
 
 // =============================================================================

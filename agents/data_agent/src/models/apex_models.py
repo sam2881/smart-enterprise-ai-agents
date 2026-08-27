@@ -2,14 +2,26 @@
 APEX Registry Models
 
 Enums and models for APEX component registry integration.
+
+Note: Canonical definitions for shared types are in their respective modules:
+- Severity: quality.py
+- ColumnDefinition, SchemaVersion: schema.py
+- SourceCategory, SourceType: source.py
 """
 
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
-from uuid import UUID
 
+# Re-export canonical types for convenience
+from src.models.source import SourceCategory, SourceType
+from src.models.schema import SchemaVersion, ColumnDefinition
+
+
+# =============================================================================
+# APEX-Specific Enums
+# =============================================================================
 
 class ContractType(str, Enum):
     """APEX contract types - determines which DAG pattern template is used."""
@@ -39,17 +51,6 @@ class FeedType(str, Enum):
     HYBRID = "HYBRID"
 
 
-class SourceType(str, Enum):
-    """Types of data sources supported by APEX."""
-    FILE = "FILE"
-    DATABASE = "DATABASE"
-    API = "API"
-    KAFKA = "KAFKA"
-    STREAMING = "STREAMING"
-    LEGACY = "LEGACY"
-    SAAS = "SAAS"
-
-
 class FileFormat(str, Enum):
     """File formats supported by APEX."""
     CSV = "CSV"
@@ -73,13 +74,12 @@ class LoadType(str, Enum):
 
 
 class ZoneLevel(str, Enum):
-    """Data zones in medallion architecture."""
+    """Data zones in medallion architecture. GOLD is the final layer."""
     RAW = "RAW"
     TRANSIENT = "TRANSIENT"
     BRONZE = "BRONZE"
     SILVER = "SILVER"
     GOLD = "GOLD"
-    TRUSTED = "TRUSTED"
 
 
 class ValidationType(str, Enum):
@@ -89,14 +89,6 @@ class ValidationType(str, Enum):
     QUALITY = "QUALITY"
     REFERENTIAL = "REFERENTIAL"
     BUSINESS = "BUSINESS"
-
-
-class Severity(str, Enum):
-    """Severity levels for validation errors."""
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
 
 
 class ExecutionStatus(str, Enum):
@@ -141,6 +133,10 @@ class PipelinePhase(str, Enum):
     FAILED = "failed"
 
 
+# =============================================================================
+# Pattern & Template Models
+# =============================================================================
+
 class PatternInfo(BaseModel):
     """Pattern metadata from APEX registry."""
     pattern_code: PatternCode
@@ -153,17 +149,11 @@ class PatternInfo(BaseModel):
     selection_priority: int
     required_variables: List[str]
     spark_jobs_used: List[str]
-# Temporary file with all missing APEX models
-
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-from pydantic import BaseModel
-from uuid import UUID
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Core Registry Models
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class ConnectionRegistry(BaseModel):
     """Database connection registry."""
@@ -221,9 +211,9 @@ class SparkConfig(BaseModel):
     config: Optional[Dict[str, Any]] = None
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Feed and Contract Models
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class FeedGroup(BaseModel):
     """Feed group for organizing related feeds."""
@@ -253,7 +243,7 @@ class DataContract(BaseModel):
     contract_name: str
     feed_id: Optional[str] = None
     contract_type: str
-    pattern_code: Optional[str] = None  # Optional explicit pattern selection
+    pattern_code: Optional[str] = None
     version: int = 1
     schema_definition: Optional[Dict[str, Any]] = None
     quality_rules: Optional[List[Dict[str, Any]]] = None
@@ -261,30 +251,9 @@ class DataContract(BaseModel):
     is_active: bool = True
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Schema and View Models
-# ═══════════════════════════════════════════════════════════════════════════
-
-class ColumnDefinition(BaseModel):
-    """Column metadata."""
-    column_name: str
-    data_type: str
-    nullable: bool = True
-    primary_key: bool = False
-    description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class SchemaVersion(BaseModel):
-    """Schema version tracking."""
-    schema_version_id: str
-    feed_id: str
-    version: int
-    zone_level: str
-    columns: List[ColumnDefinition]
-    created_at: datetime
-    is_active: bool = True
-
+# =============================================================================
+# View and Transformation Models
+# =============================================================================
 
 class ViewDefinition(BaseModel):
     """SQL view definition."""
@@ -316,9 +285,9 @@ class ContractTransformation(BaseModel):
     is_active: bool = True
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Validation Models
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class ValidationRule(BaseModel):
     """Data validation rule."""
@@ -362,9 +331,9 @@ class PipelineDependency(BaseModel):
     is_active: bool = True
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Execution Models
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class PipelineExecution(BaseModel):
     """Pipeline execution record."""
@@ -444,9 +413,9 @@ class AgentDecisionLog(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 # Composite Models
-# ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 class APEXPipelineConfig(BaseModel):
     """Complete APEX pipeline configuration."""
@@ -458,14 +427,12 @@ class APEXPipelineConfig(BaseModel):
     source_id: str
     domain_id: str
     contract_id: Optional[str] = None
-    schemas: Dict[str, SchemaVersion]
+    schemas: Dict[str, Any]
     views: Optional[Dict[str, ViewDefinition]] = None
     transformations: Optional[List[TransformationRule]] = None
     validations: Optional[List[ValidationRule]] = None
     is_active: bool = True
     metadata: Optional[Dict[str, Any]] = None
-
-    # Nested objects for generator compatibility
     feed: Optional["Feed"] = None
     contract: Optional["DataContract"] = None
     source: Optional["SourceRegistry"] = None
@@ -480,7 +447,7 @@ class APEXGenerationRequest(BaseModel):
     file_format: Optional[str] = None
     load_type: str = "FULL"
     target_zones: List[str]
-    bronze_schema: Optional[SchemaVersion] = None
+    bronze_schema: Optional[Dict[str, Any]] = None
     natural_language_description: Optional[str] = None
     created_by: str
     jira_ticket: Optional[str] = None

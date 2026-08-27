@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { QUERY_KEYS } from '@/lib/constants'
 import { Card, CardContent } from '../ui/Card'
@@ -15,21 +15,87 @@ import {
   Play,
   Shield,
   GitBranch,
-  RefreshCw
+  RefreshCw,
+  Replace,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Terminal,
+  Zap,
+  Server,
+  Database,
+  HardDrive,
+  Lock,
+  Network,
+  Workflow
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { Approval } from '@/types/approval'
+
+interface Script {
+  script_id: string
+  display_name: string
+  description: string
+  action_type: string
+  workflow_name: string
+  risk_level: string
+  category: string
+  parameters: string[]
+}
 
 interface LangGraphApprovalListProps {
   approvals: Approval[]
   onUpdate: () => void
 }
 
+const categoryIcons: Record<string, typeof Server> = {
+  service: Terminal,
+  infrastructure: Server,
+  kubernetes: Workflow,
+  storage: HardDrive,
+  security: Lock,
+  database: Database,
+  cache: Zap,
+  'data-pipeline': Workflow,
+  network: Network,
+}
+
+const riskColors: Record<string, string> = {
+  low: 'bg-green-100 text-green-700 border-green-200',
+  medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  high: 'bg-orange-100 text-orange-700 border-orange-200',
+  critical: 'bg-red-100 text-red-700 border-red-200',
+}
+
 export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApprovalListProps) {
   const [approving, setApproving] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [overriding, setOverriding] = useState<string | null>(null)
+  const [showOverridePanel, setShowOverridePanel] = useState<string | null>(null)
+  const [selectedScript, setSelectedScript] = useState<Script | null>(null)
+  const [scriptFilter, setScriptFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const queryClient = useQueryClient()
+
+  // Fetch available scripts for override
+  const { data: scriptsData } = useQuery({
+    queryKey: ['available-scripts'],
+    queryFn: () => api.getAvailableScripts(),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const scripts: Script[] = scriptsData?.scripts || []
+  const categories: string[] = scriptsData?.categories || []
+
+  const filteredScripts = scripts.filter(s => {
+    const matchesSearch = !scriptFilter ||
+      s.display_name.toLowerCase().includes(scriptFilter.toLowerCase()) ||
+      s.description.toLowerCase().includes(scriptFilter.toLowerCase()) ||
+      s.script_id.toLowerCase().includes(scriptFilter.toLowerCase())
+    const matchesCategory = categoryFilter === 'all' || s.category === categoryFilter
+    return matchesSearch && matchesCategory
+  })
 
   const approveMutation = useMutation({
     mutationFn: (incidentId: string) => api.approveIncident(incidentId, {
@@ -84,6 +150,30 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
     onSettled: () => setRetrying(null)
   })
 
+  const overrideMutation = useMutation({
+    mutationFn: ({ incidentId, script }: { incidentId: string; script: Script }) =>
+      api.overrideIncident(incidentId, {
+        approver: 'admin',
+        reason: `Override: selected ${script.display_name} (${script.script_id})`,
+        override_script: {
+          script_id: script.script_id,
+          workflow_name: script.workflow_name,
+          action_type: script.action_type,
+        }
+      }),
+    onSuccess: (data) => {
+      toast.success(`Override approved with script: ${data.override_script?.script_id}`)
+      setShowOverridePanel(null)
+      setSelectedScript(null)
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.APPROVALS] })
+      onUpdate()
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Override failed')
+    },
+    onSettled: () => setOverriding(null)
+  })
+
   const handleApprove = (incidentId: string) => {
     setApproving(incidentId)
     approveMutation.mutate(incidentId)
@@ -99,18 +189,36 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
     retryMutation.mutate(incidentId)
   }
 
+  const handleOverride = (incidentId: string) => {
+    if (!selectedScript) {
+      toast.error('Please select a script first')
+      return
+    }
+    setOverriding(incidentId)
+    overrideMutation.mutate({ incidentId, script: selectedScript })
+  }
+
+  const toggleOverridePanel = (incidentId: string) => {
+    if (showOverridePanel === incidentId) {
+      setShowOverridePanel(null)
+      setSelectedScript(null)
+      setScriptFilter('')
+      setCategoryFilter('all')
+    } else {
+      setShowOverridePanel(incidentId)
+      setSelectedScript(null)
+      setScriptFilter('')
+      setCategoryFilter('all')
+    }
+  }
+
   const getRiskBadgeVariant = (riskLevel: string) => {
     switch (riskLevel?.toLowerCase()) {
-      case 'critical':
-        return 'error'
-      case 'high':
-        return 'error'
-      case 'medium':
-        return 'warning'
-      case 'low':
-        return 'success'
-      default:
-        return 'info'
+      case 'critical': return 'error'
+      case 'high': return 'error'
+      case 'medium': return 'warning'
+      case 'low': return 'success'
+      default: return 'info'
     }
   }
 
@@ -212,13 +320,15 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
                     <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                       <h5 className="text-sm font-medium text-gray-700 mb-2">Execution Steps:</h5>
                       <div className="space-y-1">
-                        {approval.plan.steps.map((step, idx) => (
+                        {approval.plan.steps.map((step: any, idx: number) => (
                           <div key={idx} className="flex items-center gap-2 text-sm text-gray-600">
                             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-xs font-medium">
                               {step.step}
                             </span>
                             <span>{step.action}</span>
-                            <span className="text-gray-400">({step.timeout}s timeout)</span>
+                            {step.timeout && (
+                              <span className="text-gray-400">({step.timeout}s timeout)</span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -227,8 +337,112 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
 
                   {/* Reasoning */}
                   {approval.approval_decision?.reasoning && (
-                    <div className="text-sm text-gray-500 italic">
-                      "{approval.approval_decision.reasoning}"
+                    <div className="text-sm text-gray-500 italic mb-3">
+                      &ldquo;{approval.approval_decision.reasoning}&rdquo;
+                    </div>
+                  )}
+
+                  {/* === OVERRIDE PANEL === */}
+                  {showOverridePanel === approval.incident_id && (
+                    <div className="mt-4 border border-blue-200 rounded-lg bg-blue-50/50 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Replace className="h-5 w-5 text-blue-600" />
+                        <h5 className="font-semibold text-blue-900">Override with Different Script</h5>
+                      </div>
+
+                      {/* Search and Filter */}
+                      <div className="flex gap-3 mb-3">
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search scripts..."
+                            value={scriptFilter}
+                            onChange={(e) => setScriptFilter(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                        </div>
+                        <select
+                          value={categoryFilter}
+                          onChange={(e) => setCategoryFilter(e.target.value)}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="all">All Categories</option>
+                          {categories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Script List */}
+                      <div className="max-h-64 overflow-y-auto space-y-2 mb-3">
+                        {filteredScripts.map((script) => {
+                          const IconComponent = categoryIcons[script.category] || Terminal
+                          const isSelected = selectedScript?.script_id === script.script_id
+                          return (
+                            <button
+                              key={script.script_id}
+                              onClick={() => setSelectedScript(isSelected ? null : script)}
+                              className={`w-full text-left p-3 rounded-lg border transition-all ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-100 ring-2 ring-blue-300'
+                                  : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-md ${
+                                  isSelected ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                  <IconComponent className="h-4 w-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm text-gray-900">{script.display_name}</span>
+                                    <span className={`px-1.5 py-0.5 text-xs rounded border ${riskColors[script.risk_level]}`}>
+                                      {script.risk_level}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-600">
+                                      {script.category}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-0.5">{script.description}</p>
+                                  <code className="text-xs text-blue-600 font-mono">{script.script_id}</code>
+                                </div>
+                                {isSelected && (
+                                  <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          )
+                        })}
+                        {filteredScripts.length === 0 && (
+                          <div className="text-center py-4 text-sm text-gray-500">
+                            No scripts match your filter
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Override Confirm */}
+                      <div className="flex items-center justify-between pt-2 border-t border-blue-200">
+                        <span className="text-sm text-gray-600">
+                          {selectedScript
+                            ? <>Selected: <strong>{selectedScript.display_name}</strong></>
+                            : 'Select a script to override'
+                          }
+                        </span>
+                        <button
+                          onClick={() => handleOverride(approval.incident_id)}
+                          disabled={!selectedScript || overriding === approval.incident_id}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                        >
+                          {overriding === approval.incident_id ? (
+                            <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Replace className="h-4 w-4" />
+                          )}
+                          Approve with Override
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -237,7 +451,6 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
               {/* Right side - Actions */}
               <div className="flex flex-col gap-2 ml-4">
                 {approval.requires_action === 'retry' ? (
-                  /* Retry button for failed triggers */
                   <button
                     onClick={() => handleRetry(approval.incident_id)}
                     disabled={retrying === approval.incident_id}
@@ -251,7 +464,6 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
                     Retry Trigger
                   </button>
                 ) : (
-                  /* Approve/Reject buttons for pending approvals */
                   <>
                     <button
                       onClick={() => handleApprove(approval.incident_id)}
@@ -276,6 +488,22 @@ export function LangGraphApprovalList({ approvals, onUpdate }: LangGraphApproval
                         <XCircle className="h-4 w-4" />
                       )}
                       Reject
+                    </button>
+                    <button
+                      onClick={() => toggleOverridePanel(approval.incident_id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                        showOverridePanel === approval.incident_id
+                          ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                          : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600 border border-gray-300'
+                      }`}
+                    >
+                      <Replace className="h-4 w-4" />
+                      Override
+                      {showOverridePanel === approval.incident_id ? (
+                        <ChevronUp className="h-3 w-3" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3" />
+                      )}
                     </button>
                   </>
                 )}

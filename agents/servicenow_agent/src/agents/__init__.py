@@ -37,15 +37,14 @@ warnings.warn(
     stacklevel=2
 )
 
-# Re-export from new location for backward compatibility
-from agents import BaseAgent, IAgentService, IAgentTask, IAgentResult
-
-__all__ = [
-    "BaseAgent",
-    "IAgentService",
-    "IAgentTask",
-    "IAgentResult",
-]
+# Re-export from new location for backward compatibility.
+# Guards against ImportError when the root `agents/` directory has no __init__.py
+# (e.g. during unit tests that add servicenow_agent to sys.path directly).
+try:
+    from agents import BaseAgent, IAgentService, IAgentTask, IAgentResult
+    __all__ = ["BaseAgent", "IAgentService", "IAgentTask", "IAgentResult"]
+except ImportError:
+    __all__ = []
 
 # Legacy imports - these files still exist but should be migrated
 # DO NOT use these in new code

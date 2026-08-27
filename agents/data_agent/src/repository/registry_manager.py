@@ -20,7 +20,7 @@ import structlog
 
 from src.models.apex_models import (
     PatternCode,
-    SourceType,
+    SourceCategory,
     LoadType,
     ContractType,
     Feed,
@@ -136,18 +136,18 @@ class RegistryManager:
 
         # 3. Source type
         if source:
-            if source.source_type == SourceType.FILE:
+            if source.source_type == SourceCategory.FILE:
                 if file_size_bytes and file_size_bytes >= self.BIGDATA_FILE_SIZE_THRESHOLD:
                     logger.debug("pattern_selected_bigdata", file_size_gb=file_size_bytes / (1024**3))
                     return PatternCode.P02
 
             source_type_map = {
-                SourceType.FILE: PatternCode.P01,
-                SourceType.DATABASE: PatternCode.P03,
-                SourceType.STREAMING: PatternCode.P05,
-                SourceType.API: PatternCode.P06,
-                SourceType.LEGACY: PatternCode.P04,
-                SourceType.SAAS: PatternCode.P06,  # SAAS uses same pattern as API
+                SourceCategory.FILE: PatternCode.P01,
+                SourceCategory.DATABASE: PatternCode.P03,
+                SourceCategory.STREAMING: PatternCode.P05,
+                SourceCategory.API: PatternCode.P06,
+                SourceCategory.LEGACY: PatternCode.P04,
+                SourceCategory.SAAS: PatternCode.P06,  # SAAS uses same pattern as API
             }
             if source.source_type in source_type_map:
                 pattern = source_type_map[source.source_type]

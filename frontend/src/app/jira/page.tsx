@@ -7,14 +7,16 @@
  * Pipelines can ONLY be created from within a Jira ticket context.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { api, QUERY_KEYS } from '@/lib/api'
+import { getApiBaseUrl } from '@/lib/constants'
 import {
   Ticket,
   Search,
@@ -33,6 +35,10 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
+  Send,
+  ExternalLink,
+  Loader2,
+  X,
 } from 'lucide-react'
 
 // =============================================================================
@@ -372,9 +378,50 @@ export default function JiraTicketsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [pipelineFilter, setPipelineFilter] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createResult, setCreateResult] = useState<{ success: boolean; ticket_id?: string; ticket_url?: string; error?: string } | null>(null)
+  const queryClient = useQueryClient()
 
-  // In real app, this would fetch from API
-  const tickets = SAMPLE_TICKETS
+  // Fetch from real Jira API, fallback to sample data
+  const { data: jiraData, isLoading: jiraLoading, refetch } = useQuery({
+    queryKey: [QUERY_KEYS.JIRA_TICKETS],
+    queryFn: async () => {
+      const apiUrl = getApiBaseUrl()
+      const res = await fetch(`${apiUrl}/api/jira/tickets`)
+      if (!res.ok) throw new Error('Failed to fetch')
+      return res.json()
+    },
+    staleTime: 60_000,
+    retry: 1,
+  })
+
+  // Use API data if available, otherwise sample data
+  const tickets: JiraTicket[] = (jiraData?.tickets?.length > 0) ? jiraData.tickets : SAMPLE_TICKETS
+  const dataSource = (jiraData?.tickets?.length > 0) ? 'jira' : 'sample'
+
+  // Create ticket handler
+  const handleCreateTicket = useCallback(async (formData: {
+    summary: string; description: string; issue_type: string; priority: string; labels: string
+  }) => {
+    setCreateLoading(true)
+    setCreateResult(null)
+    try {
+      const result = await api.createJiraTicket({
+        summary: formData.summary,
+        description: formData.description,
+        issue_type: formData.issue_type,
+        priority: formData.priority,
+        labels: formData.labels.split(',').map(l => l.trim()).filter(Boolean),
+      })
+      setCreateResult({ success: true, ticket_id: result.ticket_id, ticket_url: result.ticket_url })
+      refetch()
+    } catch (err: any) {
+      setCreateResult({ success: false, error: err?.response?.data?.detail || err.message || 'Failed to create ticket' })
+    } finally {
+      setCreateLoading(false)
+    }
+  }, [refetch])
 
   // Filter tickets
   const filteredTickets = useMemo(() => {
@@ -442,9 +489,16 @@ export default function JiraTicketsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="border-gray-700 text-gray-300">
-                <RefreshCw className="w-4 h-4 mr-2" />
+              {dataSource === 'sample' && (
+                <span className="text-xs text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">Demo Data</span>
+              )}
+              <Button variant="outline" className="border-gray-700 text-gray-300" onClick={() => refetch()}>
+                <RefreshCw className={cn("w-4 h-4 mr-2", jiraLoading && "animate-spin")} />
                 Sync from Jira
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => { setShowCreateModal(true); setCreateResult(null) }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Ticket
               </Button>
             </div>
           </div>
@@ -602,7 +656,7 @@ export default function JiraTicketsPage() {
               <div>
                 <h4 className="text-sm font-medium text-blue-400 mb-1">Pipeline Creation</h4>
                 <p className="text-sm text-gray-400">
-                  To create a data pipeline, click on a ticket and use the "Configure Pipeline" tab.
+                  To create a data pipeline, click on a ticket and use the &quot;Configure Pipeline&quot; tab.
                   All pipelines are linked to Jira tickets for traceability and approval workflows.
                 </p>
               </div>
@@ -610,6 +664,161 @@ export default function JiraTicketsPage() {
           </div>
         </div>
       </div>
+
+      {/* Create Ticket Modal */}
+      {showCreateModal && (
+        <CreateTicketModal
+          onClose={() => setShowCreateModal(false)}
+          onCreate={handleCreateTicket}
+          loading={createLoading}
+          result={createResult}
+        />
+      )}
     </PageLayout>
+  )
+}
+
+// =============================================================================
+// Create Ticket Modal
+// =============================================================================
+
+function CreateTicketModal({
+  onClose,
+  onCreate,
+  loading,
+  result,
+}: {
+  onClose: () => void
+  onCreate: (data: { summary: string; description: string; issue_type: string; priority: string; labels: string }) => void
+  loading: boolean
+  result: { success: boolean; ticket_id?: string; ticket_url?: string; error?: string } | null
+}) {
+  const [summary, setSummary] = useState('')
+  const [description, setDescription] = useState('')
+  const [issueType, setIssueType] = useState('Story')
+  const [priority, setPriority] = useState('Medium')
+  const [labels, setLabels] = useState('data-pipeline')
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-800">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Send className="w-5 h-5 text-blue-400" />
+            Push Ticket to Jira
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          {result?.success ? (
+            <div className="text-center py-6">
+              <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-3" />
+              <p className="text-white font-medium mb-1">Ticket Created: {result.ticket_id}</p>
+              {result.ticket_url && (
+                <a
+                  href={result.ticket_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 text-sm flex items-center justify-center gap-1"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open in Jira
+                </a>
+              )}
+              <Button className="mt-4" variant="outline" onClick={onClose}>Close</Button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Summary *</label>
+                <input
+                  type="text"
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="Brief ticket summary..."
+                  className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Detailed description..."
+                  rows={4}
+                  className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Issue Type</label>
+                  <select
+                    value={issueType}
+                    onChange={(e) => setIssueType(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="Story">Story</option>
+                    <option value="Bug">Bug</option>
+                    <option value="Task">Task</option>
+                    <option value="Epic">Epic</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Priority</label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Labels (comma-separated)</label>
+                <input
+                  type="text"
+                  value={labels}
+                  onChange={(e) => setLabels(e.target.value)}
+                  placeholder="data-pipeline, feature"
+                  className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                />
+              </div>
+
+              {result?.error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                  {result.error}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!result?.success && (
+          <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-800">
+            <Button variant="outline" onClick={onClose} className="border-gray-700 text-gray-300">Cancel</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => onCreate({ summary, description, issue_type: issueType, priority, labels })}
+              disabled={!summary.trim() || loading}
+            >
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+              Push to Jira
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

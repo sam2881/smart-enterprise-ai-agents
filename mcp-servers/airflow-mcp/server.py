@@ -25,17 +25,98 @@ import asyncio
 import json
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 import structlog
 import httpx
 
+# ---------------------------------------------------------------------------
+# Prometheus metrics for Airflow MCP
+# ---------------------------------------------------------------------------
+try:
+    from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+
+    AIRFLOW_MCP_DAG_TRIGGERS = Counter(
+        "aiagent_airflow_mcp_dag_triggers_total",
+        "Total DAG trigger attempts via Airflow MCP",
+        ["dag_id", "status"],
+    )
+    AIRFLOW_MCP_DAG_LATENCY = Histogram(
+        "aiagent_airflow_mcp_dag_latency_seconds",
+        "Airflow MCP DAG trigger-to-completion latency",
+        ["dag_id"],
+        buckets=[1, 5, 10, 30, 60, 120, 300, 600],
+    )
+    AIRFLOW_MCP_EVENTS = Counter(
+        "aiagent_airflow_mcp_events_total",
+        "Total Kafka events processed by Airflow MCP",
+        ["topic", "status"],
+    )
+    _PROM_OK = True
+except ImportError:
+    _PROM_OK = False
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.streaming.kafka_producer import get_producer
-
 logger = structlog.get_logger()
+
+
+# ---------------------------------------------------------------------------
+# Inline Kafka producer (avoids import from backend which isn't on PYTHONPATH
+# inside the MCP container)
+# ---------------------------------------------------------------------------
+
+class _InlineKafkaProducer:
+    """Lightweight Kafka producer for the Airflow MCP server."""
+
+    def __init__(self):
+        self.bootstrap_servers = os.getenv(
+            "KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"
+        ).replace("kafka://", "")
+        self.mock_mode = os.getenv("MOCK_KAFKA", "false").lower() == "true"
+        self.producer = None
+
+        if self.mock_mode:
+            logger.info("kafka_producer_mock_mode")
+            return
+
+        try:
+            from kafka import KafkaProducer as _KP
+
+            self.producer = _KP(
+                bootstrap_servers=self.bootstrap_servers,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                key_serializer=lambda k: k.encode("utf-8") if k else None,
+                acks="all",
+                retries=3,
+            )
+            logger.info("kafka_producer_initialized", servers=self.bootstrap_servers)
+        except Exception as e:
+            logger.error("kafka_producer_init_failed", error=str(e))
+            self.mock_mode = True
+
+    async def publish_event(self, topic: str, event: dict, key: str = None) -> bool:
+        if "timestamp" not in event:
+            event["timestamp"] = datetime.utcnow().isoformat()
+        if self.mock_mode or not self.producer:
+            logger.info("kafka_mock_publish", topic=topic, key=key)
+            return True
+        try:
+            future = self.producer.send(topic=topic, value=event, key=key)
+            future.get(timeout=10)
+            return True
+        except Exception as e:
+            logger.error("kafka_publish_error", topic=topic, error=str(e))
+            return False
+
+
+_airflow_producer = _InlineKafkaProducer()
+
+
+def get_producer():
+    return _airflow_producer
 
 
 class AirflowMCPServer:
@@ -139,6 +220,9 @@ class AirflowMCPServer:
                     correlation_id=correlation_id
                 )
 
+                if _PROM_OK:
+                    AIRFLOW_MCP_DAG_TRIGGERS.labels(dag_id=dag_id, status="success").inc()
+
                 return {
                     "success": True,
                     "dag_id": dag_id,
@@ -150,6 +234,8 @@ class AirflowMCPServer:
             else:
                 error_msg = f"Failed to trigger DAG: {response.status_code} - {response.text}"
                 logger.error(error_msg, dag_id=dag_id)
+                if _PROM_OK:
+                    AIRFLOW_MCP_DAG_TRIGGERS.labels(dag_id=dag_id, status="error").inc()
                 return {
                     "success": False,
                     "dag_id": dag_id,
@@ -160,6 +246,8 @@ class AirflowMCPServer:
         except Exception as e:
             error_msg = f"Exception triggering DAG: {str(e)}"
             logger.error(error_msg, dag_id=dag_id, error=str(e))
+            if _PROM_OK:
+                AIRFLOW_MCP_DAG_TRIGGERS.labels(dag_id=dag_id, status="exception").inc()
             return {
                 "success": False,
                 "dag_id": dag_id,
@@ -529,11 +617,63 @@ class AirflowMCPServer:
             correlation_id=correlation_id
         )
 
+    async def _run_health_server(self, port: int = 8006) -> None:
+        """Run a lightweight HTTP health + metrics endpoint alongside the Kafka consumer."""
+        async def _handle_http(reader, writer):
+            raw = b""
+            try:
+                raw = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            except (asyncio.TimeoutError, Exception):
+                pass
+
+            request_line = raw.decode(errors="replace").split("\r\n")[0] if raw else ""
+
+            # Serve Prometheus metrics at /metrics
+            if "/metrics" in request_line and _PROM_OK:
+                metrics_body = generate_latest()
+                resp = (
+                    f"HTTP/1.1 200 OK\r\n"
+                    f"Content-Type: {CONTENT_TYPE_LATEST}\r\n"
+                    f"Content-Length: {len(metrics_body)}\r\n"
+                    f"\r\n"
+                ).encode() + metrics_body
+                writer.write(resp)
+                await writer.drain()
+                writer.close()
+                return
+
+            # Default: health endpoint
+            body = (
+                f'{{"status":"ok","service":"airflow-mcp",'
+                f'"airflow_url":"{self.airflow_url}",'
+                f'"kafka_connected":{str(self._consumer_started).lower()}}}'
+            )
+            resp = (
+                f"HTTP/1.1 200 OK\r\n"
+                f"Content-Type: application/json\r\n"
+                f"Content-Length: {len(body)}\r\n"
+                f"\r\n{body}"
+            )
+            writer.write(resp.encode())
+            await writer.drain()
+            writer.close()
+
+        srv = await asyncio.start_server(_handle_http, "0.0.0.0", port)
+        logger.info("airflow_mcp_health_server", port=port)
+        async with srv:
+            await srv.serve_forever()
+
     async def run(self) -> None:
         """
         Main run loop - consume Kafka events and process them.
+        Also starts a health HTTP endpoint so Docker healthcheck works.
         """
         logger.info("Starting Airflow MCP Server")
+        self._consumer_started = False
+
+        # Start health server in background
+        health_port = int(os.getenv("AIRFLOW_MCP_HEALTH_PORT", "8006"))
+        health_task = asyncio.create_task(self._run_health_server(health_port))
 
         try:
             from aiokafka import AIOKafkaConsumer
@@ -551,6 +691,7 @@ class AirflowMCPServer:
         )
 
         await consumer.start()
+        self._consumer_started = True
         logger.info(
             "Kafka consumer started",
             topics=[self.trigger_topic, self.retry_topic]
@@ -575,15 +716,21 @@ class AirflowMCPServer:
                     else:
                         logger.warning("Unknown topic", topic=topic)
 
+                    if _PROM_OK:
+                        AIRFLOW_MCP_EVENTS.labels(topic=topic, status="success").inc()
+
                 except Exception as e:
                     logger.error(
                         "Error processing event",
                         error=str(e),
                         topic=msg.topic
                     )
+                    if _PROM_OK:
+                        AIRFLOW_MCP_EVENTS.labels(topic=msg.topic, status="error").inc()
 
         finally:
             await consumer.stop()
+            health_task.cancel()
             if self._http_client:
                 await self._http_client.aclose()
             logger.info("Airflow MCP Server stopped")

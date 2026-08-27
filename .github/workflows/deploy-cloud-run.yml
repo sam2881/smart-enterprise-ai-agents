@@ -1,0 +1,143 @@
+name: Deploy to Cloud Run
+
+on:
+  workflow_run:
+    workflows: ["Build & Push Images"]
+    types: [completed]
+    branches: [main]
+  # Allow manual re-deploy without a new build
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Git SHA to deploy (defaults to latest main)
+        required: false
+
+env:
+  REGION: ${{ secrets.CLOUD_RUN_REGION }}
+  AR_REPO: ${{ secrets.AR_REPO }}
+  # Use the SHA from the triggering build, or the manual input, or HEAD
+  SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+
+jobs:
+  deploy:
+    # Only run if the triggering build succeeded (skip for manual dispatches)
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # ── Backend Orchestrator API (port 8000) ──────────────────────────────
+      - name: Deploy backend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ai-agent-backend
+          region: ${{ env.REGION }}
+          image: ${{ env.AR_REPO }}/backend:${{ env.SHA }}
+          flags: >-
+            --min-instances=1
+            --max-instances=10
+            --memory=2Gi
+            --cpu=2
+            --port=8000
+            --allow-unauthenticated
+          env_vars: |
+            ENVIRONMENT=production
+            LOG_FORMAT=json
+          secrets: |
+            DATABASE_URL=postgres-url:latest
+            REDIS_URL=redis-url:latest
+            KAFKA_BOOTSTRAP_SERVERS=kafka-bootstrap-servers:latest
+            OPENAI_API_KEY=openai-api-key:latest
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+            SERVICENOW_PASSWORD=servicenow-password:latest
+            GITHUB_TOKEN=github-token:latest
+
+      # ── Data Agent API (port 8001) ─────────────────────────────────────────
+      - name: Deploy data-agent
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ai-agent-data-agent
+          region: ${{ env.REGION }}
+          image: ${{ env.AR_REPO }}/data-agent:${{ env.SHA }}
+          flags: >-
+            --min-instances=1
+            --max-instances=5
+            --memory=2Gi
+            --cpu=2
+            --port=8001
+            --allow-unauthenticated
+          env_vars: |
+            ENVIRONMENT=production
+            LOG_FORMAT=json
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            GCP_REGION=${{ secrets.CLOUD_RUN_REGION }}
+          secrets: |
+            DATABASE_URL=postgres-url:latest
+            OPENAI_API_KEY=openai-api-key:latest
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+            GITHUB_TOKEN=github-token:latest
+            JIRA_API_TOKEN=jira-api-token:latest
+
+      # ── Frontend (Next.js, port 3001) ─────────────────────────────────────
+      # Backend/Data-Agent URLs are set after the above deploys.
+      # On first deploy, set these manually via: gcloud run services update ...
+      - name: Deploy frontend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ai-agent-frontend
+          region: ${{ env.REGION }}
+          image: ${{ env.AR_REPO }}/frontend:${{ env.SHA }}
+          flags: >-
+            --min-instances=1
+            --max-instances=5
+            --memory=512Mi
+            --cpu=1
+            --port=3001
+            --allow-unauthenticated
+          env_vars: |
+            NEXT_PUBLIC_BACKEND_URL=${{ secrets.BACKEND_URL }}
+            NEXT_PUBLIC_DATA_AGENT_URL=${{ secrets.DATA_AGENT_URL }}
+
+      # ── Event Orchestrator (always-on Kafka consumer) ──────────────────────
+      # min-instances=1 ensures the consumer is always polling Kafka.
+      # --no-cpu-throttling keeps CPU available between requests (needed for
+      # long-running asyncio loops).
+      - name: Deploy event-orchestrator
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ai-agent-event-orchestrator
+          region: ${{ env.REGION }}
+          image: ${{ env.AR_REPO }}/event-orchestrator:${{ env.SHA }}
+          flags: >-
+            --min-instances=1
+            --max-instances=3
+            --memory=1Gi
+            --cpu=1
+            --no-cpu-throttling
+            --port=8080
+          env_vars: |
+            ENVIRONMENT=production
+            LOG_FORMAT=json
+          secrets: |
+            DATABASE_URL=postgres-url:latest
+            REDIS_URL=redis-url:latest
+            KAFKA_BOOTSTRAP_SERVERS=kafka-bootstrap-servers:latest
+            OPENAI_API_KEY=openai-api-key:latest
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployed ${{ env.SHA }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Region |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ai-agent-backend | ${{ env.REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ai-agent-data-agent | ${{ env.REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ai-agent-frontend | ${{ env.REGION }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ai-agent-event-orchestrator | ${{ env.REGION }} |" >> $GITHUB_STEP_SUMMARY

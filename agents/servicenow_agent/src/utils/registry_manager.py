@@ -61,8 +61,8 @@ class RegistryManager:
 
     def __init__(
         self,
-        registry_path: str = "/home/samrattidke600/ai_agent_app/registry.json",
-        history_dir: str = "/home/samrattidke600/ai_agent_app/backend/data/registry_history"
+        registry_path: str = str(Path(__file__).parent.parent.parent.parent.parent / "registry.json"),
+        history_dir: str = str(Path(__file__).parent.parent.parent.parent.parent / "backend" / "data" / "registry_history")
     ):
         self.registry_path = registry_path
         self.history_dir = Path(history_dir)

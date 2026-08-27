@@ -1,0 +1,64 @@
+name: Rollback Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to rollback
+        required: true
+        type: choice
+        options:
+          - backend
+          - data-agent
+          - frontend
+          - event-orchestrator
+      revision:
+        description: "Specific revision to restore (e.g. ai-agent-backend-00005-abc). Leave blank to roll back to the previous revision."
+        required: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Show current traffic split
+        run: |
+          gcloud run services describe ai-agent-${{ inputs.service }} \
+            --region=${{ secrets.CLOUD_RUN_REGION }} \
+            --format="yaml(status.traffic)"
+
+      - name: Roll back to previous revision
+        if: ${{ !inputs.revision }}
+        run: |
+          # Find the second-latest revision (the one before current LATEST)
+          PREV=$(gcloud run revisions list \
+            --service=ai-agent-${{ inputs.service }} \
+            --region=${{ secrets.CLOUD_RUN_REGION }} \
+            --sort-by=~metadata.creationTimestamp \
+            --format="value(metadata.name)" \
+            --limit=2 | tail -1)
+          echo "Rolling back to: $PREV"
+          gcloud run services update-traffic ai-agent-${{ inputs.service }} \
+            --region=${{ secrets.CLOUD_RUN_REGION }} \
+            --to-revisions=${PREV}=100
+
+      - name: Roll back to specific revision
+        if: ${{ inputs.revision }}
+        run: |
+          gcloud run services update-traffic ai-agent-${{ inputs.service }} \
+            --region=${{ secrets.CLOUD_RUN_REGION }} \
+            --to-revisions=${{ inputs.revision }}=100
+
+      - name: Confirm active revision
+        run: |
+          gcloud run services describe ai-agent-${{ inputs.service }} \
+            --region=${{ secrets.CLOUD_RUN_REGION }} \
+            --format="yaml(status.traffic)"
+          echo "Rollback complete for ai-agent-${{ inputs.service }}" >> $GITHUB_STEP_SUMMARY

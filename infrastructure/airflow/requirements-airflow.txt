@@ -21,3 +21,7 @@ requests>=2.31.0
 
 # Retry logic (RetryHandler, SelfHealer)
 tenacity>=8.2.0
+
+# Local pandas pipeline (local_csv_pipeline.py — no cloud deps)
+pandas>=2.0.0
+pyarrow>=14.0.0

@@ -24,6 +24,7 @@ import re
 import base64
 from typing import Any, Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -33,8 +34,9 @@ from dotenv import load_dotenv
 import structlog
 
 # Load environment
-load_dotenv("/home/samrattidke600/ai_agent_app/.env")
-load_dotenv("/home/samrattidke600/ai_agent_app/.env.local")
+_project_root = Path(__file__).parent.parent.parent.parent.parent
+load_dotenv(dotenv_path=_project_root / ".env", override=False)
+load_dotenv(dotenv_path=_project_root / ".env.local", override=False)
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -122,7 +124,7 @@ class ApprovalRequest(BaseModel):
 # =============================================================================
 # Load Script Registry
 # =============================================================================
-REGISTRY_PATH = "/home/samrattidke600/ai_agent_app/registry.json"
+REGISTRY_PATH = str(_project_root / "registry.json")
 
 def load_registry() -> Dict:
     try:
@@ -146,8 +148,8 @@ def init_rag_engine():
         all_scripts = []
         registry_files = [
             REGISTRY_PATH,
-            "/home/samrattidke600/ai_agent_app/backend/data/registry.json",
-            "/home/samrattidke600/ai_agent_app/backend/runbooks/registry.json"
+            str(_project_root / "backend" / "data" / "registry.json"),
+            str(_project_root / "backend" / "runbooks" / "registry.json")
         ]
 
         seen_ids = set()

@@ -13,16 +13,50 @@ HOW: Integrates with the existing RAG infrastructure:
 - Uses GraphScorer for Neo4j relationship scoring
 - Tracks success rates for feedback loop
 
-RUN: python -m backend.mcp.servers.rag_server
+RUN: python -m agents.servicenow_agent.src.mcp.servers.rag_server
 """
 import os
 import sys
 import asyncio
+import time
 from typing import Any, Dict, List, Optional
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 import structlog
+
+# ---------------------------------------------------------------------------
+# Prometheus metrics for RAG MCP
+# ---------------------------------------------------------------------------
+try:
+    from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
+
+    def _get_or_create_counter(name, desc, labels):
+        try:
+            return Counter(name, desc, labels)
+        except ValueError:
+            return REGISTRY._names_to_collectors.get(name) or Counter(name + "_dup", desc, labels)
+
+    def _get_or_create_histogram(name, desc, labels, buckets):
+        try:
+            return Histogram(name, desc, labels, buckets=buckets)
+        except ValueError:
+            return REGISTRY._names_to_collectors.get(name) or Histogram(name + "_dup", desc, labels, buckets=buckets)
+
+    RAG_TOOL_CALLS = _get_or_create_counter(
+        "aiagent_rag_mcp_tool_calls_total",
+        "Total RAG MCP tool invocations",
+        ["tool_name", "status"],
+    )
+    RAG_TOOL_LATENCY = _get_or_create_histogram(
+        "aiagent_rag_mcp_tool_latency_seconds",
+        "RAG MCP tool call latency",
+        ["tool_name"],
+        buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+    )
+    _PROM_OK = True
+except ImportError:
+    _PROM_OK = False
 
 # Ensure backend is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
@@ -202,7 +236,22 @@ class RAGMCPServer:
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             """Handle tool calls"""
             self._init_rag_components()
+            _t0 = time.time()
 
+            try:
+                result = await self._dispatch_tool(name, arguments)
+                if _PROM_OK:
+                    RAG_TOOL_CALLS.labels(tool_name=name, status="success").inc()
+                    RAG_TOOL_LATENCY.labels(tool_name=name).observe(time.time() - _t0)
+                return result
+            except Exception as exc:
+                if _PROM_OK:
+                    RAG_TOOL_CALLS.labels(tool_name=name, status="error").inc()
+                    RAG_TOOL_LATENCY.labels(tool_name=name).observe(time.time() - _t0)
+                raise exc
+
+    async def _dispatch_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+            """Route tool calls to handlers."""
             if name == "search_runbooks":
                 return await self._search_runbooks(
                     arguments["query"],
@@ -502,7 +551,7 @@ class RAGMCPServer:
             return [TextContent(type="text", text=f"Error finding similar incidents: {str(e)}")]
 
     async def run(self):
-        """Run the MCP server"""
+        """Run the MCP server in stdio mode (subprocess invocation)"""
         async with stdio_server() as (read_stream, write_stream):
             await self.server.run(
                 read_stream,
@@ -510,12 +559,75 @@ class RAGMCPServer:
                 self.server.create_initialization_options()
             )
 
+    async def run_service(self, port: int = 8005):
+        """Run as a standalone service with HTTP health endpoint.
+
+        WHY: When deployed as a Docker service, stdio mode doesn't work.
+        This mode keeps the process alive with a health endpoint and
+        pre-initializes RAG components so they're warm when needed.
+        """
+        self._init_rag_components()
+
+        rag_ok = self.search_engine is not None
+
+        async def _handle_http(reader, writer):
+            raw = b""
+            try:
+                raw = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            except (asyncio.TimeoutError, Exception):
+                pass
+
+            request_line = raw.decode(errors="replace").split("\r\n")[0] if raw else ""
+
+            # Serve Prometheus metrics at /metrics
+            if "/metrics" in request_line and _PROM_OK:
+                metrics_body = generate_latest()
+                resp = (
+                    f"HTTP/1.1 200 OK\r\n"
+                    f"Content-Type: {CONTENT_TYPE_LATEST}\r\n"
+                    f"Content-Length: {len(metrics_body)}\r\n"
+                    f"\r\n"
+                ).encode() + metrics_body
+                writer.write(resp)
+                await writer.drain()
+                writer.close()
+                return
+
+            # Default: health endpoint
+            status = "ok" if rag_ok else "degraded"
+            body = (
+                f'{{"status":"{status}","service":"rag-mcp",'
+                f'"search_engine":{"true" if self.search_engine else "false"},'
+                f'"graph_scorer":{"true" if self.graph_scorer else "false"}}}'
+            )
+            resp = (
+                f"HTTP/1.1 200 OK\r\n"
+                f"Content-Type: application/json\r\n"
+                f"Content-Length: {len(body)}\r\n"
+                f"\r\n{body}"
+            )
+            writer.write(resp.encode())
+            await writer.drain()
+            writer.close()
+
+        srv = await asyncio.start_server(_handle_http, "0.0.0.0", port)
+        logger.info("rag_mcp_service_mode", port=port, search_engine=rag_ok)
+        async with srv:
+            await srv.serve_forever()
+
 
 async def main():
-    """Main entry point"""
+    """Main entry point — auto-detects stdio vs service mode."""
     logger.info("rag_mcp_server_starting")
     server = RAGMCPServer()
-    await server.run()
+
+    if "--service" in sys.argv or not sys.stdin.isatty():
+        # Service mode: Docker container / background process
+        port = int(os.getenv("RAG_MCP_PORT", "8005"))
+        await server.run_service(port)
+    else:
+        # MCP stdio mode: invoked as subprocess by LangGraph
+        await server.run()
 
 
 if __name__ == "__main__":

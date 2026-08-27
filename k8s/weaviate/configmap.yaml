@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weaviate-config
+  namespace: ai-agent
+data:
+  CLUSTER_HOSTNAME: "weaviate-0"
+  ENABLE_MODULES: "text2vec-openai,text2vec-cohere,ref2vec-centroid,generative-openai"
+  DEFAULT_VECTORIZER_MODULE: "text2vec-openai"
+  AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "false"
+  AUTHENTICATION_APIKEY_ENABLED: "true"
+  PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+  QUERY_DEFAULTS_LIMIT: "25"
+  LOG_LEVEL: "info"

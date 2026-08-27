@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enterprise Agentic Platform — Project Overview</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --accent4: #d2a8ff;
+    --accent5: #ffa657;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --kafka: #e84393;
+    --langgraph: #58a6ff;
+    --fastapi: #3fb950;
+    --mcp: #ffa657;
+    --frontend: #d2a8ff;
+    --incident: #f78166;
+    --pipeline: #79c0ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 64px 40px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(88,166,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.3);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #e6edf3 0%, #58a6ff 60%, #d2a8ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .hero p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    max-width: 680px;
+    margin: 0 auto 28px;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .hero-meta span {
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hero-meta .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .dot-blue  { background: var(--accent); }
+  .dot-purple{ background: var(--accent4); }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+  .section { padding: 60px 0 40px; }
+  .section + .section { border-top: 1px solid var(--border); }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+    max-width: 720px;
+  }
+
+  /* ── GRID ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover { border-color: rgba(88,166,255,0.4); transform: translateY(-1px); }
+  .card-icon { font-size: 24px; margin-bottom: 12px; }
+  .card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .card p  { font-size: 0.85rem; color: var(--text-muted); }
+
+  /* ── TAG ── */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin: 3px 2px;
+  }
+  .tag-blue   { background: rgba(88,166,255,0.15); color: #79c0ff; border: 1px solid rgba(88,166,255,0.3); }
+  .tag-green  { background: rgba(63,185,80,0.15);  color: #56d364; border: 1px solid rgba(63,185,80,0.3); }
+  .tag-orange { background: rgba(255,166,87,0.15); color: #ffa657; border: 1px solid rgba(255,166,87,0.3); }
+  .tag-red    { background: rgba(247,129,102,0.15);color: #ffa198; border: 1px solid rgba(247,129,102,0.3);}
+  .tag-purple { background: rgba(210,168,255,0.15);color: #d2a8ff; border: 1px solid rgba(210,168,255,0.3);}
+  .tag-pink   { background: rgba(232,67,147,0.15); color: #f778ba; border: 1px solid rgba(232,67,147,0.3);}
+
+  /* ── ARCHITECTURE DIAGRAM ── */
+  .arch-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 32px;
+    overflow-x: auto;
+    margin-bottom: 32px;
+  }
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 900px;
+  }
+
+  /* layers */
+  .arch-layer {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    position: relative;
+  }
+  .arch-layer + .arch-layer { margin-top: 0; }
+
+  .arch-label {
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .arch-row {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 0;
+  }
+
+  /* node box */
+  .node {
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    flex: 1;
+    min-width: 100px;
+    position: relative;
+    border: 1.5px solid;
+  }
+  .node-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .node-sub   { font-size: 10px; font-weight: 400; opacity: 0.8; }
+
+  .node-mcp      { background: rgba(255,166,87,0.1);  border-color: var(--mcp);      color: var(--mcp); }
+  .node-kafka    { background: rgba(232,67,147,0.1);  border-color: var(--kafka);    color: var(--kafka); }
+  .node-orch     { background: rgba(88,166,255,0.1);  border-color: var(--langgraph);color: var(--langgraph); }
+  .node-lang     { background: rgba(63,185,80,0.1);   border-color: var(--fastapi);  color: var(--fastapi); }
+  .node-fastapi  { background: rgba(210,168,255,0.1); border-color: var(--accent4);  color: var(--accent4); }
+  .node-frontend { background: rgba(121,192,255,0.1); border-color: var(--pipeline); color: var(--pipeline); }
+  .node-infra    { background: rgba(110,118,129,0.1); border-color: #6e7681;         color: #8b949e; }
+  .node-db       { background: rgba(63,185,80,0.08);  border-color: rgba(63,185,80,0.4); color: #56d364; }
+
+  /* arrows between layers */
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+    position: relative;
+  }
+  .arch-arrow-line {
+    width: 2px;
+    height: 28px;
+    background: linear-gradient(to bottom, var(--border), rgba(88,166,255,0.5));
+    margin: 0 auto;
+  }
+  .arch-arrow-label {
+    position: absolute;
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    left: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* connector row */
+  .connector-row {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    padding-left: 40px;
+  }
+  .connector {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .connector-line {
+    width: 2px;
+    height: 20px;
+    background: linear-gradient(to bottom, rgba(88,166,255,0.6), rgba(88,166,255,0.2));
+  }
+  .connector-arrow { color: var(--accent); font-size: 12px; line-height: 1; }
+  .connector-label { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+
+  /* ── WORKFLOW DIAGRAM ── */
+  .workflow-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    overflow-x: auto;
+  }
+  .workflow-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .flow-nodes {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    min-width: max-content;
+  }
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .flow-box {
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1.5px solid;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .flow-num {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+  .flow-arrow {
+    font-size: 16px;
+    color: var(--text-dim);
+    padding: 0 4px;
+    margin-bottom: 16px;
+  }
+  .flow-pause {
+    font-size: 10px;
+    color: var(--accent5);
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 8px;
+    background: rgba(255,166,87,0.1);
+    border: 1px solid rgba(255,166,87,0.3);
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
+  /* incident nodes */
+  .fn-incident { background: rgba(247,129,102,0.1); border-color: var(--incident); color: #ffa198; }
+  /* pipeline nodes */
+  .fn-pipeline { background: rgba(88,166,255,0.1);  border-color: var(--langgraph); color: #79c0ff; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid rgba(48,54,61,0.5); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(88,166,255,0.04); }
+  tbody td { padding: 11px 16px; color: var(--text); vertical-align: top; }
+  tbody td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--accent); }
+  .td-muted { color: var(--text-muted) !important; font-family: inherit !important; font-size: 13px !important; }
+
+  /* ── CODE ── */
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #e6edf3;
+  }
+  code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 12px; }
+  .keyword { color: #ff7b72; }
+  .string  { color: #a5d6ff; }
+  .comment { color: #6e7681; font-style: italic; }
+  .func    { color: #d2a8ff; }
+  .num     { color: #79c0ff; }
+
+  /* ── STAT CARDS ── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+  @media (max-width: 800px) { .stats { grid-template-columns: 1fr 1fr; } }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: center;
+  }
+  .stat-val {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+  /* ── KAFKA DIAGRAM ── */
+  .kafka-flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    overflow-x: auto;
+  }
+  .kafka-topic-group { margin-bottom: 20px; }
+  .kafka-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--kafka);
+    margin-bottom: 10px;
+  }
+  .kafka-topics {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .kafka-topic {
+    background: rgba(232,67,147,0.08);
+    border: 1px solid rgba(232,67,147,0.3);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-family: 'SF Mono', monospace;
+    color: #f778ba;
+    white-space: nowrap;
+  }
+  .kafka-arrow { color: var(--text-dim); padding: 0 6px; font-size: 14px; }
+
+  /* ── MEDALLION ── */
+  .medallion {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    overflow-x: auto;
+    margin-top: 16px;
+  }
+  .zone {
+    flex: 1;
+    min-width: 140px;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1.5px solid;
+    text-align: center;
+  }
+  .zone-name  { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+  .zone-desc  { font-size: 10px; opacity: 0.8; margin-bottom: 8px; }
+  .zone-tag   { font-size: 10px; background: rgba(0,0,0,0.3); border-radius: 4px; padding: 2px 6px; }
+  .zone-arrow { font-size: 20px; color: var(--text-dim); align-self: center; flex-shrink: 0; }
+  .z-landing  { background: rgba(110,118,129,0.1); border-color: #6e7681; color: #8b949e; }
+  .z-bronze   { background: rgba(205,127,50,0.1);  border-color: #cd7f32; color: #cd7f32; }
+  .z-silver   { background: rgba(160,160,160,0.1); border-color: #a0a0a0; color: #c0c0c0; }
+  .z-gold     { background: rgba(255,215,0,0.1);   border-color: #ffd700; color: #ffd700; }
+
+  /* ── APPROVAL TIERS ── */
+  .approval-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 800px) { .approval-grid { grid-template-columns: 1fr 1fr; } }
+  .approval-card {
+    border-radius: 10px;
+    padding: 18px;
+    border: 1.5px solid;
+    text-align: center;
+  }
+  .approval-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .approval-card p  { font-size: 11px; opacity: 0.85; margin-bottom: 6px; }
+  .approval-card .sla { font-size: 12px; font-weight: 600; }
+  .ap-auto     { background: rgba(63,185,80,0.1);   border-color: var(--accent2); color: var(--accent2); }
+  .ap-standard { background: rgba(88,166,255,0.1);  border-color: var(--accent);  color: #79c0ff; }
+  .ap-senior   { background: rgba(255,166,87,0.1);  border-color: var(--accent5); color: var(--accent5); }
+  .ap-exec     { background: rgba(247,129,102,0.1); border-color: var(--incident);color: #ffa198; }
+
+  /* ── SERVICES GRID ── */
+  .service-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .service-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .service-port {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(88,166,255,0.1);
+    border-radius: 4px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+  .service-info { flex: 1; }
+  .service-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .service-desc { font-size: 11px; color: var(--text-muted); }
+
+  /* ── ROADMAP ── */
+  .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 900px) { .roadmap { grid-template-columns: 1fr 1fr; } }
+  .roadmap-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .roadmap-q {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .roadmap-focus {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .roadmap-item {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 0;
+    display: flex;
+    gap: 6px;
+  }
+  .roadmap-item::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+
+  /* ── RULE TABLE ── */
+  .rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .rule-col-do   { background: rgba(63,185,80,0.05);  border: 1px solid rgba(63,185,80,0.2);  border-radius: 10px; padding: 20px; }
+  .rule-col-never{ background: rgba(247,129,102,0.05);border: 1px solid rgba(247,129,102,0.2);border-radius: 10px; padding: 20px; }
+  .rule-col-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  .rule-col-do    .rule-col-title { color: var(--accent2); }
+  .rule-col-never .rule-col-title { color: var(--incident); }
+  .rule-item { font-size: 12px; padding: 5px 0; color: var(--text-muted); display: flex; gap: 8px; }
+  .rule-col-do    .rule-item::before { content: '✓'; color: var(--accent2); font-weight: 700; }
+  .rule-col-never .rule-item::before { content: '✗'; color: var(--incident); font-weight: 700; }
+
+  /* ── NAV ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-title { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+  .toc-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .toc-link:hover { background: rgba(88,166,255,0.08); color: var(--accent); }
+  .toc-link span { font-size: 14px; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 36px 40px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+  /* ── MISC ── */
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--accent); }
+  .chip {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 4px;
+  }
+  .chip-new { background: rgba(63,185,80,0.2); color: #56d364; }
+  .chip-dep { background: rgba(247,129,102,0.2); color: #ffa198; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── COMPLIANCE BADGES ── */
+  .compliance-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid rgba(48,54,61,0.6);
+  }
+  .compliance-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid;
+  }
+  .cb-soc2  { background: rgba(88,166,255,0.1);  border-color: rgba(88,166,255,0.35); color: #79c0ff; }
+  .cb-iso   { background: rgba(63,185,80,0.1);   border-color: rgba(63,185,80,0.35);  color: #56d364; }
+  .cb-nist  { background: rgba(210,168,255,0.1); border-color: rgba(210,168,255,0.35);color: #d2a8ff; }
+  .cb-euai  { background: rgba(255,166,87,0.1);  border-color: rgba(255,166,87,0.35); color: #ffa657; }
+  .cb-mitre { background: rgba(232,67,147,0.1);  border-color: rgba(232,67,147,0.35); color: #f778ba; }
+  .cb-obs   { background: rgba(121,192,255,0.1); border-color: rgba(121,192,255,0.35);color: #79c0ff; }
+
+  /* ── OBSERVABILITY GRID ── */
+  .obs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .obs-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .obs-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .obs-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .obs-card h4 { font-size: 13px; font-weight: 700; color: var(--text); }
+  .obs-card p  { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+  .obs-metric  { font-size: 10px; font-family: monospace; color: var(--text-dim); margin-top: 8px; }
+
+  /* ── MIGRATION FLOW ── */
+  .migration-flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    overflow-x: auto;
+  }
+  .mig-step {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    vertical-align: top;
+  }
+  .mig-box {
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1.5px solid;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 120px;
+  }
+  .mig-sub { font-size: 9px; color: var(--text-dim); text-align: center; }
+  .mig-arrow { font-size: 18px; color: var(--text-dim); vertical-align: middle; padding: 0 6px; display: inline-block; margin-top: 12px; }
+  .mig-dtsx   { background: rgba(255,166,87,0.1);  border-color: var(--mcp);      color: var(--mcp); }
+  .mig-parse  { background: rgba(88,166,255,0.1);  border-color: var(--langgraph);color: var(--langgraph); }
+  .mig-db     { background: rgba(210,168,255,0.1); border-color: var(--accent4);  color: var(--accent4); }
+  .mig-graph  { background: rgba(63,185,80,0.1);   border-color: var(--fastapi);  color: var(--fastapi); }
+  .mig-llm    { background: rgba(232,67,147,0.1);  border-color: var(--kafka);    color: var(--kafka); }
+  .mig-out    { background: rgba(121,192,255,0.1); border-color: var(--pipeline); color: var(--pipeline); }
+
+  .callout {
+    background: rgba(88,166,255,0.06);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 20px 0;
+  }
+  .callout strong { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════ HERO ══════════════════════════════════════ -->
+<div class="hero">
+  <div class="hero-badge">Enterprise Agentic Platform — v6.0</div>
+  <h1>Enterprise Agentic Platform</h1>
+  <p>Production-grade AI automation for IT incident resolution and data pipeline generation — powered by LangGraph, Kafka, and Claude.</p>
+  <div class="hero-meta">
+    <span><span class="dot dot-green"></span> Two Agent Systems</span>
+    <span><span class="dot dot-blue"></span> Event-Driven Architecture</span>
+    <span><span class="dot dot-purple"></span> Last Updated 2026-06-22</span>
+  </div>
+  <div class="compliance-bar">
+    <span class="compliance-badge cb-soc2">✓ SOC 2 Type II</span>
+    <span class="compliance-badge cb-iso">✓ ISO 42001</span>
+    <span class="compliance-badge cb-nist">✓ NIST AI RMF</span>
+    <span class="compliance-badge cb-euai">✓ EU AI Act</span>
+    <span class="compliance-badge cb-mitre">✓ MITRE ATLAS</span>
+    <span class="compliance-badge cb-obs">✓ Full Observability</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════ TOC ══════════════════════════════════════ -->
+<div class="section">
+  <div class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <div class="toc-grid">
+      <a href="#overview"     class="toc-link"><span>🗺️</span> Platform Overview</a>
+      <a href="#architecture" class="toc-link"><span>🏗️</span> Architecture Diagram</a>
+      <a href="#system1"      class="toc-link"><span>🚨</span> System 1 — Incident Management</a>
+      <a href="#system2"      class="toc-link"><span>🔧</span> System 2 — Data Engineering</a>
+      <a href="#migration"    class="toc-link"><span>🔄</span> Legacy Migration</a>
+      <a href="#kafka"        class="toc-link"><span>📨</span> Kafka Event Flow</a>
+      <a href="#medallion"    class="toc-link"><span>🥇</span> Medallion Architecture</a>
+      <a href="#approval"     class="toc-link"><span>✅</span> Approval Gate</a>
+      <a href="#observability" class="toc-link"><span>📊</span> Observability Stack</a>
+      <a href="#frontend"     class="toc-link"><span>🖥️</span> Frontend</a>
+      <a href="#sources"      class="toc-link"><span>📦</span> Source Types (70+)</a>
+      <a href="#services"     class="toc-link"><span>🔌</span> Services &amp; Ports</a>
+      <a href="#patterns"     class="toc-link"><span>📐</span> Code Patterns</a>
+      <a href="#rules"        class="toc-link"><span>📏</span> Critical Rules</a>
+      <a href="#compliance"   class="toc-link"><span>🛡️</span> Compliance Summary</a>
+      <a href="#limitations"  class="toc-link"><span>⚠️</span> Known Limitations</a>
+      <a href="#roadmap"      class="toc-link"><span>🗓️</span> Roadmap</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ OVERVIEW ══════════════════════════════════════ -->
+<div class="section" id="overview">
+  <div class="section-label">Platform</div>
+  <div class="section-title">What This Platform Does</div>
+  <div class="section-sub">Two interconnected AI systems sharing a unified Next.js UI, with all state flowing through Kafka as the system of record.</div>
+
+  <div class="stats" style="grid-template-columns: repeat(6, 1fr);">
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--incident);">12</div>
+      <div class="stat-label">Incident LangGraph Nodes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--pipeline);">9</div>
+      <div class="stat-label">FAST Agents</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--accent2);">70+</div>
+      <div class="stat-label">Data Source Types</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--kafka);">14</div>
+      <div class="stat-label">Docker Services</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--accent4);">6</div>
+      <div class="stat-label">Compliance Frameworks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color: var(--accent5);">50+</div>
+      <div class="stat-label">Prometheus Metrics</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">🚨</div>
+      <h3>System 1 — IT Incident Resolution</h3>
+      <p>Detects incidents from ServiceNow, analyzes root cause via Swarm RAG, generates remediation plans, gets human approval, executes fixes, verifies recovery, closes tickets, and learns from outcomes.</p>
+      <div style="margin-top: 12px;">
+        <span class="tag tag-orange">ServiceNow MCP</span>
+        <span class="tag tag-pink">Kafka</span>
+        <span class="tag tag-blue">LangGraph 12-node</span>
+        <span class="tag tag-purple">Weaviate RAG</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔧</div>
+      <h3>System 2 — Data Pipeline Generation</h3>
+      <p>Takes a data engineering request (natural language, UI form, or SSIS .dtsx), validates source connection, generates production-ready Airflow DAGs + Spark jobs, deploys via Git/PR, monitors first 5 runs.</p>
+      <div style="margin-top: 12px;">
+        <span class="tag tag-blue">Jira MCP</span>
+        <span class="tag tag-pink">Kafka</span>
+        <span class="tag tag-green">APEX 8-phase</span>
+        <span class="tag tag-orange">Jinja2 Templates</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top: 20px;">
+    <strong>Systems are connected:</strong> Data pipeline failures automatically create incidents via <code>DataPipelineIncidentBridge</code>. Incident resolutions feed back into pipeline recommendations.
+  </div>
+
+  <!-- ── FIG 1: PLATFORM ARCHITECTURE OVERVIEW SVG ── -->
+  <hr class="divider" />
+  <div class="section-label" style="margin-bottom: 16px;">Architecture Overview</div>
+  <figure style="margin: 0 0 0;">
+    <div class="arch-wrap" style="padding: 28px 24px;">
+      <div class="workflow-title" style="margin-bottom: 20px;">Fig. 1 — Platform Architecture — Event-Driven Layers (v6.0)</div>
+      <svg viewBox="0 0 1060 545" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;min-width:800px;">
+        <defs>
+          <marker id="ov-a"  markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#484f58"/></marker>
+          <marker id="ov-ak" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#e84393" opacity=".7"/></marker>
+          <marker id="ov-ab" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58a6ff" opacity=".7"/></marker>
+          <marker id="ov-ar" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f78166" opacity=".8"/></marker>
+          <marker id="ov-ag" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3fb950" opacity=".7"/></marker>
+        </defs>
+
+        <!-- ── Layer band backgrounds ── -->
+        <rect x="0" y="10"  width="1060" height="68" rx="4" fill="rgba(255,166,87,0.03)"  stroke="rgba(255,166,87,0.08)"  stroke-width="1"/>
+        <rect x="0" y="88"  width="1060" height="68" rx="4" fill="rgba(255,166,87,0.05)"  stroke="rgba(255,166,87,0.1)"   stroke-width="1"/>
+        <rect x="0" y="168" width="1060" height="80" rx="4" fill="rgba(232,67,147,0.05)"  stroke="rgba(232,67,147,0.15)"  stroke-width="1"/>
+        <rect x="0" y="260" width="1060" height="66" rx="4" fill="rgba(88,166,255,0.04)"  stroke="rgba(88,166,255,0.12)"  stroke-width="1"/>
+        <rect x="0" y="338" width="1060" height="66" rx="4" fill="rgba(63,185,80,0.04)"   stroke="rgba(63,185,80,0.1)"    stroke-width="1"/>
+        <rect x="0" y="416" width="1060" height="56" rx="4" fill="rgba(210,168,255,0.04)" stroke="rgba(210,168,255,0.1)"  stroke-width="1"/>
+        <rect x="0" y="484" width="1060" height="54" rx="4" fill="rgba(110,118,129,0.04)" stroke="rgba(110,118,129,0.08)" stroke-width="1"/>
+
+        <!-- ── Layer labels ── -->
+        <text x="12" y="50"  font-size="8" fill="#8b949e" font-weight="700" letter-spacing="1.2" font-family="system-ui">EXTERNAL</text>
+        <text x="12" y="128" font-size="8" fill="#ffa657" font-weight="700" letter-spacing="1.2" font-family="system-ui">MCP</text>
+        <text x="12" y="214" font-size="8" fill="#e84393" font-weight="700" letter-spacing="1.2" font-family="system-ui">KAFKA</text>
+        <text x="12" y="299" font-size="8" fill="#58a6ff" font-weight="700" letter-spacing="1.2" font-family="system-ui">ORCH</text>
+        <text x="12" y="375" font-size="8" fill="#3fb950" font-weight="700" letter-spacing="1.2" font-family="system-ui">AGENTS</text>
+        <text x="12" y="450" font-size="8" fill="#d2a8ff" font-weight="700" letter-spacing="1.2" font-family="system-ui">CONTROL</text>
+        <text x="12" y="512" font-size="8" fill="#79c0ff" font-weight="700" letter-spacing="1.2" font-family="system-ui">UI / OBS</text>
+
+        <!-- ── Row 1: External Systems ── -->
+        <rect x="90"  y="21" width="140" height="46" rx="8" fill="rgba(255,166,87,0.08)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="160" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#ffa657" font-family="system-ui">ServiceNow</text>
+        <text x="160" y="57" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">ITSM system</text>
+
+        <rect x="248" y="21" width="120" height="46" rx="8" fill="rgba(255,166,87,0.08)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="308" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#ffa657" font-family="system-ui">Jira</text>
+        <text x="308" y="57" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Project tracker</text>
+
+        <rect x="386" y="21" width="120" height="46" rx="8" fill="rgba(255,166,87,0.08)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="446" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#ffa657" font-family="system-ui">GitHub</text>
+        <text x="446" y="57" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Actions / PRs</text>
+
+        <rect x="524" y="21" width="120" height="46" rx="8" fill="rgba(255,166,87,0.08)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="584" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#ffa657" font-family="system-ui">Airflow</text>
+        <text x="584" y="57" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">DAG scheduler</text>
+
+        <rect x="662" y="21" width="140" height="46" rx="8" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="732" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#8b949e"  font-family="system-ui">Prometheus</text>
+        <text x="732" y="57" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="system-ui">Metrics · 60s poll</text>
+
+        <!-- Row 1 → Row 2 arrows -->
+        <line x1="160" y1="67" x2="160" y2="99"  stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="308" y1="67" x2="308" y2="99"  stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="446" y1="67" x2="446" y2="99"  stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="584" y1="67" x2="584" y2="99"  stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="732" y1="67" x2="732" y2="99"  stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+
+        <!-- ── Row 2: MCP Servers ── -->
+        <rect x="90"  y="100" width="140" height="46" rx="8" fill="rgba(255,166,87,0.1)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="160" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa657" font-family="system-ui">ServiceNow MCP</text>
+        <text x="160" y="136" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">mcp-servers/sn</text>
+
+        <rect x="248" y="100" width="120" height="46" rx="8" fill="rgba(255,166,87,0.1)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="308" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa657" font-family="system-ui">Jira MCP</text>
+        <text x="308" y="136" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">mcp-servers/jira</text>
+
+        <rect x="386" y="100" width="120" height="46" rx="8" fill="rgba(255,166,87,0.1)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="446" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa657" font-family="system-ui">GitHub MCP</text>
+        <text x="446" y="136" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">mcp-servers/github</text>
+
+        <rect x="524" y="100" width="120" height="46" rx="8" fill="rgba(255,166,87,0.1)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="584" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa657" font-family="system-ui">Airflow MCP</text>
+        <text x="584" y="136" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">mcp-servers/airflow</text>
+
+        <rect x="662" y="100" width="140" height="46" rx="8" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="732" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950"  font-family="system-ui">ProactiveMonitor</text>
+        <text x="732" y="136" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Always-on · 60s</text>
+
+        <!-- Row 2 → Row 3 arrows with event labels -->
+        <line x1="160" y1="146" x2="160" y2="178" stroke="#e84393" stroke-width="1.5" stroke-opacity=".8" marker-end="url(#ov-ak)"/>
+        <text x="170" y="165" font-size="8" fill="#e84393" font-family="SF Mono,monospace">incident.created</text>
+        <line x1="308" y1="146" x2="308" y2="178" stroke="#58a6ff" stroke-width="1.5" stroke-opacity=".8" marker-end="url(#ov-ab)"/>
+        <text x="318" y="165" font-size="8" fill="#79c0ff" font-family="SF Mono,monospace">pipeline.*</text>
+        <line x1="446" y1="146" x2="446" y2="178" stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="584" y1="146" x2="584" y2="178" stroke="#484f58" stroke-width="1.5" marker-end="url(#ov-a)"/>
+        <line x1="732" y1="146" x2="732" y2="178" stroke="#e84393" stroke-width="1.5" stroke-opacity=".8" marker-end="url(#ov-ak)"/>
+        <text x="742" y="165" font-size="8" fill="#e84393" font-family="SF Mono,monospace">incident.created</text>
+
+        <!-- ── Row 3: Kafka ── -->
+        <rect x="90" y="179" width="762" height="60" rx="10" fill="rgba(232,67,147,0.07)" stroke="#e84393" stroke-width="2"/>
+        <text x="110" y="200" font-size="10" font-weight="700" fill="#e84393" letter-spacing=".8" font-family="system-ui">⚡ KAFKA CLUSTER — System of Record</text>
+        <rect x="106" y="206" width="340" height="25" rx="5" fill="rgba(247,129,102,0.06)" stroke="rgba(247,129,102,0.2)" stroke-width="1"/>
+        <text x="114" y="222" font-size="8" fill="#ffa198" font-family="SF Mono,monospace">created → enriched → plan_generated → approved → closed</text>
+        <rect x="456" y="206" width="388" height="25" rx="5" fill="rgba(88,166,255,0.06)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+        <text x="464" y="222" font-size="8" fill="#79c0ff" font-family="SF Mono,monospace">requested → planned → generated → validated → deployed → failed</text>
+
+        <!-- Row 3 → Row 4 -->
+        <line x1="340" y1="239" x2="340" y2="270" stroke="#58a6ff" stroke-width="1.5" stroke-opacity=".7" marker-end="url(#ov-ab)"/>
+        <text x="350" y="257" font-size="8" fill="#58a6ff" font-family="system-ui">consume events</text>
+
+        <!-- ── Row 4: EventOrchestrator ── -->
+        <rect x="90" y="271" width="762" height="48" rx="10" fill="rgba(88,166,255,0.06)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="118" y="291" font-size="10" font-weight="700" fill="#58a6ff" letter-spacing=".8" font-family="system-ui">🧠 EVENT ORCHESTRATOR</text>
+        <rect x="108" y="297" width="144" height="17" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.25)" stroke-width="1"/>
+        <text x="180" y="309" text-anchor="middle" font-size="9" fill="#79c0ff" font-family="system-ui">WorkflowManager</text>
+        <rect x="262" y="297" width="128" height="17" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.25)" stroke-width="1"/>
+        <text x="326" y="309" text-anchor="middle" font-size="9" fill="#79c0ff" font-family="system-ui">StateTracker</text>
+        <rect x="400" y="297" width="110" height="17" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.25)" stroke-width="1"/>
+        <text x="455" y="309" text-anchor="middle" font-size="9" fill="#79c0ff" font-family="system-ui">EventRouter</text>
+        <rect x="520" y="297" width="138" height="17" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.25)" stroke-width="1"/>
+        <text x="589" y="309" text-anchor="middle" font-size="9" fill="#79c0ff" font-family="system-ui">IncidentBridge</text>
+
+        <!-- Row 4 → Row 5 (split) -->
+        <line x1="230" y1="319" x2="230" y2="348" stroke="#f78166" stroke-width="1.5" stroke-opacity=".8" marker-end="url(#ov-ar)"/>
+        <text x="100" y="337" font-size="8" fill="#f78166" font-family="system-ui">trigger incident workflow</text>
+        <line x1="620" y1="319" x2="620" y2="348" stroke="#58a6ff" stroke-width="1.5" stroke-opacity=".8" marker-end="url(#ov-ab)"/>
+        <text x="588" y="337" font-size="8" fill="#79c0ff" font-family="system-ui">trigger APEX workflow</text>
+
+        <!-- ── Row 5: LangGraph Agents ── -->
+        <rect x="90"  y="349" width="360" height="48" rx="10" fill="rgba(247,129,102,0.06)" stroke="#f78166" stroke-width="1.5"/>
+        <text x="270" y="368" text-anchor="middle" font-size="10" font-weight="700" fill="#ffa198" font-family="system-ui">🚨 System 1 — Incident LangGraph (12 nodes)</text>
+        <text x="270" y="385" text-anchor="middle" font-size="8" fill="#8b949e" font-family="SF Mono,monospace">ingest→parse→classify→rag→plan→judge→[⏸HITL]→exec→verify→close→learn</text>
+
+        <rect x="464" y="349" width="388" height="48" rx="10" fill="rgba(88,166,255,0.06)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="658" y="368" text-anchor="middle" font-size="10" font-weight="700" fill="#79c0ff" font-family="system-ui">🔧 System 2 — APEX LangGraph (8+ phases)</text>
+        <text x="658" y="385" text-anchor="middle" font-size="8" fill="#8b949e" font-family="SF Mono,monospace">normalize→[legacy?]→resolve→metadata→gen→validate→[⏸HITL]→deploy→monitor</text>
+
+        <!-- Row 5 → Row 6 -->
+        <line x1="270" y1="397" x2="270" y2="426" stroke="#484f58" stroke-width="1" marker-end="url(#ov-a)"/>
+        <line x1="658" y1="397" x2="658" y2="426" stroke="#484f58" stroke-width="1" marker-end="url(#ov-a)"/>
+
+        <!-- ── Row 6: FastAPI + Storage ── -->
+        <rect x="90"  y="427" width="155" height="36" rx="7" fill="rgba(210,168,255,0.08)" stroke="#d2a8ff" stroke-width="1.5"/>
+        <text x="167" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#d2a8ff" font-family="system-ui">FastAPI :8000 :8001</text>
+
+        <rect x="256" y="427" width="88" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="300" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">PostgreSQL</text>
+
+        <rect x="354" y="427" width="65" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="386" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">Redis</text>
+
+        <rect x="429" y="427" width="68" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="463" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">Neo4j</text>
+
+        <rect x="507" y="427" width="75" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="544" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">Weaviate</text>
+
+        <rect x="592" y="427" width="65" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="624" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">GCS</text>
+
+        <rect x="667" y="427" width="88" height="36" rx="7" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="711" y="449" text-anchor="middle" font-size="10" font-weight="700" fill="#3fb950" font-family="system-ui">BigQuery</text>
+
+        <!-- Row 6 → Row 7 -->
+        <line x1="400" y1="463" x2="400" y2="492" stroke="#484f58" stroke-width="1" marker-end="url(#ov-a)"/>
+
+        <!-- ── Row 7: Frontend + Observability ── -->
+        <rect x="90"  y="493" width="120" height="34" rx="7" fill="rgba(121,192,255,0.08)" stroke="#79c0ff" stroke-width="1.5"/>
+        <text x="150" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#79c0ff" font-family="system-ui">Next.js :3000</text>
+
+        <rect x="220" y="493" width="100" height="34" rx="7" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="270" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#8b949e" font-family="system-ui">Grafana :3001</text>
+
+        <rect x="330" y="493" width="105" height="34" rx="7" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="382" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#8b949e" font-family="system-ui">Langfuse :3002</text>
+
+        <rect x="445" y="493" width="95" height="34" rx="7" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="492" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#8b949e" font-family="system-ui">Tempo :3200</text>
+
+        <rect x="550" y="493" width="95" height="34" rx="7" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="597" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#8b949e" font-family="system-ui">Airflow :8083</text>
+
+        <rect x="655" y="493" width="95" height="34" rx="7" fill="rgba(110,118,129,0.08)" stroke="#6e7681" stroke-width="1.5"/>
+        <text x="702" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#8b949e" font-family="system-ui">KafkaUI :8090</text>
+      </svg>
+    </div>
+    <figcaption style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">Figure 1 — 7-layer event-driven architecture. All internal state flows through Kafka (layer 3) — REST is never used for inter-service communication. The ⏸ HITL gate in both agent systems blocks execution until a human approves via the FastAPI control plane.</figcaption>
+  </figure>
+
+  <hr class="divider" />
+  <div class="section-label">Mental Model</div>
+  <pre style="text-align:center; font-size: 14px; padding: 28px;">
+<span class="comment">MCPs sense</span>  →  <span class="keyword">Kafka remembers</span>  →  <span class="func">Orchestrator routes</span>  →  <span class="string">LangGraph reasons</span>  →  <span class="num">FastAPI governs</span>
+<span style="color:#6e7681">  eyes/hands        system of record        brain stem           decision maker      governance layer</span>
+  </pre>
+</div>
+
+<!-- ══════════════════════════════════════ ARCHITECTURE DIAGRAM ══════════════════════════════════════ -->
+<div class="section" id="architecture">
+  <div class="section-label">Architecture</div>
+  <div class="section-title">Event-Driven Architecture v6.0</div>
+  <div class="section-sub">All state transitions flow through Kafka. REST is never used for internal communication. LangGraph owns execution; FastAPI is control plane only.</div>
+
+  <div class="arch-wrap">
+    <div class="arch-diagram">
+
+      <!-- LAYER: External Systems -->
+      <div class="arch-layer">
+        <div class="arch-label">EXTERNAL</div>
+        <div class="arch-row" style="gap: 8px;">
+          <div class="node node-mcp" style="flex: 0.8;">
+            <div class="node-title">ServiceNow</div>
+            <div class="node-sub">ITSM System</div>
+          </div>
+          <div class="node node-mcp" style="flex: 0.8;">
+            <div class="node-title">Jira</div>
+            <div class="node-sub">Project Tracker</div>
+          </div>
+          <div class="node node-mcp" style="flex: 0.8;">
+            <div class="node-title">GitHub</div>
+            <div class="node-sub">Actions / PRs</div>
+          </div>
+          <div class="node node-mcp" style="flex: 0.8;">
+            <div class="node-title">Airflow</div>
+            <div class="node-sub">DAG Scheduler</div>
+          </div>
+          <div class="node node-infra" style="flex: 0.8;">
+            <div class="node-title">Prometheus</div>
+            <div class="node-sub">Metrics (60s poll)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">publish events</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">publish requests</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">trigger actions</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">sync DAGs</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">anomaly → incident</div></div>
+      </div>
+
+      <!-- LAYER: MCP Servers -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--mcp);">MCP</div>
+        <div class="arch-row" style="gap: 8px;">
+          <div class="node node-mcp">
+            <div class="node-title">ServiceNow MCP</div>
+            <div class="node-sub">mcp-servers/servicenow-mcp</div>
+          </div>
+          <div class="node node-mcp">
+            <div class="node-title">Jira MCP</div>
+            <div class="node-sub">mcp-servers/jira-mcp</div>
+          </div>
+          <div class="node node-mcp">
+            <div class="node-title">GitHub MCP</div>
+            <div class="node-sub">mcp-servers/github-mcp</div>
+          </div>
+          <div class="node node-mcp">
+            <div class="node-title">Airflow MCP</div>
+            <div class="node-sub">mcp-servers/airflow-mcp</div>
+          </div>
+          <div class="node node-lang" style="flex: 0.8;">
+            <div class="node-title">ProactiveMonitor</div>
+            <div class="node-sub">Always-on agent</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">incident.created</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">pipeline.requested</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">commands</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">dag sync</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">incident.created</div></div>
+      </div>
+
+      <!-- LAYER: Kafka -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--kafka);">KAFKA</div>
+        <div class="arch-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+          <div style="background: rgba(232,67,147,0.08); border: 1.5px solid rgba(232,67,147,0.4); border-radius: 10px; padding: 16px 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--kafka); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">⚡ Kafka Cluster — System of Record</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <div style="flex: 1; min-width: 280px; background: rgba(247,129,102,0.06); border: 1px solid rgba(247,129,102,0.2); border-radius: 6px; padding: 8px 12px;">
+                <div style="font-size: 10px; font-weight: 700; color: #ffa198; margin-bottom: 6px;">INCIDENT TOPICS</div>
+                <div style="font-family: monospace; font-size: 10px; color: var(--text-muted); line-height: 1.8;">
+                  incident.created → received → enriched<br/>
+                  → plan_generated → requires_approval<br/>
+                  → approved/rejected → executed<br/>
+                  → verified → closed → postmortem_ready
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 280px; background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); border-radius: 6px; padding: 8px 12px;">
+                <div style="font-size: 10px; font-weight: 700; color: #79c0ff; margin-bottom: 6px;">PIPELINE TOPICS</div>
+                <div style="font-family: monospace; font-size: 10px; color: var(--text-muted); line-height: 1.8;">
+                  pipeline.requested → planned → generated<br/>
+                  → validated → requires_approval<br/>
+                  → approved → deploy_execute → deployed<br/>
+                  → failed → healthy → health_report
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 200px; background: rgba(210,168,255,0.06); border: 1px solid rgba(210,168,255,0.2); border-radius: 6px; padding: 8px 12px;">
+                <div style="font-size: 10px; font-weight: 700; color: #d2a8ff; margin-bottom: 6px;">REMEDIATION TOPICS</div>
+                <div style="font-family: monospace; font-size: 10px; color: var(--text-muted); line-height: 1.8;">
+                  remediation.started<br/>
+                  → executed → failed<br/>
+                  → rollback
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">consume events</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">consume events</div></div>
+        <div class="connector"></div>
+        <div class="connector" style="justify-content: flex-end; align-items: flex-end;">
+          <div style="font-size: 10px; color: var(--text-dim);">approval events ▲</div>
+        </div>
+        <div class="connector"></div>
+      </div>
+
+      <!-- LAYER: EventOrchestrator -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--langgraph);">ORCH</div>
+        <div class="arch-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+          <div style="background: rgba(88,166,255,0.06); border: 1.5px solid rgba(88,166,255,0.3); border-radius: 10px; padding: 16px 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--langgraph); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">🧠 Event Orchestrator</div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 140px; background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); border-radius: 6px; padding: 10px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: #79c0ff;">WorkflowManager</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Redis state</div>
+              </div>
+              <div style="flex: 1; min-width: 140px; background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); border-radius: 6px; padding: 10px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: #79c0ff;">StateTracker</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Redis + Postgres</div>
+              </div>
+              <div style="flex: 1; min-width: 140px; background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); border-radius: 6px; padding: 10px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: #79c0ff;">EventRouter</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Topic mapping</div>
+              </div>
+              <div style="flex: 1; min-width: 140px; background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.2); border-radius: 6px; padding: 10px; text-align: center;">
+                <div style="font-size: 12px; font-weight: 700; color: #79c0ff;">IncidentBridge</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">pipeline.failed → incident</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">trigger LangGraph</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">trigger APEX workflow</div></div>
+        <div class="connector"></div><div class="connector"></div><div class="connector"></div>
+      </div>
+
+      <!-- LAYER: LangGraph -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--fastapi);">AGENTS</div>
+        <div class="arch-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+
+            <!-- System 1 -->
+            <div style="flex: 1; min-width: 320px; background: rgba(247,129,102,0.05); border: 1.5px solid rgba(247,129,102,0.3); border-radius: 10px; padding: 16px 20px;">
+              <div style="font-size: 11px; font-weight: 700; color: #ffa198; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">🚨 System 1 — Incident LangGraph (12 nodes)</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">ingest</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">parse</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">classify</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(210,168,255,0.1);border:1px solid rgba(210,168,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#d2a8ff;">swarm_rag</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">generate_plan</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">judge</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">control_plane</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(255,166,87,0.15);border:1px solid rgba(255,166,87,0.5);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa657;font-weight:700;">await_approval ⏸</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">execute</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">verify</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">close_ticket</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(247,129,102,0.1);border:1px solid rgba(247,129,102,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa198;">feedback_loop</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div style="font-size: 10px; color: var(--text-dim);">FAST Agents:</div>
+                <span class="tag tag-red" style="font-size:9px;">IntelligenceAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">RiskAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">ChangeManagementAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">LLM Judge</span>
+                <span class="tag tag-red" style="font-size:9px;">ApprovalAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">ExecutionAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">VerificationAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">LearningAgent</span>
+                <span class="tag tag-red" style="font-size:9px;">PostMortemAgent</span>
+              </div>
+            </div>
+
+            <!-- System 2 -->
+            <div style="flex: 1; min-width: 280px; background: rgba(88,166,255,0.05); border: 1.5px solid rgba(88,166,255,0.3); border-radius: 10px; padding: 16px 20px;">
+              <div style="font-size: 11px; font-weight: 700; color: #79c0ff; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">🔧 System 2 — APEX Workflow (8 phases)</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">normalize</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">resolve_pattern</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">load_metadata</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">generate_artifacts</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#56d364;">connection_test</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">validate</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(255,166,87,0.15);border:1px solid rgba(255,166,87,0.5);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#ffa657;font-weight:700;">await_approval ⏸</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#79c0ff;">deploy</span>
+                <span style="color:var(--text-dim);font-size:10px;padding:4px 2px;">→</span>
+                <span style="background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);border-radius:5px;padding:4px 8px;font-size:10px;font-family:monospace;color:#56d364;">monitor</span>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <div style="font-size: 10px; color: var(--text-dim);">Agents:</div>
+                <span class="tag tag-blue" style="font-size:9px;">PlannerAgent</span>
+                <span class="tag tag-blue" style="font-size:9px;">GeneratorAgent</span>
+                <span class="tag tag-green" style="font-size:9px;">ConnectionTestAgent</span>
+                <span class="tag tag-blue" style="font-size:9px;">ValidatorAgent</span>
+                <span class="tag tag-blue" style="font-size:9px;">DeployerAgent</span>
+                <span class="tag tag-green" style="font-size:9px;">PipelineMonitoringAgent</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">publish state</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">reads state</div></div>
+        <div class="connector"></div><div class="connector"></div><div class="connector"></div>
+      </div>
+
+      <!-- LAYER: FastAPI + Storage -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--accent4);">CONTROL</div>
+        <div class="arch-row" style="gap: 8px;">
+          <div class="node node-fastapi" style="flex: 1.5;">
+            <div class="node-title">FastAPI Control Plane</div>
+            <div class="node-sub">:8000 — incident API, approvals, policy</div>
+          </div>
+          <div class="node node-fastapi" style="flex: 1.5;">
+            <div class="node-title">Data Agent API</div>
+            <div class="node-sub">:8001 — pipeline creation, APEX trigger</div>
+          </div>
+          <div class="node node-db">
+            <div class="node-title">Redis</div>
+            <div class="node-sub">CQRS read cache</div>
+          </div>
+          <div class="node node-db">
+            <div class="node-title">PostgreSQL</div>
+            <div class="node-sub">:5432 history + DDL</div>
+          </div>
+          <div class="node node-db">
+            <div class="node-title">Neo4j</div>
+            <div class="node-sub">:7474 knowledge graph</div>
+          </div>
+          <div class="node node-db">
+            <div class="node-title">Weaviate</div>
+            <div class="node-sub">:8080 vector store</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- arrow -->
+      <div class="connector-row">
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">serve UI</div></div>
+        <div class="connector"><div class="connector-line"></div><div class="connector-arrow">▼</div><div class="connector-label">WebSocket updates</div></div>
+        <div class="connector"></div><div class="connector"></div><div class="connector"></div>
+      </div>
+
+      <!-- LAYER: Frontend -->
+      <div class="arch-layer">
+        <div class="arch-label" style="color: var(--frontend);">UI</div>
+        <div class="arch-row" style="gap: 8px;">
+          <div class="node node-frontend" style="flex: 2;">
+            <div class="node-title">Next.js 14 Frontend — :3000</div>
+            <div class="node-sub">Incidents · Approvals · Pipelines · Observability · Catalog · Workflows</div>
+          </div>
+          <div class="node node-infra">
+            <div class="node-title">Grafana :3001</div>
+            <div class="node-sub">Dashboards</div>
+          </div>
+          <div class="node node-infra">
+            <div class="node-title">Langfuse :3002</div>
+            <div class="node-sub">LLM observability</div>
+          </div>
+          <div class="node node-infra">
+            <div class="node-title">Kafka UI :8090</div>
+            <div class="node-sub">Topic browser</div>
+          </div>
+          <div class="node node-infra">
+            <div class="node-title">Airflow :8083</div>
+            <div class="node-sub">DAG management</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end arch-diagram -->
+  </div><!-- end arch-wrap -->
+</div>
+
+<!-- ══════════════════════════════════════ SYSTEM 1 ══════════════════════════════════════ -->
+<div class="section" id="system1">
+  <div class="section-label">System 1</div>
+  <div class="section-title">Incident Management Agent</div>
+  <div class="section-sub">Automated IT incident resolution — consumes from Kafka, runs a 12-node LangGraph workflow, never called directly via REST.</div>
+
+  <div class="grid-3" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="card-icon">📍</div>
+      <h3>Entry Points</h3>
+      <p class="mono" style="line-height: 2;">event_orchestrator.py<br/>incident_consumer.py<br/>data_pipeline_incident_bridge.py</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>Swarm RAG (4 agents)</h3>
+      <p>Reciprocal Rank Fusion (k=60) across vector (Weaviate), graph (Neo4j), keyword (BM25), and metadata agents for hybrid search.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📡</div>
+      <h3>Always-On</h3>
+      <p><strong>ProactiveMonitoringAgent</strong> polls 8 Prometheus metrics every 60s and autonomously creates incidents — feeding the same FAST pipeline.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Agent</th><th>Role</th><th>Key Detail</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>IncidentIntelligenceAgent</td><td class="td-muted">RCA classification + deduplication</td><td class="td-muted">15-pattern matching</td></tr>
+        <tr><td>RiskAgent</td><td class="td-muted">Blast radius assessment</td><td class="td-muted">LOW / MEDIUM / HIGH / CRITICAL</td></tr>
+        <tr><td>ChangeManagementAgent</td><td class="td-muted">Creates ServiceNow CHG records</td><td class="td-muted">Auto-links to incident</td></tr>
+        <tr><td>LLM Judge</td><td class="td-muted">Quality gate for remediation plans</td><td class="td-muted">Scores 0–10, blocks if safety &lt; 7</td></tr>
+        <tr><td>ApprovalAgent</td><td class="td-muted">4-tier human approval routing</td><td class="td-muted">AUTO / STANDARD / SENIOR / EXECUTIVE</td></tr>
+        <tr><td>ExecutionAgent</td><td class="td-muted">Runs remediations</td><td class="td-muted">GitHub Actions · Airflow · GCP ops</td></tr>
+        <tr><td>VerificationAgent</td><td class="td-muted">Health checks post-execution</td><td class="td-muted">Stabilization window before close</td></tr>
+        <tr><td>LearningAgent</td><td class="td-muted">Updates knowledge base</td><td class="td-muted">Weaviate index + Neo4j graph + RRF weights</td></tr>
+        <tr><td>PostMortemAgent</td><td class="td-muted">Blameless post-mortem</td><td class="td-muted">Jira story + GitHub commit + runbook update</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── FIG 2: INCIDENT LANGGRAPH 12-NODE WORKFLOW ── -->
+  <figure style="margin: 28px 0 0;">
+    <div class="arch-wrap" style="padding: 24px;">
+      <div class="workflow-title" style="margin-bottom: 18px;">Fig. 2 — Incident LangGraph — 12-Node State Machine</div>
+      <svg viewBox="0 0 1040 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;min-width:800px;">
+        <defs>
+          <marker id="inc-a"  markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f78166" opacity=".8"/></marker>
+          <marker id="inc-ab" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58a6ff" opacity=".8"/></marker>
+          <marker id="inc-ag" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3fb950" opacity=".8"/></marker>
+          <marker id="inc-ay" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#e3b341" opacity=".8"/></marker>
+          <marker id="inc-ap" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#d2a8ff" opacity=".8"/></marker>
+        </defs>
+
+        <rect x="2" y="2"   width="1036" height="120" rx="6" fill="rgba(247,129,102,0.03)" stroke="rgba(247,129,102,0.08)" stroke-width="1"/>
+        <rect x="2" y="132" width="1036" height="120" rx="6" fill="rgba(88,166,255,0.03)"  stroke="rgba(88,166,255,0.08)"  stroke-width="1"/>
+
+        <!-- ROW 1 nodes 1-6 -->
+        <rect x="16"  y="42" width="120" height="44" rx="8" fill="rgba(247,129,102,0.1)" stroke="#f78166" stroke-width="1.5"/>
+        <text x="76"  y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa198" font-family="system-ui">1 · ingest</text>
+        <text x="76"  y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Kafka consumer</text>
+        <line x1="136" y1="64" x2="156" y2="64" stroke="#f78166" stroke-width="1.5" marker-end="url(#inc-a)"/>
+
+        <rect x="156" y="42" width="120" height="44" rx="8" fill="rgba(247,129,102,0.1)" stroke="#f78166" stroke-width="1.5"/>
+        <text x="216" y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa198" font-family="system-ui">2 · parse</text>
+        <text x="216" y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">NLP extraction</text>
+        <line x1="276" y1="64" x2="296" y2="64" stroke="#f78166" stroke-width="1.5" marker-end="url(#inc-a)"/>
+
+        <rect x="296" y="42" width="130" height="44" rx="8" fill="rgba(247,129,102,0.1)" stroke="#f78166" stroke-width="1.5"/>
+        <text x="361" y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa198" font-family="system-ui">3 · classify</text>
+        <text x="361" y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">15-pattern RCA</text>
+        <line x1="426" y1="64" x2="446" y2="64" stroke="#f78166" stroke-width="1.5" marker-end="url(#inc-a)"/>
+
+        <rect x="446" y="42" width="130" height="44" rx="8" fill="rgba(210,168,255,0.1)" stroke="#d2a8ff" stroke-width="1.5"/>
+        <text x="511" y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#d2a8ff" font-family="system-ui">4 · swarm_rag</text>
+        <text x="511" y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Weaviate · Neo4j</text>
+        <line x1="576" y1="64" x2="596" y2="64" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#inc-ap)"/>
+
+        <rect x="596" y="42" width="140" height="44" rx="8" fill="rgba(227,179,65,0.1)" stroke="#e3b341" stroke-width="1.5"/>
+        <text x="666" y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#e3b341" font-family="system-ui">5 · gen_plan</text>
+        <text x="666" y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Claude Opus</text>
+        <line x1="736" y1="64" x2="756" y2="64" stroke="#e3b341" stroke-width="1.5" marker-end="url(#inc-ay)"/>
+
+        <rect x="756" y="42" width="120" height="44" rx="8" fill="rgba(227,179,65,0.12)" stroke="#e3b341" stroke-width="2"/>
+        <text x="816" y="61" text-anchor="middle" font-size="11" font-weight="700" fill="#e3b341" font-family="system-ui">6 · judge</text>
+        <text x="816" y="76" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">LLM Judge 0–10</text>
+
+        <!-- row1 → row2 connector -->
+        <line x1="816" y1="86" x2="816" y2="110" stroke="#e3b341" stroke-width="1.2" stroke-opacity=".6"/>
+        <line x1="816" y1="110" x2="86"  y2="110" stroke="#e3b341" stroke-width="1"   stroke-dasharray="4 3" stroke-opacity=".3"/>
+        <line x1="86"  y1="110" x2="86"  y2="144" stroke="#58a6ff" stroke-width="1.2" stroke-opacity=".6" marker-end="url(#inc-ab)"/>
+        <text x="450" y="108" text-anchor="middle" font-size="8" fill="#6e7681" font-family="system-ui">approved by judge → continues</text>
+
+        <!-- ROW 2 nodes 7-12 -->
+        <rect x="16"  y="172" width="135" height="44" rx="8" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="83"  y="191" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff" font-family="system-ui">7 · ctrl_plane</text>
+        <text x="83"  y="206" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">FastAPI :8000</text>
+        <line x1="151" y1="194" x2="171" y2="194" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#inc-ab)"/>
+
+        <rect x="171" y="163" width="140" height="60" rx="8" fill="rgba(227,179,65,0.1)" stroke="#e3b341" stroke-width="2"/>
+        <text x="241" y="181" text-anchor="middle" font-size="8" font-weight="700" fill="#e3b341" letter-spacing=".8" font-family="system-ui">⏸ HITL GATE</text>
+        <text x="241" y="196" text-anchor="middle" font-size="11" font-weight="700" fill="#e3b341" font-family="system-ui">8 · approval</text>
+        <text x="241" y="211" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">4-tier routing</text>
+        <line x1="311" y1="194" x2="331" y2="194" stroke="#3fb950" stroke-width="1.5" marker-end="url(#inc-ag)"/>
+
+        <rect x="331" y="172" width="125" height="44" rx="8" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="393" y="191" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">9 · execute</text>
+        <text x="393" y="206" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">GitHub · Airflow</text>
+        <line x1="456" y1="194" x2="476" y2="194" stroke="#3fb950" stroke-width="1.5" marker-end="url(#inc-ag)"/>
+
+        <rect x="476" y="172" width="120" height="44" rx="8" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="536" y="191" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">10 · verify</text>
+        <text x="536" y="206" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">health checks</text>
+        <line x1="596" y1="194" x2="616" y2="194" stroke="#3fb950" stroke-width="1.5" marker-end="url(#inc-ag)"/>
+
+        <rect x="616" y="172" width="130" height="44" rx="8" fill="rgba(63,185,80,0.12)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="681" y="191" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">11 · close</text>
+        <text x="681" y="206" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">ServiceNow CHG</text>
+        <line x1="746" y1="194" x2="766" y2="194" stroke="#d2a8ff" stroke-width="1.5" marker-end="url(#inc-ap)"/>
+
+        <rect x="766" y="172" width="158" height="44" rx="8" fill="rgba(210,168,255,0.1)" stroke="#d2a8ff" stroke-width="1.5"/>
+        <text x="845" y="191" text-anchor="middle" font-size="11" font-weight="700" fill="#d2a8ff" font-family="system-ui">12 · learn</text>
+        <text x="845" y="206" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Weaviate + RRF</text>
+
+        <!-- feedback loop arrow -->
+        <line x1="845" y1="216" x2="845" y2="258" stroke="#d2a8ff" stroke-width="1"   stroke-opacity=".4"/>
+        <line x1="845" y1="258" x2="76"  y2="258" stroke="#d2a8ff" stroke-width="1"   stroke-dasharray="4 3" stroke-opacity=".25"/>
+        <line x1="76"  y1="258" x2="76"  y2="86"  stroke="#d2a8ff" stroke-width="1"   stroke-opacity=".25" marker-end="url(#inc-ap)"/>
+        <text x="460" y="273" text-anchor="middle" font-size="8" fill="#6e7681" font-family="system-ui">knowledge fed back → RRF weight update improves next incident</text>
+
+        <text x="990" y="70"  font-size="8" fill="#8b949e" font-weight="700" text-anchor="middle" font-family="system-ui">DETECT &amp; PLAN</text>
+        <text x="990" y="200" font-size="8" fill="#58a6ff" font-weight="700" text-anchor="middle" font-family="system-ui">APPROVE &amp; FIX</text>
+      </svg>
+    </div>
+    <figcaption style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">Figure 2 — Incident LangGraph: 12-node state machine. All state transitions emit Kafka events. The ⏸ HITL gate (node 8) blocks execution until a human approves in the Next.js UI; node 12 (learn) feeds Weaviate index and RRF weights for future incidents.</figcaption>
+  </figure>
+</div>
+
+<!-- ══════════════════════════════════════ SYSTEM 2 ══════════════════════════════════════ -->
+<div class="section" id="system2">
+  <div class="section-label">System 2</div>
+  <div class="section-title">Data Engineering Agent</div>
+  <div class="section-sub">Automated data pipeline generation for 70+ source types. Accepts natural language, UI form, or SSIS .dtsx package — produces production Airflow DAGs + Spark jobs deployed via GitHub PR. Includes Legacy Migration for SSIS/Oracle ETL → PySpark with stored procedure dependency graph.</div>
+
+  <div class="grid-3" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="card-icon">📥</div>
+      <h3>3 Input Modes</h3>
+      <p><strong>UI Structured</strong> — form-driven<br/><strong>Natural Language</strong> — NL → structured → execute<br/><strong>DTSX Migration</strong> — SSIS package import + live SP extraction</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚙️</div>
+      <h3>Code Generation</h3>
+      <p>Jinja2 templates produce Airflow DAGs + Spark jobs. Templates are frozen — never runtime-modified. 42 DAG building blocks in <span class="mono">dag_utilities/</span>.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <h3>Incident Bridge</h3>
+      <p><strong>DataPipelineIncidentBridge</strong> converts <span class="mono">pipeline.failed</span> events into <span class="mono">incident.created</span> — feeding System 1's full FAST pipeline automatically.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Agent</th><th>File</th><th>Role</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>PlannerAgent</td><td class="td-muted">src/agents/planner_agent.py</td><td class="td-muted">Template selection, schema comparison</td></tr>
+        <tr><td>GeneratorAgent</td><td class="td-muted">src/agents/generator_agent.py</td><td class="td-muted">Jinja2 DAG + Spark job generation</td></tr>
+        <tr><td>ConnectionTestAgent <span class="chip chip-new">NEW</span></td><td class="td-muted">src/agents/connection_test_agent.py</td><td class="td-muted">TCP + schema validation pre-deploy</td></tr>
+        <tr><td>ValidatorAgent</td><td class="td-muted">src/agents/validator_agent.py</td><td class="td-muted">Great Expectations quality gate</td></tr>
+        <tr><td>DeployerAgent</td><td class="td-muted">src/agents/deployer_agent.py</td><td class="td-muted">GitHub PR → CI/CD → Airflow sync</td></tr>
+        <tr><td>PipelineMonitoringAgent <span class="chip chip-new">NEW</span></td><td class="td-muted">src/agents/pipeline_monitoring_agent.py</td><td class="td-muted">Watches first 5 DAG runs, auto-remediates</td></tr>
+        <tr><td>LegacyMigrationAgent <span class="chip chip-new">NEW</span></td><td class="td-muted">src/agents/legacy_migration_agent.py</td><td class="td-muted">SSIS/ETL → PySpark+Airflow via SP dependency graph</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── FIG 3: APEX 8-PHASE WORKFLOW SVG ── -->
+  <figure style="margin: 28px 0 0;">
+    <div class="arch-wrap" style="padding: 24px;">
+      <div class="workflow-title" style="margin-bottom: 18px;">Fig. 3 — APEX LangGraph — 8-Phase Data Pipeline Workflow</div>
+      <svg viewBox="0 0 1040 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;min-width:800px;">
+        <defs>
+          <marker id="apex-a"  markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#58a6ff" opacity=".8"/></marker>
+          <marker id="apex-ag" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3fb950" opacity=".8"/></marker>
+          <marker id="apex-ay" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#e3b341" opacity=".8"/></marker>
+          <marker id="apex-ao" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#ffa657" opacity=".8"/></marker>
+          <marker id="apex-ar" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f78166" opacity=".8"/></marker>
+        </defs>
+
+        <!-- Main flow band -->
+        <rect x="2" y="2" width="1036" height="148" rx="6" fill="rgba(88,166,255,0.03)" stroke="rgba(88,166,255,0.1)" stroke-width="1"/>
+        <!-- Legacy branch band -->
+        <rect x="2" y="162" width="1036" height="94" rx="6" fill="rgba(255,166,87,0.03)" stroke="rgba(255,166,87,0.1)" stroke-width="1" stroke-dasharray="5 3"/>
+        <text x="16" y="180" font-size="8" fill="#ffa657" font-weight="700" letter-spacing=".8" font-family="system-ui">LEGACY BRANCH (dtsx_migration only)</text>
+
+        <!-- ── MAIN FLOW: Phase 1 normalize ── -->
+        <rect x="16" y="50" width="130" height="52" rx="8" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="81" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff" font-family="system-ui">P1 · normalize</text>
+        <text x="81" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Validate input</text>
+        <text x="81" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">input_type</text>
+
+        <!-- conditional split label -->
+        <text x="162" y="56" font-size="8" fill="#ffa657" font-family="system-ui">dtsx?</text>
+        <!-- main path arrow -->
+        <line x1="146" y1="72" x2="174" y2="72" stroke="#58a6ff" stroke-width="1.5" stroke-opacity=".5"/>
+        <!-- branch arrow down -->
+        <line x1="158" y1="76" x2="158" y2="196" stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity=".6" marker-end="url(#apex-ao)"/>
+        <!-- diamond conditional node -->
+        <polygon points="158,62 172,76 158,90 144,76" fill="rgba(255,166,87,0.12)" stroke="#ffa657" stroke-width="1.5"/>
+
+        <!-- ── Phase 2 resolve_pattern ── -->
+        <rect x="176" y="50" width="130" height="52" rx="8" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="241" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff" font-family="system-ui">P2 · resolve</text>
+        <text x="241" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Pattern selection</text>
+        <text x="241" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">P01–P04 + custom</text>
+        <line x1="306" y1="76" x2="326" y2="76" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#apex-a)"/>
+
+        <!-- ── Phase 3 load_metadata ── -->
+        <rect x="326" y="50" width="130" height="52" rx="8" fill="rgba(88,166,255,0.1)" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="391" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#79c0ff" font-family="system-ui">P3 · metadata</text>
+        <text x="391" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Schema inspect</text>
+        <text x="391" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">BigQuery + source</text>
+        <line x1="456" y1="76" x2="476" y2="76" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#apex-a)"/>
+
+        <!-- ── Phase 4 generate ── -->
+        <rect x="476" y="50" width="130" height="52" rx="8" fill="rgba(227,179,65,0.1)" stroke="#e3b341" stroke-width="1.5"/>
+        <text x="541" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#e3b341" font-family="system-ui">P4 · generate</text>
+        <text x="541" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Jinja2 → DAG</text>
+        <text x="541" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">GeneratorAgent</text>
+        <line x1="606" y1="76" x2="626" y2="76" stroke="#e3b341" stroke-width="1.5" marker-end="url(#apex-ay)"/>
+
+        <!-- ── Phase 5 connection_test ── -->
+        <rect x="626" y="50" width="130" height="52" rx="8" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="691" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">P5 · conn_test</text>
+        <text x="691" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">TCP + schema</text>
+        <text x="691" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">ConnectionTestAgent</text>
+        <line x1="756" y1="76" x2="776" y2="76" stroke="#3fb950" stroke-width="1.5" marker-end="url(#apex-ag)"/>
+
+        <!-- ── Phase 6 validate ── -->
+        <rect x="776" y="50" width="120" height="52" rx="8" fill="rgba(63,185,80,0.1)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="836" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">P6 · validate</text>
+        <text x="836" y="85" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Great Expectations</text>
+        <text x="836" y="97" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">quality gate</text>
+        <line x1="896" y1="76" x2="916" y2="76" stroke="#3fb950" stroke-width="1.5" marker-end="url(#apex-ag)"/>
+
+        <!-- ── Phase 7 await_approval (HITL) ── -->
+        <rect x="916" y="42" width="112" height="68" rx="8" fill="rgba(227,179,65,0.1)" stroke="#e3b341" stroke-width="2"/>
+        <text x="972" y="60"  text-anchor="middle" font-size="8" font-weight="700" fill="#e3b341" letter-spacing=".8" font-family="system-ui">⏸ HITL</text>
+        <text x="972" y="74"  text-anchor="middle" font-size="11" font-weight="700" fill="#e3b341" font-family="system-ui">P7 · approve</text>
+        <text x="972" y="89"  text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">Human gate</text>
+        <text x="972" y="103" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">pipeline.approved</text>
+
+        <!-- ── Phase 8 deploy + monitor (below, centered) ── -->
+        <line x1="972" y1="110" x2="972" y2="130" stroke="#e3b341" stroke-width="1.2" stroke-opacity=".6"/>
+        <line x1="972" y1="130" x2="760" y2="130" stroke="#e3b341" stroke-width="1"   stroke-dasharray="4 3" stroke-opacity=".4"/>
+        <line x1="760" y1="130" x2="760" y2="145" stroke="#3fb950" stroke-width="1.2" stroke-opacity=".6" marker-end="url(#apex-ag)"/>
+        <text x="870" y="128" text-anchor="middle" font-size="8" fill="#6e7681" font-family="system-ui">approved → deploy</text>
+
+        <rect x="636" y="144" width="130" height="44" rx="8" fill="rgba(63,185,80,0.12)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="701" y="163" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">P8a · deploy</text>
+        <text x="701" y="178" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">GitHub PR → CI/CD</text>
+        <line x1="766" y1="166" x2="786" y2="166" stroke="#3fb950" stroke-width="1.5" marker-end="url(#apex-ag)"/>
+
+        <rect x="786" y="144" width="140" height="44" rx="8" fill="rgba(63,185,80,0.08)" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="856" y="163" text-anchor="middle" font-size="11" font-weight="700" fill="#3fb950" font-family="system-ui">P8b · monitor</text>
+        <text x="856" y="178" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">First 5 DAG runs</text>
+
+        <!-- ── LEGACY BRANCH (below main) ── -->
+        <!-- extract_legacy_objects node -->
+        <rect x="176" y="196" width="160" height="48" rx="8" fill="rgba(255,166,87,0.1)" stroke="#ffa657" stroke-width="1.5"/>
+        <text x="256" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#ffa657" font-family="system-ui">extract_legacy</text>
+        <text x="256" y="230" text-anchor="middle" font-size="9"  fill="#8b949e"  font-family="system-ui">DTSXParser → SPReader</text>
+        <text x="256" y="243" text-anchor="middle" font-size="9"  fill="#6e7681"  font-family="SF Mono,monospace">→ DependencyGraph</text>
+
+        <!-- legacy → rejoins resolve_pattern -->
+        <line x1="336" y1="220" x2="360" y2="220" stroke="#ffa657" stroke-width="1.5" stroke-opacity=".8"/>
+        <line x1="360" y1="220" x2="360" y2="76"  stroke="#ffa657" stroke-width="1.5" stroke-dasharray="4 3" stroke-opacity=".5" marker-end="url(#apex-ao)"/>
+        <text x="380" y="160" font-size="8" fill="#ffa657" font-family="system-ui">rejoin → P2</text>
+
+        <!-- source type chips at bottom -->
+        <text x="20" y="280" font-size="9" fill="#6e7681" font-family="system-ui">Sources:</text>
+        <rect x="62"  y="268" width="48" height="18" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+        <text x="86"  y="281" text-anchor="middle" font-size="8" fill="#79c0ff" font-family="system-ui">file_csv</text>
+        <rect x="116" y="268" width="66" height="18" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+        <text x="149" y="281" text-anchor="middle" font-size="8" fill="#79c0ff" font-family="system-ui">database_pg</text>
+        <rect x="185" y="268" width="80" height="18" rx="4" fill="rgba(88,166,255,0.08)" stroke="rgba(88,166,255,0.2)" stroke-width="1"/>
+        <text x="225" y="281" text-anchor="middle" font-size="8" fill="#79c0ff" font-family="system-ui">streaming_kafka</text>
+        <rect x="272" y="268" width="56" height="18" rx="4" fill="rgba(255,166,87,0.1)" stroke="rgba(255,166,87,0.25)" stroke-width="1"/>
+        <text x="300" y="281" text-anchor="middle" font-size="8" fill="#ffa657" font-family="system-ui">dtsx_mig</text>
+        <text x="336" y="281" font-size="8" fill="#6e7681" font-family="system-ui">+ 66 more across 9 categories</text>
+
+        <!-- target zone chips -->
+        <text x="600" y="280" font-size="9" fill="#6e7681" font-family="system-ui">Target:</text>
+        <rect x="640" y="268" width="48" height="18" rx="4" fill="rgba(110,118,129,0.1)" stroke="rgba(110,118,129,0.2)" stroke-width="1"/>
+        <text x="664" y="281" text-anchor="middle" font-size="8" fill="#8b949e" font-family="system-ui">landing</text>
+        <rect x="694" y="268" width="46" height="18" rx="4" fill="rgba(110,118,129,0.1)" stroke="rgba(110,118,129,0.2)" stroke-width="1"/>
+        <text x="717" y="281" text-anchor="middle" font-size="8" fill="#8b949e" font-family="system-ui">bronze</text>
+        <rect x="746" y="268" width="42" height="18" rx="4" fill="rgba(110,118,129,0.1)" stroke="rgba(110,118,129,0.2)" stroke-width="1"/>
+        <text x="767" y="281" text-anchor="middle" font-size="8" fill="#8b949e" font-family="system-ui">silver</text>
+        <rect x="794" y="268" width="38" height="18" rx="4" fill="rgba(63,185,80,0.12)" stroke="rgba(63,185,80,0.3)" stroke-width="1"/>
+        <text x="813" y="281" text-anchor="middle" font-size="8" fill="#3fb950" font-family="system-ui">gold ★</text>
+      </svg>
+    </div>
+    <figcaption style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:10px;">Figure 3 — APEX LangGraph: 8-phase data pipeline workflow. The ◇ diamond gate after P1 (normalize) branches <code>dtsx_migration</code> inputs into the legacy extraction sub-graph before rejoining at P2 (resolve). The ⏸ HITL gate (P7) blocks auto-deployment to PROD; Gold ★ is the final Medallion layer.</figcaption>
+  </figure>
+</div>
+
+<!-- ══════════════════════════════════════ LEGACY MIGRATION ══════════════════════════════════════ -->
+<div class="section" id="migration">
+  <div class="section-label">System 2 Feature</div>
+  <div class="section-title">Legacy Migration — SSIS → PySpark + Airflow</div>
+  <div class="section-sub">Automated migration of SSIS packages and legacy ETL stored procedures to Cloud-native PySpark jobs with dependency-aware Airflow DAGs. Python first, LLM second — never pass raw DTSX XML to the model.</div>
+
+  <!-- Migration pipeline flow -->
+  <div class="migration-flow" style="margin-bottom: 24px;">
+    <div class="workflow-title">Migration Pipeline (Python-First Strategy)</div>
+    <div style="display: flex; align-items: flex-start; flex-wrap: nowrap; overflow-x: auto; gap: 0;">
+      <div class="mig-step">
+        <div class="mig-box mig-dtsx">.dtsx file</div>
+        <div class="mig-sub">SSIS package<br/>GCS or local</div>
+      </div>
+      <span class="mig-arrow">→</span>
+      <div class="mig-step">
+        <div class="mig-box mig-parse">DTSXParser<br/><span style="font-weight:400">Python</span></div>
+        <div class="mig-sub">Structured JSON<br/>~1–2 KB summary</div>
+      </div>
+      <span class="mig-arrow">→</span>
+      <div class="mig-step">
+        <div class="mig-box mig-db">StoredProcReader<br/><span style="font-weight:400">Live DB</span></div>
+        <div class="mig-sub">OBJECT_DEFINITION<br/>ALL_SOURCE / pg_proc</div>
+      </div>
+      <span class="mig-arrow">→</span>
+      <div class="mig-step">
+        <div class="mig-box mig-graph">DependencyGraph<br/><span style="font-weight:400">Kahn Topo Sort</span></div>
+        <div class="mig-sub">topo_level grouping<br/>cycle detection</div>
+      </div>
+      <span class="mig-arrow">→</span>
+      <div class="mig-step">
+        <div class="mig-box mig-llm">Claude LLM<br/><span style="font-weight:400">claude-sonnet-4-6</span></div>
+        <div class="mig-sub">Structured payload<br/>PySpark + Operator</div>
+      </div>
+      <span class="mig-arrow">→</span>
+      <div class="mig-step">
+        <div class="mig-box mig-out">P04 DAG<br/><span style="font-weight:400">TaskGroup per level</span></div>
+        <div class="mig-sub">Parallel Dataproc<br/>per topo batch</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h3>Python Parsing First</h3>
+      <p>Never pass raw DTSX XML to the LLM (500 KB+ noise). <span class="mono">DTSXParser.get_migration_summary()</span> reduces to a clean 1–2 KB structured JSON of connections, data flows, and EXEC calls before LLM handoff.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h3>Live DB Extraction</h3>
+      <p><strong>StoredProcReader</strong> fetches <code>OBJECT_DEFINITION()</code> (SQL Server), <code>ALL_SOURCE</code> (Oracle), <code>pg_get_functiondef()</code> (PostgreSQL). Falls back to static <code>.sql</code> file scan when DB is unreachable.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🕸️</div>
+      <h3>Dependency Graph</h3>
+      <p>Kahn's BFS topological sort groups stored procedures by <code>topo_level</code>. Level 0 = leaf (no deps). Same-level procs run in parallel Airflow <code>TaskGroup</code>s. Cycle detection raises <code>CycleDetectedError</code>.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>DTSXParser</td><td class="td-muted">src/parsers/dtsx_parser.py</td><td class="td-muted">XML → structured migration summary (1,209 lines)</td></tr>
+        <tr><td>StoredProcReader</td><td class="td-muted">src/parsers/stored_proc_reader.py</td><td class="td-muted">Live SP definitions from SQL Server / Oracle / PG; static .sql fallback</td></tr>
+        <tr><td>DependencyGraph</td><td class="td-muted">src/parsers/dependency_graph.py</td><td class="td-muted">Kahn topo sort, cycle detection, batch grouping, lineage serialization</td></tr>
+        <tr><td>LegacyMigrationAgent</td><td class="td-muted">src/agents/legacy_migration_agent.py</td><td class="td-muted">Orchestrates 4 steps: job → extract → graph → LLM generate</td></tr>
+        <tr><td>MigrationRepository</td><td class="td-muted">src/repository/migration_repository.py</td><td class="td-muted">Writes to migration_job, migration_object, migration_lineage, migration_artifact</td></tr>
+        <tr><td>P04 SP Template</td><td class="td-muted">src/templates/patterns/p04_legacy_migration_sp.py.jinja2</td><td class="td-muted">TaskGroup per topo_level + DataprocSubmitJobOperator per proc</td></tr>
+        <tr><td>Migration DDL</td><td class="td-muted">ddl/apex/14_legacy_migration.sql</td><td class="td-muted">4 tables: migration_job, migration_object, migration_lineage, migration_artifact</td></tr>
+        <tr><td>Migration UI</td><td class="td-muted">frontend/src/app/migration/page.tsx</td><td class="td-muted">4-step wizard + dependency graph viewer + artifact drawer</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="margin-top: 20px;">
+    <strong>DB Support:</strong> SQL Server (<code>pyodbc</code> + <code>sys.sql_expression_dependencies</code>), Oracle (<code>cx_Oracle</code> + <code>ALL_DEPENDENCIES</code>), PostgreSQL (<code>psycopg2</code> + <code>pg_depend</code>). Credential resolution via <code>connection_registry</code> + GCP Secret Manager — same pattern as <code>ConnectionTestAgent</code>.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ KAFKA ══════════════════════════════════════ -->
+<div class="section" id="kafka">
+  <div class="section-label">Event Streaming</div>
+  <div class="section-title">Kafka Event Flow</div>
+  <div class="section-sub">Kafka is the system of record. Every state transition is an immutable event. CQRS: writes go to Kafka, reads come from Redis (latest) + PostgreSQL (history).</div>
+
+  <div class="kafka-flow">
+    <div class="kafka-topic-group">
+      <div class="kafka-group-title">🚨 Incident Lifecycle</div>
+      <div class="kafka-topics">
+        <div class="kafka-topic">incident.created</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.received</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.enriched</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.plan_generated</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.requires_approval</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.approved</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.executed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.verified</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.closed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">incident.postmortem_ready</div>
+      </div>
+    </div>
+    <div class="kafka-topic-group" style="margin-top: 16px;">
+      <div class="kafka-group-title">🔧 Pipeline Lifecycle</div>
+      <div class="kafka-topics">
+        <div class="kafka-topic">pipeline.requested</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.planned</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.generated</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.validated</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.requires_approval</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.approved</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.deployed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.failed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">pipeline.healthy</div>
+      </div>
+    </div>
+    <div class="kafka-topic-group" style="margin-top: 16px;">
+      <div class="kafka-group-title">⚙️ Remediation Topics</div>
+      <div class="kafka-topics">
+        <div class="kafka-topic">remediation.started</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">remediation.executed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">remediation.failed</div><div class="kafka-arrow">→</div>
+        <div class="kafka-topic">remediation.rollback</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ MEDALLION ══════════════════════════════════════ -->
+<div class="section" id="medallion">
+  <div class="section-label">Data Architecture</div>
+  <div class="section-title">Medallion Architecture</div>
+  <div class="section-sub">Data flows through 5 zones of increasing refinement. Zone promotion is a Kafka event. Zone Spark jobs live in <span class="mono">agents/data_agent/src/spark_jobs/v2/</span>.</div>
+
+  <div class="medallion">
+    <div class="zone z-landing">
+      <div class="zone-name">Landing</div>
+      <div class="zone-desc">Raw strings, immutable</div>
+      <div class="zone-tag">No schema enforcement</div>
+      <div style="font-size: 10px; margin-top: 8px; opacity: 0.7;">PII: Encrypt</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone z-bronze">
+      <div class="zone-name">Bronze</div>
+      <div class="zone-desc">Schema enforced, typed</div>
+      <div class="zone-tag">ADDITIVE only</div>
+      <div style="font-size: 10px; margin-top: 8px; opacity: 0.7;">PII: Tokenize</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone z-silver">
+      <div class="zone-name">Silver</div>
+      <div class="zone-desc">Cleaned, deduped</div>
+      <div class="zone-tag">STRICT schema</div>
+      <div style="font-size: 10px; margin-top: 8px; opacity: 0.7;">PII: Partial Mask</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone z-gold">
+      <div class="zone-name">Gold ★</div>
+      <div class="zone-desc">Business logic, analytics-ready</div>
+      <div class="zone-tag">FINAL LAYER</div>
+      <div style="font-size: 10px; margin-top: 8px; opacity: 0.7;">PII: None (de-identified)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ APPROVAL ══════════════════════════════════════ -->
+<div class="section" id="approval">
+  <div class="section-label">Governance</div>
+  <div class="section-title">4-Tier Approval Gate</div>
+  <div class="section-sub">Every significant action is gated. PROD deployments always require human approval — no exceptions. Approvals flow through Kafka.</div>
+
+  <div class="approval-grid">
+    <div class="approval-card ap-auto">
+      <h4>AUTO</h4>
+      <p>Risk ≤ 0.3<br/>Confidence ≥ 0.7<br/>Not PRODUCTION</p>
+      <div class="sla">⚡ Immediate</div>
+    </div>
+    <div class="approval-card ap-standard">
+      <h4>STANDARD</h4>
+      <p>Risk 0.3–0.6<br/>or PROD environment</p>
+      <div class="sla">⏱ 30 minutes</div>
+      <div style="font-size: 11px; margin-top: 6px; opacity: 0.8;">On-call engineer</div>
+    </div>
+    <div class="approval-card ap-senior">
+      <h4>SENIOR</h4>
+      <p>Risk 0.6–0.8<br/>or blast_radius HIGH</p>
+      <div class="sla">⏱ 2 hours</div>
+      <div style="font-size: 11px; margin-top: 6px; opacity: 0.8;">Tech lead</div>
+    </div>
+    <div class="approval-card ap-exec">
+      <h4>EXECUTIVE</h4>
+      <p>Risk &gt; 0.8<br/>or CRITICAL blast radius</p>
+      <div class="sla">⏱ 4 hours</div>
+      <div style="font-size: 11px; margin-top: 6px; opacity: 0.8;">Director+</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ FRONTEND ══════════════════════════════════════ -->
+<div class="section" id="frontend">
+  <div class="section-label">User Interface</div>
+  <div class="section-title">Frontend — Next.js 14</div>
+  <div class="section-sub">App Router + React Query + Tailwind + shadcn/ui. Unified UI for both systems. All types from <span class="mono">pipeline-canonical.ts</span> — never from the deprecated <span class="mono">pipeline.ts</span>.</div>
+
+  <div class="table-wrap" style="margin-bottom: 24px;">
+    <table>
+      <thead>
+        <tr><th>Route</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>/</td><td class="td-muted">Dashboard — active incidents + pipeline health</td></tr>
+        <tr><td>/incidents</td><td class="td-muted">Incident list with live WebSocket updates</td></tr>
+        <tr><td>/incidents/[id]</td><td class="td-muted">Single incident + 12-node workflow state visualization</td></tr>
+        <tr><td>/approvals</td><td class="td-muted">Human approval queue — approve / reject / comment</td></tr>
+        <tr><td>/workflows</td><td class="td-muted">LangGraph DAG visualization</td></tr>
+        <tr><td>/pipelines</td><td class="td-muted">Pipeline creation — 70+ sources, 3 input modes</td></tr>
+        <tr><td>/jira/[id]</td><td class="td-muted">Jira-integrated pipeline creation</td></tr>
+        <tr><td>/catalog</td><td class="td-muted">Data catalog</td></tr>
+        <tr><td>/observability</td><td class="td-muted">Live service health, Kafka stream, Grafana embed</td></tr>
+        <tr><td>/migration</td><td class="td-muted">Legacy Migration — 4-step wizard, dependency graph, PySpark artifact viewer</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>API Proxy:</strong> <code>next.config.js</code> rewrites <code>/api/v1/*</code> → Backend :8000 and <code>/api/v2/*</code> → Data Agent :8001. The frontend never calls agents directly.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ SOURCE TYPES ══════════════════════════════════════ -->
+<div class="section" id="sources">
+  <div class="section-label">Data Sources</div>
+  <div class="section-title">70+ Source Types across 9 Categories</div>
+  <div class="section-sub">Each category maps to a form component in the frontend. Adding a new source type requires changes in 5 places.</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Prefix</th><th>Source Types</th><th>Form Component</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>file_</td>
+          <td class="td-muted">csv, parquet, excel, json, avro, orc, ebcdic, fixed_width, xml, pdf, delta, iceberg, hudi, cobol</td>
+          <td class="td-muted">FileSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>database_</td>
+          <td class="td-muted">postgres, mysql, snowflake, oracle, db2, mssql, bigquery, redshift, teradata</td>
+          <td class="td-muted">DatabaseSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>streaming_</td>
+          <td class="td-muted">kafka, pubsub, kinesis, eventhub, rabbitmq, nats, mqtt, redis_stream</td>
+          <td class="td-muted">StreamingSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>api_</td>
+          <td class="td-muted">rest, graphql, salesforce, sap, hubspot, stripe, zendesk, servicenow, jira, dynamics, marketo, workday</td>
+          <td class="td-muted">APISourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>legacy_</td>
+          <td class="td-muted">dtsx, as400, mainframe, cobol_file, idms, vsam, natural</td>
+          <td class="td-muted">LegacySourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>nosql_</td>
+          <td class="td-muted">mongodb, cassandra, dynamodb, couchdb, elasticsearch, hbase, redis, neo4j, influxdb</td>
+          <td class="td-muted">DatabaseSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>logs_</td>
+          <td class="td-muted">splunk, datadog, cloudwatch, elk, grafana</td>
+          <td class="td-muted">LogsSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>cloud_</td>
+          <td class="td-muted">s3, gcs, azure_blob, adls</td>
+          <td class="td-muted">FileSourceConfigForm</td>
+        </tr>
+        <tr>
+          <td>cdc_</td>
+          <td class="td-muted">debezium, oracle_goldengate, aws_dms, striim, qlik, delta_lake, iceberg_cdc</td>
+          <td class="td-muted">StreamingSourceConfigForm</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ SERVICES ══════════════════════════════════════ -->
+<div class="section" id="services">
+  <div class="section-label">Infrastructure</div>
+  <div class="section-title">Services &amp; Ports (14 Docker Services)</div>
+  <div class="section-sub">Start everything with <span class="mono">.\scripts\start-dev.ps1</span> or <span class="mono">docker compose up -d</span>.</div>
+
+  <div class="service-grid">
+    <div class="service-item"><div class="service-port">:3000</div><div class="service-info"><div class="service-name">Frontend</div><div class="service-desc">Next.js 14 UI</div></div></div>
+    <div class="service-item"><div class="service-port">:8000</div><div class="service-info"><div class="service-name">Backend API</div><div class="service-desc">FastAPI control plane</div></div></div>
+    <div class="service-item"><div class="service-port">:8001</div><div class="service-info"><div class="service-name">Data Agent API</div><div class="service-desc">Pipeline generation</div></div></div>
+    <div class="service-item"><div class="service-port">:8090</div><div class="service-info"><div class="service-name">Kafka UI</div><div class="service-desc">Topic browser</div></div></div>
+    <div class="service-item"><div class="service-port">:3001</div><div class="service-info"><div class="service-name">Grafana</div><div class="service-desc">Dashboards (anon)</div></div></div>
+    <div class="service-item"><div class="service-port">:9090</div><div class="service-info"><div class="service-name">Prometheus</div><div class="service-desc">Metrics scraping</div></div></div>
+    <div class="service-item"><div class="service-port">:3002</div><div class="service-info"><div class="service-name">Langfuse</div><div class="service-desc">LLM observability</div></div></div>
+    <div class="service-item"><div class="service-port">:3200</div><div class="service-info"><div class="service-name">Tempo</div><div class="service-desc">Distributed tracing</div></div></div>
+    <div class="service-item"><div class="service-port">:8083</div><div class="service-info"><div class="service-name">Airflow</div><div class="service-desc">DAG management</div></div></div>
+    <div class="service-item"><div class="service-port">:8080</div><div class="service-info"><div class="service-name">Weaviate</div><div class="service-desc">Vector store</div></div></div>
+    <div class="service-item"><div class="service-port">:5432</div><div class="service-info"><div class="service-name">PostgreSQL</div><div class="service-desc">Primary DB</div></div></div>
+    <div class="service-item"><div class="service-port">:6379</div><div class="service-info"><div class="service-name">Redis</div><div class="service-desc">Cache + state</div></div></div>
+    <div class="service-item"><div class="service-port">:7474</div><div class="service-info"><div class="service-name">Neo4j</div><div class="service-desc">Graph DB (incidents)</div></div></div>
+    <div class="service-item"><div class="service-port">:29092</div><div class="service-info"><div class="service-name">Kafka</div><div class="service-desc">Event streaming</div></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ PATTERNS ══════════════════════════════════════ -->
+<div class="section" id="patterns">
+  <div class="section-label">Development</div>
+  <div class="section-title">10 Code Patterns You Must Know</div>
+  <div class="section-sub">These patterns are non-negotiable across both systems. Every node, every API call, every type reference follows these conventions.</div>
+
+  <div class="grid-2" style="gap: 16px;">
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 1 — LangGraph StateGraph (not ReAct)</div>
+      <pre><span class="keyword">def</span> <span class="func">node_name</span>(state: AgentState) -&gt; Dict[str, Any]:
+    <span class="keyword">try</span>:
+        <span class="keyword">return</span> {<span class="string">"result_key"</span>: value}
+    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:
+        <span class="keyword">return</span> {<span class="string">"error_message"</span>: str(e), <span class="string">"error_agent"</span>: <span class="string">"node_name"</span>}
+
+<span class="keyword">def</span> <span class="func">should_continue</span>(state) -&gt; Literal[<span class="string">"next"</span>, <span class="string">"error"</span>]:
+    <span class="keyword">return</span> <span class="string">"error"</span> <span class="keyword">if</span> state.get(<span class="string">"error_message"</span>) <span class="keyword">else</span> <span class="string">"next"</span></pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 2 — All State Flows Through Kafka</div>
+      <pre><span class="comment"># CORRECT</span>
+<span class="keyword">await</span> producer.publish_event(
+    topic=<span class="string">"incident.enriched"</span>,
+    event=payload,
+    key=incident_id
+)
+
+<span class="comment"># WRONG — never REST for internal state</span>
+<span class="comment"># requests.post("http://backend/internal/update", ...)</span></pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 3 — FastAPI is Control Plane Only</div>
+      <pre><span class="keyword">@</span>app.post(<span class="string">"/api/v1/approve"</span>)
+<span class="keyword">async def</span> <span class="func">approve</span>(req: ApprovalRequest):
+    <span class="comment"># Publish to Kafka — never run LangGraph here</span>
+    <span class="keyword">await</span> producer.publish_event(
+        topic=<span class="string">"incident.approved"</span>,
+        event=req.dict(),
+        key=req.incident_id
+    )
+    <span class="keyword">return</span> {<span class="string">"status"</span>: <span class="string">"queued"</span>}</pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 4 — NL → Structured → Execute</div>
+      <pre><span class="comment">// WRONG — never execute NL directly</span>
+<span class="comment">// await api.createPipeline({ description: "load CSV" })</span>
+
+<span class="comment">// CORRECT — always normalize first</span>
+<span class="keyword">const</span> structured = <span class="keyword">await</span> api.transformNL({
+    description: <span class="string">"load CSV to BigQuery"</span>
+})
+<span class="keyword">await</span> api.createPipelineUnified(structured)</pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 5 — Pydantic v2 Contracts</div>
+      <pre><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel, model_validator
+
+<span class="keyword">class</span> <span class="func">UnifiedPipelineInput</span>(BaseModel):
+    model_config = ConfigDict(extra=<span class="string">"forbid"</span>)  <span class="comment"># fail on unknown</span>
+    input_type: Literal[
+        <span class="string">"ui_structured"</span>, <span class="string">"natural_language"</span>, <span class="string">"dtsx_migration"</span>
+    ]</pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 6 — Idempotency Keys Everywhere</div>
+      <pre>idempotency_key = <span class="string">f"</span>{incident_id}<span class="string">:</span>{event_type}<span class="string">:</span>{timestamp}<span class="string">"</span>
+
+<span class="comment"># Redis deduplication — 7-day TTL</span>
+<span class="keyword">if</span> redis.set(
+    <span class="string">f"idempotent:</span>{agent_name}<span class="string">:</span>{key}<span class="string">"</span>, <span class="string">"1"</span>,
+    nx=<span class="keyword">True</span>, ex=<span class="num">604800</span>
+):
+    <span class="keyword">pass</span>  <span class="comment"># process — first time seen</span></pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 7 — Jinja2 Code Generation</div>
+      <pre><span class="comment"># CORRECT — templates are frozen</span>
+template = template_manager.get_template(
+    <span class="string">"file_ingest_dag.j2"</span>
+)
+dag_code = template.render(
+    feed_id=feed_id,
+    source_config=source_config
+)
+<span class="comment"># WRONG: dag_code = f"with DAG('{name}') ..."</span></pre>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Pattern 8 — Frontend Types from Canonical Only</div>
+      <pre><span class="comment">// CORRECT</span>
+<span class="keyword">import</span> { UnifiedPipelineInput } <span class="keyword">from</span> <span class="string">'@/types/pipeline-canonical'</span>
+
+<span class="keyword">const</span> input: UnifiedPipelineInput = {
+    input_type: <span class="string">'ui_structured'</span>,
+    created_by: <span class="string">'user@company.com'</span>,
+    source: { source_type: <span class="string">'file_csv'</span>, ... }
+}
+
+<span class="comment">// WRONG: import from '@/types/pipeline' (deprecated)</span></pre>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ RULES ══════════════════════════════════════ -->
+<div class="section" id="rules">
+  <div class="section-label">Non-Negotiable</div>
+  <div class="section-title">Critical Rules</div>
+  <div class="section-sub">These rules define the platform's architectural integrity. Breaking them causes cascading failures.</div>
+
+  <div class="rule-grid">
+    <div class="rule-col-do">
+      <div class="rule-col-title">✓ Always Do</div>
+      <div class="rule-item">LangGraph StateGraph with explicit edges</div>
+      <div class="rule-item">Kafka for all state transitions</div>
+      <div class="rule-item">Explicit Pydantic / TypedDict state</div>
+      <div class="rule-item">pipeline-canonical.ts types in frontend</div>
+      <div class="rule-item">NL → structured metadata → execute</div>
+      <div class="rule-item">Human approval gate before PROD</div>
+      <div class="rule-item">Jinja2 templates for code generation</div>
+      <div class="rule-item">React Query for API state management</div>
+      <div class="rule-item">FastAPI as control plane only</div>
+      <div class="rule-item">Idempotency keys on all Kafka messages</div>
+      <div class="rule-item">agents/data_agent/ddl/apex/ (canonical DDL)</div>
+      <div class="rule-item">agents/servicenow_agent/src/rag/ (canonical RAG)</div>
+    </div>
+    <div class="rule-col-never">
+      <div class="rule-col-title">✗ Never Do</div>
+      <div class="rule-item">ReAct / ad-hoc agent loops</div>
+      <div class="rule-item">REST for internal state events</div>
+      <div class="rule-item">Implicit LLM memory for state</div>
+      <div class="rule-item">pipeline.ts (deprecated — deleted)</div>
+      <div class="rule-item">Execute natural language directly</div>
+      <div class="rule-item">Auto-deploy to production</div>
+      <div class="rule-item">Hardcoded business logic in code gen</div>
+      <div class="rule-item">Manual fetch + useState for API calls</div>
+      <div class="rule-item">FastAPI running LangGraph workflows</div>
+      <div class="rule-item">Processing Kafka messages without dedup</div>
+      <div class="rule-item">sql/ddl/apex/ (deleted — was duplicate)</div>
+      <div class="rule-item">backend/rag/ (legacy — imports from canonical)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ LIMITATIONS ══════════════════════════════════════ -->
+<div class="section" id="limitations">
+  <div class="section-label">Operational Awareness</div>
+  <div class="section-title">Known Limitations</div>
+  <div class="section-sub">Technical debt and architectural gaps to be aware of before working on the platform.</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Limitation</th><th>Impact</th><th>Target Fix</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LangGraph MemorySaver (in-memory)</td><td class="td-muted">Pod restart loses paused workflow state</td><td class="td-muted">PostgresSaver (Q3 2026)</td></tr>
+        <tr><td>JWT HMAC-SHA256 shared secret</td><td class="td-muted">Any service with key can mint admin tokens</td><td class="td-muted">RS256 + OIDC (Q3 2026)</td></tr>
+        <tr><td>Single EventOrchestrator process</td><td class="td-muted">Kafka consumer lag under high load</td><td class="td-muted">Kubernetes 3 replicas (Q3 2026)</td></tr>
+        <tr><td>No LLM fallback routing</td><td class="td-muted">Claude API outage stops all workflows</td><td class="td-muted">LiteLLM router (Q3 2026)</td></tr>
+        <tr><td>Single-node Redis</td><td class="td-muted">State machine lost on Redis restart</td><td class="td-muted">Redis Sentinel (Q3 2026)</td></tr>
+        <tr><td>No SSO/OIDC integration</td><td class="td-muted">Enterprise teams can't use corporate IdP</td><td class="td-muted">Okta/AAD (Q1 2027)</td></tr>
+        <tr><td>No multi-tenancy</td><td class="td-muted">Team A can see Team B's data</td><td class="td-muted">Row-Level Security (Q1 2027)</td></tr>
+        <tr><td>~5% test coverage</td><td class="td-muted">Regressions not caught automatically</td><td class="td-muted">80-test suite target (Q3 2026)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ ROADMAP ══════════════════════════════════════ -->
+<div class="section" id="roadmap">
+  <div class="section-label">Future</div>
+  <div class="section-title">Engineering Roadmap</div>
+  <div class="section-sub">Prioritized by stability first, then enterprise features, then autonomous operations.</div>
+
+  <div class="roadmap">
+    <div class="roadmap-card">
+      <div class="roadmap-q">Q3 2026</div>
+      <div class="roadmap-focus">Stability + Security</div>
+      <div class="roadmap-item">PostgresSaver for LangGraph</div>
+      <div class="roadmap-item">RS256 JWT + OIDC</div>
+      <div class="roadmap-item">LiteLLM router (fallback)</div>
+      <div class="roadmap-item">EventOrchestrator HA (3 replicas)</div>
+      <div class="roadmap-item">Redis Sentinel</div>
+      <div class="roadmap-item">Dead-Letter Queue (DLQ)</div>
+    </div>
+    <div class="roadmap-card">
+      <div class="roadmap-q">Q4 2026</div>
+      <div class="roadmap-focus">Data Quality + GitOps</div>
+      <div class="roadmap-item">Great Expectations in pipelines</div>
+      <div class="roadmap-item">Terraform infrastructure</div>
+      <div class="roadmap-item">ArgoCD for GitOps</div>
+      <div class="roadmap-item">HashiCorp Vault</div>
+      <div class="roadmap-item">Shared library extraction</div>
+    </div>
+    <div class="roadmap-card">
+      <div class="roadmap-q">Q1 2027</div>
+      <div class="roadmap-focus">Enterprise Features</div>
+      <div class="roadmap-item">SSO / OIDC (Okta, AAD)</div>
+      <div class="roadmap-item">Multi-tenancy + Row-Level Security</div>
+      <div class="roadmap-item">SLO dashboards</div>
+      <div class="roadmap-item">Slack ChatOps integration</div>
+    </div>
+    <div class="roadmap-card">
+      <div class="roadmap-q">Q2 2027</div>
+      <div class="roadmap-focus">Autonomous Operations</div>
+      <div class="roadmap-item">BackfillAgent</div>
+      <div class="roadmap-item">CapacityPlanningAgent</div>
+      <div class="roadmap-item">ChangeCorrelationAgent</div>
+      <div class="roadmap-item">Full autonomous mode</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ OBSERVABILITY ══════════════════════════════════════ -->
+<div class="section" id="observability">
+  <div class="section-label">Monitoring</div>
+  <div class="section-title">Observability Stack</div>
+  <div class="section-sub">50+ Prometheus metrics, distributed tracing via OpenTelemetry + Tempo, LLM observability via Langfuse, and real-time dashboards in Grafana. All signals flow automatically from every LangGraph node.</div>
+
+  <div class="obs-grid" style="margin-bottom: 24px;">
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #e84393;"></div>
+        <h4>Prometheus</h4>
+      </div>
+      <p>50+ metrics scraped every 60s from <span class="mono">backend/orchestrator/metrics.py</span>. Incident volume, LLM latency, confidence distributions, guardrail trigger rates, circuit breaker state, Kafka consumer lag.</p>
+      <div class="obs-metric">:9090 · 60s scrape interval</div>
+    </div>
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #f46800;"></div>
+        <h4>Grafana</h4>
+      </div>
+      <p>Real-time dashboards for AI system health, incident workflow throughput, human oversight coverage rate (target: 100% of PROD actions), LLM model performance trends, and security event frequency.</p>
+      <div class="obs-metric">:3001 · anon access</div>
+    </div>
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #6366f1;"></div>
+        <h4>Langfuse</h4>
+      </div>
+      <p>All LLM calls traced via Langfuse — input prompts, output responses, token usage + cost, latency per workflow node, model version, confidence scores. Enables retrospective model behavior analysis.</p>
+      <div class="obs-metric">:3002 · LLM traces</div>
+    </div>
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #58a6ff;"></div>
+        <h4>Tempo</h4>
+      </div>
+      <p>Distributed tracing via OpenTelemetry spans across every LangGraph node, Kafka consumer, and FastAPI handler. Correlate a single incident request through all 12 workflow nodes end-to-end.</p>
+      <div class="obs-metric">:3200 · OTLP traces</div>
+    </div>
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #3fb950;"></div>
+        <h4>structlog</h4>
+      </div>
+      <p>Structured JSON logging via <code>structlog</code> with consistent fields: <code>incident_id</code>, <code>workflow_node</code>, <code>agent_name</code>, <code>confidence_score</code>, <code>duration_ms</code>. Indexed in Grafana Loki.</p>
+      <div class="obs-metric">JSON · Loki ingestion</div>
+    </div>
+    <div class="obs-card">
+      <div class="obs-card-header">
+        <div class="obs-dot" style="background: #ffa657;"></div>
+        <h4>Audit Log</h4>
+      </div>
+      <p>18 event types via <span class="mono">audit_logger.py</span>. SHA-256 integrity checksum per record. 7-year retention. Row-level security on PostgreSQL <code>audit.events</code>. Append-only — no UPDATE/DELETE permitted.</p>
+      <div class="obs-metric">EU AI Act Art. 12 compliant</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Signal</th><th>Tool</th><th>Key Metrics / Traces</th><th>Compliance Use</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Metrics</td><td class="td-muted">Prometheus + Grafana</td><td class="td-muted">LLM latency p50/p95/p99, confidence score histogram, guardrail trigger rate, approval queue depth</td><td class="td-muted">SOC2 Availability, NIST AI RMF MEASURE</td></tr>
+        <tr><td>LLM Traces</td><td class="td-muted">Langfuse</td><td class="td-muted">Prompt/response pairs, token cost, per-node latency, model version per call</td><td class="td-muted">EU AI Act Art. 12, ISO 42001 Cl. 9</td></tr>
+        <tr><td>Distributed Traces</td><td class="td-muted">OpenTelemetry + Tempo</td><td class="td-muted">Full workflow span tree across 12 LangGraph nodes; cross-service correlation</td><td class="td-muted">SOC2 Availability, Operational SLOs</td></tr>
+        <tr><td>Structured Logs</td><td class="td-muted">structlog + Loki</td><td class="td-muted">Agent decisions, Kafka consumer events, error payloads with context</td><td class="td-muted">SOC2 CC7, NIST AI RMF GOVERN</td></tr>
+        <tr><td>Audit Events</td><td class="td-muted">audit_logger.py</td><td class="td-muted">AI_DECISION, HUMAN_APPROVAL, PII_ACCESS, REMEDIATION_EXECUTION (18 types)</td><td class="td-muted">EU AI Act Art. 12, GDPR, SOC2 CC3</td></tr>
+        <tr><td>Anomaly Alerts</td><td class="td-muted">Prometheus + PagerDuty</td><td class="td-muted">Confidence score degradation, AUTH_FAILURE spike, approval rejection surge, circuit breaker trips</td><td class="td-muted">EU AI Act Art. 61, ISO 42001 Cl. 10</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ COMPLIANCE ══════════════════════════════════════ -->
+<div class="section" id="compliance">
+  <div class="section-label">Regulatory</div>
+  <div class="section-title">Compliance Summary</div>
+  <div class="section-sub">6 frameworks, 45 controls assessed. Full evidence documented in <span class="mono">docs/compliance/</span>. Both AI systems are classified HIGH-RISK under EU AI Act Annex III (Critical Infrastructure).</div>
+
+  <div class="table-wrap" style="margin-bottom: 24px;">
+    <table>
+      <thead>
+        <tr><th>Framework</th><th>Status</th><th>Key Controls</th><th>Primary Evidence</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-blue">SOC 2 Type II</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">CC6 (access), CC7 (monitoring), CC8 (change mgmt), A1 (availability)</td>
+          <td class="td-muted"><span class="mono">audit_logger.py</span>, RBAC, circuit breaker, Prometheus uptime</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-green">ISO 42001</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">Cl. 6 (risk planning), Cl. 8 (AI operations), Cl. 9 (performance eval), Cl. 10 (improvement)</td>
+          <td class="td-muted"><span class="mono">eu_ai_act_compliance.py</span>, Langfuse traces, review schedule</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-purple">NIST AI RMF</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">GOVERN (policies), MAP (risk context), MEASURE (metrics), MANAGE (controls)</td>
+          <td class="td-muted"><span class="mono">llm_guardrails.py</span>, confidence thresholds, post-market monitoring</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">EU AI Act</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">Art. 9 (risk mgmt), Art. 10 (data governance), Art. 12 (logging), Art. 14 (human oversight), Art. 15 (accuracy)</td>
+          <td class="td-muted">HITL node, 7-yr audit retention, LLM judge ≥0.70, approval gate</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-pink">MITRE ATLAS</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">AML.T0051 (prompt injection), AML.T0048 (data poisoning), AML.T0040 (supply chain)</td>
+          <td class="td-muted"><span class="mono">InputValidator</span> (16 patterns), RAG source versioning, pinned deps</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-blue">Observability</span></td>
+          <td class="td-muted"><span style="color:#56d364;font-weight:700;">COMPLIANT</span></td>
+          <td class="td-muted">50+ metrics, LLM traces, distributed tracing, structured logging, anomaly alerting</td>
+          <td class="td-muted">Prometheus + Grafana + Langfuse + Tempo + structlog</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">🛡️</div>
+      <h3>Prompt Injection Defense</h3>
+      <p><strong>16 regex patterns</strong> via <span class="mono">InputValidator</span> detect direct instruction override, role manipulation, jailbreak attempts, encoding bypasses. Score &lt; 0.5 → blocked + <code>UNAUTHORIZED_ACCESS</code> audit event.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔐</div>
+      <h3>Human-in-the-Loop</h3>
+      <p>All PROD actions require explicit human approval. Kafka-driven pause at <code>node_await_approval</code>. 4-hour SLA before auto-escalation to on-call. Risk-based tiers: AUTO / STANDARD / SENIOR / EXECUTIVE.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h3>Audit Trail</h3>
+      <p>18 event types, SHA-256 integrity checksum, 7-year retention (EU AI Act Art. 12). Append-only PostgreSQL with row-level security. Monthly archival to GCS cold storage after year 1.</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top: 20px;">
+    <strong>Full compliance evidence:</strong> <code>docs/compliance/eu-ai-act.md</code> (Art. 6–15 article-by-article) · <code>docs/compliance/iso-42001.md</code> · <code>docs/compliance/compliance-matrix.md</code> (45 controls) · <code>docs/compliance/gdpr.md</code> · <code>docs/compliance/data-governance-policy.md</code>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ QUICK START ══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Development</div>
+  <div class="section-title">Quick Start</div>
+
+  <div class="grid-2">
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Start Everything</div>
+      <pre><span class="comment"># Recommended — starts all 14 services</span>
+.\scripts\start-dev.ps1
+
+<span class="comment"># Or manually:</span>
+docker compose up -d                          <span class="comment"># infra</span>
+uvicorn app:app --reload                      <span class="comment"># :8000</span>
+cd agents/data_agent && uvicorn src.api.main:app --port 8001
+cd frontend && npm run dev                    <span class="comment"># :3000</span></pre>
+    </div>
+    <div>
+      <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Run Tests</div>
+      <pre><span class="comment"># Unit tests (102 tests)</span>
+pytest tests/unit -v
+
+<span class="comment"># Data agent E2E</span>
+cd agents/data_agent && pytest tests/ -v
+
+<span class="comment"># TypeScript check</span>
+cd frontend && npx tsc --noEmit
+
+<span class="comment"># E2E pipeline test</span>
+python scripts/e2e_csv_pipeline_test.py</pre>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .container -->
+
+<footer>
+  Enterprise Agentic Platform — v6.0 &nbsp;·&nbsp; Architecture Team &nbsp;·&nbsp; Last Updated 2026-06-22
+  <div style="margin-top: 8px; font-size: 11px;">
+    Two systems · 14 services · 70+ source types · LangGraph + Kafka + Claude
+  </div>
+</footer>
+
+</body>
+</html>

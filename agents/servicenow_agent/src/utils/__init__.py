@@ -20,22 +20,41 @@ warnings.warn(
 )
 
 # Re-export from platform_services for backward compatibility
-from platform_services.infrastructure_clients import (
-    get_kafka_producer,
-    get_kafka_consumer,
-    get_redis_client,
-    get_postgres_client,
-    redis_client,
-    postgres_client,
-    kafka_client,
-)
+try:
+    from platform_services.infrastructure_clients import (
+        get_kafka_producer,
+        get_kafka_consumer,
+        get_redis_client,
+        get_postgres_client,
+        redis_client,
+        postgres_client,
+        kafka_client,
+    )
+except ImportError:
+    get_kafka_producer = get_kafka_consumer = get_redis_client = None
+    get_postgres_client = redis_client = postgres_client = kafka_client = None
 
 # Additional utilities that are unique to backend
-from .cost_tracker import CostTracker, cost_tracker
-from .otel_tracing import get_tracer, trace_async, configure_tracing
-from .registry_manager import RegistryManager
-from .slack_notifier import SlackNotifier, slack_notifier
-from .github_actions import GitHubActionsClient
+try:
+    from .cost_tracker import CostTracker, cost_tracker
+except ImportError:
+    CostTracker = cost_tracker = None
+try:
+    from .otel_tracing import get_tracer, trace_async, configure_tracing
+except ImportError:
+    get_tracer = trace_async = configure_tracing = None
+try:
+    from .registry_manager import RegistryManager
+except ImportError:
+    RegistryManager = None
+try:
+    from .slack_notifier import SlackNotifier, slack_notifier
+except ImportError:
+    SlackNotifier = slack_notifier = None
+try:
+    from .github_actions import GitHubActionsClient
+except ImportError:
+    GitHubActionsClient = None
 
 __all__ = [
     # Infrastructure (re-exported from platform_services)

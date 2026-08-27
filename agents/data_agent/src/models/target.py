@@ -12,12 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TargetZone(str, Enum):
-    """Medallion architecture zones."""
+    """Medallion architecture zones. Gold is the final layer."""
     LANDING = "landing"
     BRONZE = "bronze"
     SILVER = "silver"
     GOLD = "gold"
-    TRUSTED = "trusted"
 
 
 class WriteMode(str, Enum):

@@ -19,6 +19,8 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 import structlog
 
 from src.graphs.apex_workflow import (
@@ -316,6 +318,12 @@ async def health_check():
     }
 
 
+@app.get("/metrics")
+async def metrics_endpoint():
+    """Prometheus metrics endpoint — scraped by prometheus service."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/pipelines", response_model=PipelineResponse)
 async def create_pipeline(
     request: PipelineIntentRequest,
@@ -477,6 +485,197 @@ async def list_pipelines(
             break
 
     return {"pipelines": pipelines, "total": len(pipelines)}
+
+
+# =============================================================================
+# Legacy Migration Endpoints
+# =============================================================================
+
+
+class MigrationJobRequest(BaseModel):
+    """Request to start a stored procedure migration job."""
+    connection_code: str = Field(..., description="connection_registry.connection_code for the source DB")
+    schema_filter: str = Field(default="%", description="SQL LIKE pattern for schema names")
+    proc_name_pattern: str = Field(default="%", description="SQL LIKE pattern for procedure names")
+    dtsx_source_path: Optional[str] = Field(default=None, description="GCS path to .dtsx file (optional)")
+    target_feed_group_id: Optional[str] = Field(default=None, description="UUID of target feed group")
+    created_by: Optional[str] = Field(default=None)
+
+
+class MigrationObjectSummary(BaseModel):
+    object_id: str
+    object_schema: str
+    object_name: str
+    object_type: str
+    db_platform: str
+    extraction_status: str
+    char_count: Optional[int] = None
+    is_encrypted: bool = False
+
+
+class MigrationJobResponse(BaseModel):
+    job_id: str
+    status: str
+    extraction_source: str
+    total_objects: int = 0
+    extracted_objects: int = 0
+    failed_objects: int = 0
+    skipped_objects: int = 0
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    created_by: Optional[str] = None
+    objects: Optional[list] = None
+    artifacts: Optional[list] = None
+    dependency_graph: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+
+
+async def _run_migration_background(job_id: str, intent_json: Dict[str, Any]) -> None:
+    """Run LegacyMigrationAgent in a background task."""
+    try:
+        from src.agents.legacy_migration_agent import LegacyMigrationAgent
+
+        state: Dict[str, Any] = {
+            "request_id": job_id,
+            "intent_json": intent_json,
+        }
+        agent = LegacyMigrationAgent()
+        result = agent.run(state)
+        logger.info("migration_background_complete", job_id=job_id, error=result.get("error_message"))
+    except Exception as exc:
+        logger.error("migration_background_failed", job_id=job_id, error=str(exc))
+        try:
+            from src.repository.migration_repository import MigrationRepository
+            settings = get_settings()
+            repo = MigrationRepository(settings.get_database_url_str())
+            repo.update_job_status(job_id, "FAILED", error_message=str(exc), completed=True)
+        except Exception:
+            pass
+
+
+@app.post("/migration/jobs", response_model=MigrationJobResponse)
+async def create_migration_job(request: MigrationJobRequest, background_tasks: BackgroundTasks):
+    """
+    Start a new legacy stored procedure migration job.
+
+    Parses the source DB (or .dtsx file) for stored procedures, builds a
+    dependency graph, and generates PySpark + Airflow artifacts via LLM.
+    The job runs asynchronously — poll GET /migration/jobs/{job_id} for status.
+    """
+    settings = get_settings()
+
+    # Pre-create the job row so we can return job_id immediately
+    from src.repository.migration_repository import MigrationRepository
+    repo = MigrationRepository(settings.get_database_url_str())
+
+    try:
+        job_id = repo.create_migration_job(
+            connection_id=None,
+            dtsx_source_path=request.dtsx_source_path,
+            schema_filter=request.schema_filter,
+            proc_name_pattern=request.proc_name_pattern,
+            extraction_source="LIVE_DB",
+            created_by=request.created_by,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to create migration job: {exc}")
+
+    intent_json = {
+        "source": {
+            "source_type": "legacy_ssis",
+            "connection_code": request.connection_code,
+            "dtsx_config": {
+                "connection_code": request.connection_code,
+                "schema_filter": request.schema_filter,
+                "proc_name_pattern": request.proc_name_pattern,
+                "dtsx_source_path": request.dtsx_source_path,
+                "migration_job_id": job_id,
+            },
+        },
+        "created_by": request.created_by,
+    }
+
+    background_tasks.add_task(_run_migration_background, job_id, intent_json)
+    logger.info("migration_job_created", job_id=job_id)
+
+    return MigrationJobResponse(
+        job_id=job_id,
+        status="PENDING",
+        extraction_source="LIVE_DB",
+    )
+
+
+@app.get("/migration/jobs/{job_id}", response_model=MigrationJobResponse)
+async def get_migration_job(job_id: str, include_artifacts: bool = True):
+    """Get full status, objects, graph, and artifacts for a migration job."""
+    settings = get_settings()
+    from src.repository.migration_repository import MigrationRepository
+    repo = MigrationRepository(settings.get_database_url_str())
+
+    try:
+        job = repo.get_job(job_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Migration job {job_id} not found")
+
+    objects = []
+    artifacts = []
+    dependency_graph: Optional[Dict[str, Any]] = None
+
+    try:
+        objects = repo.get_objects_for_job(job_id)
+        if include_artifacts:
+            artifacts = repo.get_artifacts_for_job(job_id)
+
+        # Re-build dependency graph from persisted lineage (lightweight representation)
+        if objects:
+            dependency_graph = {
+                "node_count": len(objects),
+                "nodes": [
+                    {
+                        "id": f"{o['object_schema']}.{o['object_name']}",
+                        "schema": o["object_schema"],
+                        "name": o["object_name"],
+                        "object_type": o["object_type"],
+                        "extraction_status": o["extraction_status"],
+                    }
+                    for o in objects
+                ],
+            }
+    except Exception as exc:
+        logger.warning("migration_job_detail_fetch_failed", job_id=job_id, error=str(exc))
+
+    return MigrationJobResponse(
+        job_id=str(job["job_id"]),
+        status=job["status"],
+        extraction_source=job["extraction_source"],
+        total_objects=job.get("total_objects", 0) or 0,
+        extracted_objects=job.get("extracted_objects", 0) or 0,
+        failed_objects=job.get("failed_objects", 0) or 0,
+        skipped_objects=job.get("skipped_objects", 0) or 0,
+        started_at=str(job["started_at"]) if job.get("started_at") else None,
+        completed_at=str(job["completed_at"]) if job.get("completed_at") else None,
+        created_by=job.get("created_by"),
+        objects=objects,
+        artifacts=artifacts,
+        dependency_graph=dependency_graph,
+        error_message=job.get("error_message"),
+    )
+
+
+@app.get("/migration/jobs")
+async def list_migration_jobs(limit: int = 50):
+    """List recent migration jobs with summary counts."""
+    settings = get_settings()
+    from src.repository.migration_repository import MigrationRepository
+    repo = MigrationRepository(settings.get_database_url_str())
+    try:
+        jobs = repo.list_jobs(limit=limit)
+        return {"jobs": jobs, "total": len(jobs)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # =============================================================================

@@ -20,7 +20,6 @@ USAGE:
         data={"source_id": "INC001"}
     )
 """
-import asyncio
 import json
 import logging
 from datetime import datetime

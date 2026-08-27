@@ -31,7 +31,7 @@ class CodeScanResult:
 class ComprehensiveProjectValidator:
     """Scans ALL Python files and validates governance compliance"""
 
-    def __init__(self, project_root: str = "/home/samrattidke600/ai_agent_app"):
+    def __init__(self, project_root: str = str(Path(__file__).parent.parent.parent.parent.parent)):
         self.root = Path(project_root)
         self.scan_result = CodeScanResult()
         self.results: List[ValidationResult] = []

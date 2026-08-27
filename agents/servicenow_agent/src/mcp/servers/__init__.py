@@ -29,11 +29,26 @@ USAGE:
     python -m backend.mcp.servers.gcs_server
 """
 
-from .rag_server import RAGMCPServer
-from .gcs_server import create_gcs_mcp_server
-from .iceberg_server import create_iceberg_mcp_server
-from .llm_server import create_llm_mcp_server
-from .airflow_server import create_airflow_mcp_server
+try:
+    from .rag_server import RAGMCPServer
+except ImportError:
+    RAGMCPServer = None
+try:
+    from .gcs_server import create_gcs_mcp_server
+except ImportError:
+    create_gcs_mcp_server = None
+try:
+    from .iceberg_server import create_iceberg_mcp_server
+except ImportError:
+    create_iceberg_mcp_server = None
+try:
+    from .llm_server import create_llm_mcp_server
+except ImportError:
+    create_llm_mcp_server = None
+try:
+    from .airflow_server import create_airflow_mcp_server
+except ImportError:
+    create_airflow_mcp_server = None
 
 __all__ = [
     "RAGMCPServer",

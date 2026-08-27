@@ -1,0 +1,75 @@
+name: Deploy GKE (Neo4j + Weaviate)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "k8s/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CLUSTER_NAME: ai-agent-cluster-prod
+  CLUSTER_REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Apply k8s manifests
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+            --region=${{ env.CLUSTER_REGION }} \
+            --project=${{ env.PROJECT_ID }}
+
+      - name: Create namespace
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Seed Neo4j secret (if not exists)
+        run: |
+          kubectl create secret generic neo4j-auth \
+            --namespace=ai-agent \
+            --from-literal=NEO4J_AUTH="neo4j/${{ secrets.NEO4J_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Seed Weaviate secret (if not exists)
+        run: |
+          kubectl create secret generic weaviate-api-key \
+            --namespace=ai-agent \
+            --from-literal=api-key="${{ secrets.WEAVIATE_API_KEY }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Neo4j
+        run: |
+          kubectl apply -f k8s/neo4j/statefulset.yaml
+          kubectl apply -f k8s/neo4j/service.yaml
+          kubectl rollout status statefulset/neo4j -n ai-agent --timeout=300s
+
+      - name: Deploy Weaviate
+        run: |
+          kubectl apply -f k8s/weaviate/configmap.yaml
+          kubectl apply -f k8s/weaviate/statefulset.yaml
+          kubectl apply -f k8s/weaviate/service.yaml
+          kubectl rollout status statefulset/weaviate -n ai-agent --timeout=300s
+
+      - name: Verify pods
+        run: kubectl get pods -n ai-agent

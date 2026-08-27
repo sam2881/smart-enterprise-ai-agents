@@ -219,6 +219,8 @@ class WorkflowManager:
         Trigger a new incident workflow.
 
         This creates the workflow state and imports the LangGraph workflow.
+        Also stores a lookup alias so approval/close can find the workflow
+        using just the incident_id.
         """
         workflow_id = f"incident-{incident_id}-{uuid.uuid4().hex[:8]}"
 
@@ -236,9 +238,12 @@ class WorkflowManager:
 
         await self.save_workflow_state(workflow_id, state)
 
+        # Store alias so approval/close lookups by incident_id resolve correctly
+        await self._save_workflow_alias(incident_id, workflow_id)
+
         # Import and run LangGraph workflow
         try:
-            from orchestrator.langgraph_workflow import run_incident_workflow
+            from agents.servicenow_agent.src.orchestrator.langgraph_workflow import run_incident_workflow
             result = await run_incident_workflow(
                 workflow_id=workflow_id,
                 incident_id=incident_id,
@@ -298,6 +303,35 @@ class WorkflowManager:
             await self.save_workflow_state(workflow_id, state)
             raise
 
+    async def _save_workflow_alias(self, incident_id: str, workflow_id: str):
+        """Store alias: incident-{incident_id} → full workflow_id (with uuid suffix)"""
+        try:
+            import redis
+            if not self._redis:
+                self._redis = redis.from_url(self.config.redis_url)
+            self._redis.set(
+                f"workflow:alias:incident-{incident_id}",
+                workflow_id,
+                ex=86400 * 7  # 7 day TTL
+            )
+        except Exception as e:
+            logger.error(f"Error saving workflow alias: {e}")
+
+    async def resolve_workflow_id(self, incident_id: str) -> str:
+        """Resolve incident_id to the full workflow_id via alias lookup."""
+        try:
+            import redis
+            if not self._redis:
+                self._redis = redis.from_url(self.config.redis_url)
+            alias_key = f"workflow:alias:incident-{incident_id}"
+            full_id = self._redis.get(alias_key)
+            if full_id:
+                return full_id.decode() if isinstance(full_id, bytes) else full_id
+        except Exception as e:
+            logger.error(f"Error resolving workflow alias: {e}")
+        # Fallback: try the simplified key
+        return f"incident-{incident_id}"
+
     async def resume_workflow_on_approval(
         self,
         workflow_id: str,
@@ -321,7 +355,7 @@ class WorkflowManager:
 
             # Resume LangGraph from approval checkpoint
             try:
-                from orchestrator.langgraph_workflow import resume_incident_workflow
+                from agents.servicenow_agent.src.orchestrator.langgraph_workflow import resume_incident_workflow
                 result = await resume_incident_workflow(
                     workflow_id=workflow_id,
                     from_state="approved"
@@ -373,8 +407,9 @@ class EventOrchestrator:
             bootstrap_servers=self.config.kafka_bootstrap,
             group_id=self.config.consumer_group,
             value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-            auto_offset_reset='latest',
-            enable_auto_commit=True
+            auto_offset_reset='earliest',
+            enable_auto_commit=False,
+            max_poll_records=50,
         )
 
         self.producer = KafkaProducer(
@@ -407,6 +442,10 @@ class EventOrchestrator:
 
                     for record in records:
                         await self._handle_event(topic, record.value)
+
+                # Commit offsets only after successful processing
+                if messages:
+                    self.consumer.commit()
 
                 await asyncio.sleep(0.1)
 
@@ -523,8 +562,8 @@ class EventOrchestrator:
 
         logger.info(f"Incident approved: {incident_id} by {approved_by}")
 
-        # Find workflow by incident_id
-        workflow_id = f"incident-{incident_id}"  # Simplified lookup
+        # Find workflow by incident_id (resolve alias to full workflow_id)
+        workflow_id = await self.workflow_manager.resolve_workflow_id(incident_id)
 
         try:
             state = await self.workflow_manager.resume_workflow_on_approval(
@@ -546,8 +585,8 @@ class EventOrchestrator:
 
         logger.info(f"Incident rejected: {incident_id} by {rejected_by}")
 
-        # Update workflow state
-        workflow_id = f"incident-{incident_id}"
+        # Resolve to full workflow_id via alias
+        workflow_id = await self.workflow_manager.resolve_workflow_id(incident_id)
         state = await self.workflow_manager.get_workflow_state(workflow_id)
 
         if state:
@@ -563,8 +602,8 @@ class EventOrchestrator:
 
         logger.info(f"Close requested for: {incident_id} by {requested_by}")
 
-        # Validate workflow is in correct state
-        workflow_id = f"incident-{incident_id}"
+        # Resolve to full workflow_id via alias
+        workflow_id = await self.workflow_manager.resolve_workflow_id(incident_id)
         state = await self.workflow_manager.get_workflow_state(workflow_id)
 
         # Publish close execute command for ServiceNow MCP

@@ -1,0 +1,69 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+env:
+  TF_ENV: dev
+
+jobs:
+  plan:
+    name: Terraform Plan (${{ env.TF_ENV }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.TF_SA_EMAIL }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        working-directory: terraform/environments/${{ env.TF_ENV }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform/environments/${{ env.TF_ENV }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/environments/${{ env.TF_ENV }}
+        run: |
+          terraform plan \
+            -var-file=terraform.tfvars \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -no-color \
+            -out=plan.tfplan 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/environments/${{ env.TF_ENV }}/plan_output.txt', 'utf8');
+            const truncated = plan.length > 60000 ? '...(truncated)\n' + plan.slice(-59000) : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan — \`${{ env.TF_ENV }}\`\n\`\`\`\n${truncated}\n\`\`\``
+            });
+
+      - name: Check Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

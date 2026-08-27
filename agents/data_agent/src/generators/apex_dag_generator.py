@@ -121,6 +121,16 @@ class APEXDAGGenerator:
         # Select pattern and template
         pattern, template_path = self.registry.select_and_resolve(config)
 
+        # SP migration: override template when legacy_migration_output is present
+        legacy_mig = (config.source and config.source.source_config or {}).get("legacy_migration_output")
+        if pattern.value == "P04" and legacy_mig:
+            sp_template = "p04_legacy_migration_sp.py.jinja2"
+            # Only override if the SP template exists; fall back to base P04 otherwise
+            import importlib.resources
+            sp_path = self.PATTERN_TEMPLATE_DIR / sp_template
+            if sp_path.exists():
+                template_path = sp_path
+
         # Build template context
         context = self._build_context(config, pattern)
 
@@ -539,6 +549,17 @@ class APEXDAGGenerator:
             context["copybook_path"] = config.feed.copybook_path if config.feed else None
             context["encoding"] = config.feed.encoding if config.feed else "EBCDIC"
             context["record_length"] = config.feed.record_length if config.feed else 0
+
+            # SP migration variant: inject dependency graph data when present
+            legacy_mig = (config.source and config.source.source_config or {}).get("legacy_migration_output")
+            if legacy_mig:
+                context["job_id"] = legacy_mig.get("job_id", "")
+                context["stored_procs"] = legacy_mig.get("dependency_graph", {}).get("nodes", [])
+                context["sp_execution_order"] = legacy_mig.get("sp_execution_order", [])
+                context["sp_execution_batches"] = legacy_mig.get("sp_execution_batches", {})
+                context["objects_extracted"] = legacy_mig.get("objects_extracted", 0)
+                context["extraction_source"] = legacy_mig.get("extraction_source", "UNKNOWN")
+                context["skipped_objects"] = legacy_mig.get("skipped_objects", [])
 
         elif pattern == PatternCode.P05_STREAMING_BATCH:
             # Streaming pattern needs topic and consumer config

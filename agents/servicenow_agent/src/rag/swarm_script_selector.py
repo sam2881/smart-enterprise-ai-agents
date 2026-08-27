@@ -30,10 +30,11 @@ from dataclasses import dataclass
 from enum import Enum
 from abc import ABC, abstractmethod
 
+from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv("/home/samrattidke600/ai_agent_app/.env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent.parent.parent.parent / ".env", override=False)
 
 # Initialize OpenAI
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

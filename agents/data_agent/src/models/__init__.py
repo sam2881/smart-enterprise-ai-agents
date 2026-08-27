@@ -13,9 +13,11 @@ from .pipeline import (
 from .source import (
     SourceConfig,
     SourceType,
+    SourceCategory,
     SourceFormat,
     FileSourceConfig,
     DatabaseSourceConfig,
+    NoSQLSourceConfig,
     StreamingSourceConfig,
     APISourceConfig,
     EBCDICSourceConfig,
@@ -45,6 +47,11 @@ from .quality import (
 from .execution import (
     ExecutionPolicy,
     ProcessingMode,
+    ResolvedExecutionPlan,
+    PipelineHealthScore,
+    SourcePlanConfig,
+    ZoneValidationRules,
+    ZoneTargetConfig,
 )
 from .canonical import (
     PipelineMetadata,
@@ -67,33 +74,58 @@ from .gold_zone import (
     DimensionConfig,
 )
 
-# APEX-specific models (mirror PostgreSQL metadata schema)
+# Production Metadata models (PostgreSQL table mirrors)
+from .production_metadata import (
+    DataVaultType,
+    ZoneType,
+    LoadTypeEnum,
+    FileFormatEnum,
+    IngestionStatus,
+    ContractStatus,
+    ValidationSeverity,
+    FeedGroupDetails,
+    FeedDetails,
+    ContractDetails,
+    SchemaDetails,
+    FeedIngestionDetails,
+    ColumnSpec,
+    ExpectationRule,
+    TransformationSpec,
+    FeedInputParam,
+    InputParamConfig,
+    ProductionExecutionPlan,
+    CreateFeedGroupRequest,
+    CreateFeedRequest,
+    CreateContractRequest,
+    GeneratePipelineRequest,
+)
+
+# APEX-specific models
 from .apex_models import (
     # Enums
-    SourceType as APEXSourceType,
     FileFormat,
     LoadType,
     ZoneLevel,
     ValidationType,
-    Severity as APEXSeverity,
     ExecutionStatus,
     TemplateType,
     PatternCode,
     FeedType,
     ContractType,
+    PipelineStatus,
+    PipelinePhase,
     # Core registry models
     ConnectionRegistry,
     DomainRegistry,
     SourceRegistry,
     DAGTemplate,
     SparkConfig,
+    PatternInfo,
     # Feed and contract models
     FeedGroup,
     Feed,
     DataContract,
-    # Schema and view models
-    ColumnDefinition as APEXColumnDefinition,
-    SchemaVersion as APEXSchemaVersion,
+    # View and transformation models
     ViewDefinition,
     TransformationRule,
     ContractTransformation,
@@ -121,17 +153,19 @@ __all__ = [
     "PipelineConfig",
     "PipelineCreate",
     "PipelineUpdate",
-    # Source
+    # Source (canonical)
     "SourceConfig",
     "SourceType",
+    "SourceCategory",
     "SourceFormat",
     "FileSourceConfig",
     "DatabaseSourceConfig",
+    "NoSQLSourceConfig",
     "StreamingSourceConfig",
     "APISourceConfig",
     "EBCDICSourceConfig",
     "DTSXSourceConfig",
-    # Schema
+    # Schema (canonical)
     "ColumnDefinition",
     "SchemaConfig",
     "SchemaVersion",
@@ -144,41 +178,58 @@ __all__ = [
     "TransformConfig",
     "TransformType",
     "NLTransformInput",
-    # Quality
+    # Quality (canonical)
     "QualityRule",
     "QualityRuleType",
     "Severity",
     # Execution
     "ExecutionPolicy",
     "ProcessingMode",
+    "ResolvedExecutionPlan",
+    "PipelineHealthScore",
+    "SourcePlanConfig",
+    "ZoneValidationRules",
+    "ZoneTargetConfig",
     # Canonical
     "PipelineMetadata",
     "UnifiedPipelineInput",
+    # Gold Zone
+    "GoldModelingStrategy",
+    "GoldZoneConfig",
+    "DataVault2Config",
+    "StarSchemaConfig",
+    "SnowflakeSchemaConfig",
+    "FlatTableConfig",
+    "HubConfig",
+    "LinkConfig",
+    "SatelliteConfig",
+    "FactTableConfig",
+    "MeasureConfig",
+    "DimensionConfig",
     # APEX Enums
-    "APEXSourceType",
     "FileFormat",
     "LoadType",
     "ZoneLevel",
     "ValidationType",
-    "APEXSeverity",
     "ExecutionStatus",
     "TemplateType",
     "PatternCode",
     "FeedType",
     "ContractType",
+    "PipelineStatus",
+    "PipelinePhase",
     # APEX Core registry
     "ConnectionRegistry",
     "DomainRegistry",
     "SourceRegistry",
     "DAGTemplate",
     "SparkConfig",
+    "PatternInfo",
     # APEX Feed and contract
     "FeedGroup",
     "Feed",
     "DataContract",
-    # APEX Schema and view
-    "APEXColumnDefinition",
-    "APEXSchemaVersion",
+    # APEX View and transformation
     "ViewDefinition",
     "TransformationRule",
     "ContractTransformation",
@@ -199,4 +250,31 @@ __all__ = [
     "APEXPipelineConfig",
     "APEXGenerationRequest",
     "APEXGenerationResponse",
+    # Production Metadata Enums
+    "DataVaultType",
+    "ZoneType",
+    "LoadTypeEnum",
+    "FileFormatEnum",
+    "IngestionStatus",
+    "ContractStatus",
+    "ValidationSeverity",
+    # Production Metadata Core
+    "FeedGroupDetails",
+    "FeedDetails",
+    "ContractDetails",
+    "SchemaDetails",
+    "FeedIngestionDetails",
+    # Production Metadata Components
+    "ColumnSpec",
+    "ExpectationRule",
+    "TransformationSpec",
+    # Production Multi-Feed Patterns
+    "FeedInputParam",
+    "InputParamConfig",
+    "ProductionExecutionPlan",
+    # Production API Models
+    "CreateFeedGroupRequest",
+    "CreateFeedRequest",
+    "CreateContractRequest",
+    "GeneratePipelineRequest",
 ]

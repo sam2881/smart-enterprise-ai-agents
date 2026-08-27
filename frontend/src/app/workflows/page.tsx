@@ -8,9 +8,10 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { WorkflowVisualization, WorkflowData } from '@/components/workflow/WorkflowVisualization'
 import { Badge } from '@/components/ui/Badge'
 import { Activity, CheckCircle2, XCircle, Clock, AlertCircle, Database, Server, Plus } from 'lucide-react'
+import { getApiBaseUrl } from '@/lib/constants'
 
-// API Configuration - PRODUCTION
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// API Configuration - use same-origin helper
+const API_BASE_URL = getApiBaseUrl() || 'http://localhost:8000'
 
 type WorkflowType = 'incident' | 'pipeline' | 'all'
 
@@ -71,7 +72,7 @@ export default function WorkflowsPage() {
   const { data: workflows = [], isLoading: workflowsLoading } = useQuery({
     queryKey: ['workflows'],
     queryFn: fetchWorkflows,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
     retry: 3,
   })
 
@@ -79,7 +80,7 @@ export default function WorkflowsPage() {
   const { data: pipelines = [], isLoading: pipelinesLoading } = useQuery({
     queryKey: ['pipelines'],
     queryFn: fetchPipelines,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   })
 
   // Fetch workflow definitions

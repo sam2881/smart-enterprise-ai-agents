@@ -84,26 +84,37 @@ class SourceType(str, Enum):
     LEGACY_AS400 = "legacy_as400"
     LEGACY_MAINFRAME = "legacy_mainframe"
 
-    # F. Semi-Structured / Nested
+    # F. NoSQL Databases
+    NOSQL_MONGODB = "nosql_mongodb"
+    NOSQL_CASSANDRA = "nosql_cassandra"
+    NOSQL_DYNAMODB = "nosql_dynamodb"
+    NOSQL_REDIS = "nosql_redis"
+    NOSQL_COUCHBASE = "nosql_couchbase"
+    NOSQL_NEO4J = "nosql_neo4j"
+    NOSQL_ELASTICSEARCH = "nosql_elasticsearch"
+    NOSQL_SOLR = "nosql_solr"
+    NOSQL_HBASE = "nosql_hbase"
+
+    # G. Semi-Structured / Nested
     NESTED_JSON = "nested_json"
     NESTED_XML = "nested_xml"
     NESTED_AVRO = "nested_avro"
     NESTED_PARQUET = "nested_parquet"
 
-    # G. Unstructured / Observability
+    # H. Unstructured / Observability
     LOGS_APPLICATION = "logs_application"
     LOGS_AIRFLOW = "logs_airflow"
     LOGS_SPARK = "logs_spark"
     LOGS_AUDIT = "logs_audit"
     LOGS_METRICS = "logs_metrics"
 
-    # H. Cloud Storage / External Lakes
+    # I. Cloud Storage / External Lakes
     STORAGE_S3 = "storage_s3"
     STORAGE_GCS = "storage_gcs"
     STORAGE_ADLS = "storage_adls"
     STORAGE_EXTERNAL = "storage_external"
 
-    # I. Special / Advanced
+    # J. Special / Advanced
     SPECIAL_IOT = "special_iot"
     SPECIAL_TIMESERIES = "special_timeseries"
     SPECIAL_GEOSPATIAL = "special_geospatial"
@@ -112,6 +123,59 @@ class SourceType(str, Enum):
 
     # Backward compatibility
     DTSX = "dtsx"
+
+    @property
+    def category(self) -> "SourceCategory":
+        """
+        Map granular source type to high-level category.
+        Used for APEX pattern selection.
+        """
+        # Extract prefix from source type (e.g., "file_csv" -> "file")
+        prefix = self.value.split('_')[0].upper()
+
+        # Map to category
+        category_map = {
+            "FILE": SourceCategory.FILE,
+            "DATABASE": SourceCategory.DATABASE,
+            "STREAMING": SourceCategory.STREAMING,
+            "API": SourceCategory.API,
+            "SAAS": SourceCategory.SAAS,
+            "LEGACY": SourceCategory.LEGACY,
+            "NOSQL": SourceCategory.NOSQL,
+            "NESTED": SourceCategory.NESTED,
+            "LOGS": SourceCategory.LOGS,
+            "STORAGE": SourceCategory.CLOUD,
+            "SPECIAL": SourceCategory.SPECIAL,
+            "DTSX": SourceCategory.LEGACY,  # Backward compatibility
+        }
+
+        return category_map.get(prefix, SourceCategory.FILE)
+
+
+class SourceCategory(str, Enum):
+    """
+    High-level source categories for APEX pattern selection.
+
+    Used to determine which APEX pattern template to use:
+    - FILE → P01 (File Medallion)
+    - DATABASE → P03 (Database Lakehouse)
+    - NOSQL → P03 (Database Lakehouse, similar pattern)
+    - STREAMING → P02 (Streaming Medallion)
+    - LEGACY → P04 (Legacy Migration)
+    - API → P05 (API Integration)
+    - etc.
+    """
+    FILE = "FILE"
+    DATABASE = "DATABASE"
+    NOSQL = "NOSQL"
+    STREAMING = "STREAMING"
+    API = "API"
+    SAAS = "SAAS"
+    LEGACY = "LEGACY"
+    NESTED = "NESTED"
+    LOGS = "LOGS"
+    CLOUD = "CLOUD"
+    SPECIAL = "SPECIAL"
 
 
 class SourceFormat(str, Enum):
@@ -167,6 +231,34 @@ class DatabaseSourceConfig(BaseModel):
     extraction_mode: ExtractionMode = Field(default=ExtractionMode.FULL)
     watermark_column: Optional[str] = Field(None, description="Column for incremental loads")
     batch_size: int = Field(default=10000, ge=1000, le=1000000)
+
+
+class NoSQLSourceConfig(BaseModel):
+    """Configuration for NoSQL database sources (MongoDB, Cassandra, DynamoDB, etc.)."""
+    model_config = ConfigDict(extra="forbid")
+
+    connection_string: str = Field(..., description="NoSQL connection string or URI")
+
+    # MongoDB-specific
+    database_name: Optional[str] = Field(None, description="Database name (MongoDB, Couchbase)")
+    collection_name: Optional[str] = Field(None, description="Collection name (MongoDB)")
+    query_filter: Optional[str] = Field(None, description="JSON query filter (MongoDB, DynamoDB)")
+
+    # Cassandra-specific
+    keyspace: Optional[str] = Field(None, description="Keyspace name (Cassandra)")
+    table_name: Optional[str] = Field(None, description="Table name (Cassandra, DynamoDB, HBase)")
+
+    # ElasticSearch/Solr-specific
+    index_name: Optional[str] = Field(None, description="Index name (ElasticSearch, Solr)")
+    search_query: Optional[str] = Field(None, description="Search query (ElasticSearch, Solr)")
+
+    # Neo4j-specific
+    cypher_query: Optional[str] = Field(None, description="Cypher query (Neo4j)")
+
+    # Common
+    extraction_mode: ExtractionMode = Field(default=ExtractionMode.FULL)
+    batch_size: int = Field(default=1000, ge=100, le=100000)
+    read_preference: Optional[str] = Field(None, description="Read preference (MongoDB: primary, secondary)")
 
 
 class StreamingSourceConfig(BaseModel):
@@ -253,6 +345,21 @@ class DTSXSourceConfig(BaseModel):
     extracted_destinations: List[Dict[str, Any]] = Field(default_factory=list)
     column_mappings: List[Dict[str, Any]] = Field(default_factory=list)
 
+    # SP migration fields (populated by LegacyMigrationAgent)
+    migration_job_id: Optional[str] = Field(default=None, description="UUID of the migration_job row")
+    sp_objects: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Stored procedure definitions extracted from the live DB or .sql files",
+    )
+    sp_execution_order: List[str] = Field(
+        default_factory=list,
+        description="Topologically sorted list of procedure FQNs (leaves first)",
+    )
+    connection_code: Optional[str] = Field(
+        default=None,
+        description="connection_registry.connection_code for live SP extraction",
+    )
+
 
 # =============================================================================
 # Unified Source Configuration
@@ -277,6 +384,7 @@ class SourceConfig(BaseModel):
     # Type-specific configuration (only one populated based on source_type)
     file_config: Optional[FileSourceConfig] = Field(None)
     database_config: Optional[DatabaseSourceConfig] = Field(None)
+    nosql_config: Optional[NoSQLSourceConfig] = Field(None)
     streaming_config: Optional[StreamingSourceConfig] = Field(None)
     api_config: Optional[APISourceConfig] = Field(None)
     ebcdic_config: Optional[EBCDICSourceConfig] = Field(None)
@@ -303,6 +411,15 @@ class SourceConfig(BaseModel):
             SourceType.DATABASE_ORACLE: self.database_config,
             SourceType.DATABASE_SQLSERVER: self.database_config,
             SourceType.DATABASE_BIGQUERY: self.database_config,
+            SourceType.NOSQL_MONGODB: self.nosql_config,
+            SourceType.NOSQL_CASSANDRA: self.nosql_config,
+            SourceType.NOSQL_DYNAMODB: self.nosql_config,
+            SourceType.NOSQL_REDIS: self.nosql_config,
+            SourceType.NOSQL_COUCHBASE: self.nosql_config,
+            SourceType.NOSQL_NEO4J: self.nosql_config,
+            SourceType.NOSQL_ELASTICSEARCH: self.nosql_config,
+            SourceType.NOSQL_SOLR: self.nosql_config,
+            SourceType.NOSQL_HBASE: self.nosql_config,
             SourceType.STREAMING_KAFKA: self.streaming_config,
             SourceType.STREAMING_PUBSUB: self.streaming_config,
             SourceType.API_REST: self.api_config,

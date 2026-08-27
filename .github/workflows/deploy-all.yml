@@ -1,0 +1,158 @@
+name: Deploy All Services
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Images"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (default: latest)"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: backend-api
+            image: backend
+            port: 8000
+            min_instances: 1
+            flags: ""
+          - name: data-agent-api
+            image: data-agent
+            port: 8001
+            min_instances: 1
+            flags: ""
+          - name: frontend
+            image: frontend
+            port: 3001
+            min_instances: 1
+            flags: ""
+          - name: event-orchestrator
+            image: event-orchestrator
+            port: 8080
+            min_instances: 1
+            flags: "--no-cpu-throttling"
+          - name: incident-consumer
+            image: incident-consumer
+            port: 8080
+            min_instances: 1
+            flags: "--no-cpu-throttling"
+          - name: jira-consumer
+            image: jira-consumer
+            port: 8080
+            min_instances: 1
+            flags: "--no-cpu-throttling"
+          - name: pipeline-consumer
+            image: pipeline-consumer
+            port: 8080
+            min_instances: 1
+            flags: "--no-cpu-throttling"
+          - name: proactive-monitor
+            image: proactive-monitor
+            port: 8080
+            min_instances: 1
+            flags: "--no-cpu-throttling"
+          - name: post-mortem-agent
+            image: post-mortem-agent
+            port: 8080
+            min_instances: 0
+            flags: ""
+          - name: mcp-servicenow
+            image: mcp-servicenow
+            port: 8080
+            min_instances: 1
+            flags: ""
+          - name: mcp-jira
+            image: mcp-jira
+            port: 8080
+            min_instances: 1
+            flags: ""
+          - name: mcp-github
+            image: mcp-github
+            port: 8092
+            min_instances: 1
+            flags: ""
+          - name: mcp-airflow
+            image: mcp-airflow
+            port: 8006
+            min_instances: 1
+            flags: ""
+          - name: mcp-rag
+            image: mcp-rag
+            port: 8080
+            min_instances: 1
+            flags: ""
+          - name: mcp-gcs
+            image: mcp-gcs
+            port: 8011
+            min_instances: 1
+            flags: ""
+          - name: mcp-iceberg
+            image: mcp-iceberg
+            port: 8012
+            min_instances: 1
+            flags: ""
+          - name: mcp-llm
+            image: mcp-llm
+            port: 8013
+            min_instances: 1
+            flags: ""
+
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image_tag || github.sha }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ matrix.service.name }}-prod \
+            --image=${{ secrets.AR_REPO }}/${{ matrix.service.image }}:${{ steps.tag.outputs.tag }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --port=${{ matrix.service.port }} \
+            --min-instances=${{ matrix.service.min_instances }} \
+            --service-account=${{ secrets.WORKER_SA_EMAIL }} \
+            --vpc-connector=ai-agent-connector-prod \
+            --vpc-egress=private-ranges-only \
+            --set-env-vars="ENVIRONMENT=prod,GCP_PROJECT_ID=${{ env.PROJECT_ID }},PUBSUB_ENABLED=true" \
+            ${{ matrix.service.flags }} \
+            --quiet
+
+      - name: Verify deployment
+        run: |
+          URL=$(gcloud run services describe ${{ matrix.service.name }}-prod \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "Deployed: ${URL}/health"
+          curl -sf "${URL}/health" || echo "Health check skipped (internal service)"

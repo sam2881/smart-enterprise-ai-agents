@@ -207,13 +207,17 @@ class Settings(BaseSettings):
     # LLM Configuration
     # =========================================================================
 
-    llm_provider: Literal["openai", "anthropic", "google"] = Field(
+    llm_provider: Literal["openai", "anthropic", "google", "ollama"] = Field(
         default="openai",
-        description="LLM provider to use",
+        description="LLM provider to use (ollama = local model via OpenAI-compatible API)",
     )
     llm_model: str = Field(
         default="gpt-4-turbo-preview",
-        description="LLM model identifier",
+        description="LLM model identifier (e.g. llama3.2:3b for ollama)",
+    )
+    ollama_base_url: str = Field(
+        default="http://localhost:11434/v1",
+        description="Base URL for local Ollama server (only used when llm_provider=ollama)",
     )
     llm_temperature: float = Field(
         default=0.0,
@@ -487,6 +491,23 @@ class Settings(BaseSettings):
     )
 
     # =========================================================================
+    # Legacy Migration Settings
+    # =========================================================================
+
+    static_sql_scan_root: Optional[Path] = Field(
+        default=None,
+        description="Root directory to scan for .sql files when live DB is unavailable",
+    )
+    sp_extraction_timeout_seconds: int = Field(
+        default=60,
+        description="Per-procedure timeout for live DB extraction",
+    )
+    sp_max_definition_length: int = Field(
+        default=100_000,
+        description="Maximum characters to store per procedure definition (remainder truncated)",
+    )
+
+    # =========================================================================
     # Validators
     # =========================================================================
 
@@ -532,6 +553,8 @@ class Settings(BaseSettings):
 
     def get_llm_api_key(self) -> Optional[str]:
         """Get the appropriate LLM API key based on provider."""
+        if self.llm_provider == "ollama":
+            return None  # Ollama runs locally; no API key required
         if self.llm_provider == "openai" and self.openai_api_key:
             return self.openai_api_key.get_secret_value()
         elif self.llm_provider == "anthropic" and self.anthropic_api_key:

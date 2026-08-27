@@ -82,6 +82,28 @@ INCIDENTS_PROCESSED = Counter(
     ['source', 'severity', 'status']
 )
 
+# =============================================================================
+# L1 Support Metrics
+# =============================================================================
+L1_ATTEMPTS = Counter(
+    'aiagent_l1_attempts_total',
+    'Total L1 SOP triage attempts',
+    ['sop_id', 'outcome']  # outcome: resolved, escalated, failed, no_match
+)
+
+L1_RESOLUTION_SECONDS = Histogram(
+    'aiagent_l1_resolution_seconds',
+    'Time taken for L1 SOP actions (successful resolutions only)',
+    ['sop_id'],
+    buckets=[1, 5, 15, 30, 60, 120, 300]
+)
+
+L1_ESCALATIONS = Counter(
+    'aiagent_l1_escalations_total',
+    'L1 escalations to AI workflow',
+    ['reason']  # reason: no_sop_match, immediate_escalation, sop_id of failed SOP
+)
+
 INCIDENTS_ACTIVE = Gauge(
     'aiagent_incidents_active',
     'Currently active incidents'

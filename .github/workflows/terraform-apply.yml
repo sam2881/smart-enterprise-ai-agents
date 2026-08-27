@@ -1,0 +1,77 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_ENV: dev
+
+jobs:
+  apply-dev:
+    name: Apply — dev
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.TF_SA_EMAIL }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        run: |
+          terraform apply \
+            -var-file=terraform.tfvars \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -auto-approve
+
+  apply-prod:
+    name: Apply — prod
+    runs-on: ubuntu-latest
+    environment: prod
+    needs: apply-dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.TF_SA_EMAIL }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        working-directory: terraform/environments/prod
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/prod
+        run: |
+          terraform apply \
+            -var-file=terraform.tfvars \
+            -var="db_password=${{ secrets.DB_PASSWORD_PROD }}" \
+            -auto-approve

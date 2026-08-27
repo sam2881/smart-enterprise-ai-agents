@@ -206,9 +206,74 @@ class AuditLogger:
         )
 
     def _persist_event(self, event: AuditEvent):
-        """Persist event to storage"""
-        # In production, write to database/S3/etc
-        pass
+        """Persist event to PostgreSQL (immutable append-only)."""
+        import os
+        dsn = os.getenv("POSTGRES_DSN", "")
+        if not dsn:
+            return
+        try:
+            if not hasattr(self, '_pg_pool') or self._pg_pool is None:
+                import psycopg2.pool
+                self._pg_pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=3, dsn=dsn)
+                conn = self._pg_pool.getconn()
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            CREATE TABLE IF NOT EXISTS audit_events (
+                                event_id TEXT PRIMARY KEY,
+                                timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                event_type TEXT NOT NULL,
+                                actor TEXT NOT NULL,
+                                actor_type TEXT NOT NULL,
+                                action TEXT NOT NULL,
+                                resource TEXT NOT NULL,
+                                resource_type TEXT NOT NULL,
+                                outcome TEXT DEFAULT 'success',
+                                risk_level TEXT DEFAULT 'low',
+                                details JSONB DEFAULT '{}',
+                                ai_system_id TEXT DEFAULT 'incident-agent-v6',
+                                ai_decision_explanation TEXT DEFAULT '',
+                                human_oversight_applied BOOLEAN DEFAULT FALSE,
+                                confidence_score FLOAT DEFAULT 0.0,
+                                checksum TEXT NOT NULL,
+                                created_at TIMESTAMPTZ DEFAULT NOW()
+                            )
+                        """)
+                        conn.commit()
+                finally:
+                    self._pg_pool.putconn(conn)
+
+            event_dict = asdict(event)
+            # Full checksum including details for tamper detection
+            checksum_data = json.dumps(event_dict, sort_keys=True, default=str)
+            full_checksum = hashlib.sha256(checksum_data.encode()).hexdigest()
+
+            conn = self._pg_pool.getconn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO audit_events (event_id, timestamp, event_type, actor,
+                            actor_type, action, resource, resource_type, outcome, risk_level,
+                            details, ai_system_id, ai_decision_explanation,
+                            human_oversight_applied, confidence_score, checksum)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (event_id) DO NOTHING
+                    """, (
+                        event.event_id, event.timestamp, event.event_type,
+                        event.actor, event.actor_type, event.action,
+                        event.resource, event.resource_type, event.outcome,
+                        event.risk_level, json.dumps(event.details),
+                        event.ai_system_id, event.ai_decision_explanation,
+                        event.human_oversight_applied, event.confidence_score,
+                        full_checksum,
+                    ))
+                    conn.commit()
+            finally:
+                self._pg_pool.putconn(conn)
+        except ImportError:
+            pass  # psycopg2 not available
+        except Exception as exc:
+            logger.warning("audit_persist_failed", error=str(exc), event_id=event.event_id)
 
     def get_audit_trail(
         self,

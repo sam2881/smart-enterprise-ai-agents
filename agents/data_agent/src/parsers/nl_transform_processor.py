@@ -27,6 +27,17 @@ import structlog
 
 logger = structlog.get_logger()
 
+try:
+    from agents.servicenow_agent.src.security import secure_llm_call, data_agent_plugin_chain
+    _DATA_CHAIN = data_agent_plugin_chain()
+    _SECURITY_ENABLED = True
+except ImportError:
+    _SECURITY_ENABLED = False
+    def secure_llm_call(chain=None):  # type: ignore[misc]
+        def _noop(func):
+            return func
+        return _noop
+
 
 class TransformIntent(str, Enum):
     """Detected transformation intent."""
@@ -108,8 +119,8 @@ class NLTransformProcessor:
         Initialize NL transform processor.
 
         Args:
-            llm_client: Anthropic/OpenAI client
-            model: Model to use for code generation
+            llm_client: BaseLLMClient instance (or legacy Anthropic client for backwards compat)
+            model: Model override — only used for legacy Anthropic clients; BaseLLMClient carries its own model
             validate_code: Whether to validate generated code syntax
         """
         self.llm_client = llm_client
@@ -178,7 +189,8 @@ class NLTransformProcessor:
             # Extract column names
             columns = self._extract_columns(description, schema)
             if columns:
-                code = f'df = df.select({", ".join(f\'"{c}"\' for c in columns)})'
+                cols_str = ", ".join(f'"{c}"' for c in columns)
+                code = f"df = df.select({cols_str})"
                 return GeneratedCode(
                     pyspark_code=code,
                     sql_code=f"SELECT {', '.join(columns)} FROM table",
@@ -358,17 +370,27 @@ class NLTransformProcessor:
             "select_columns": None,
         }
 
+    @secure_llm_call(_DATA_CHAIN if _SECURITY_ENABLED else None)
     async def _generate_with_llm(self, request: TransformRequest, intent: TransformIntent) -> GeneratedCode:
         """Generate code using LLM."""
+        from agents.data_agent.src.llm import BaseLLMClient
+
         prompt = self._build_llm_prompt(request, intent)
 
         try:
-            response = await self.llm_client.messages.create(
-                model=self.model,
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            response_text = response.content[0].text
+            if isinstance(self.llm_client, BaseLLMClient):
+                response_text = await self.llm_client.acomplete(
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=2000,
+                )
+            else:
+                # Legacy path: raw Anthropic client passed directly
+                response = await self.llm_client.messages.create(
+                    model=self.model,
+                    max_tokens=2000,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                response_text = response.content[0].text
 
             return self._parse_llm_response(response_text, request, intent)
 

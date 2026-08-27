@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: weaviate
+  namespace: ai-agent
+  labels:
+    app: weaviate
+spec:
+  serviceName: weaviate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weaviate
+  template:
+    metadata:
+      labels:
+        app: weaviate
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: weaviate
+          image: semitechnologies/weaviate:1.23.6
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 50051
+          envFrom:
+            - configMapRef:
+                name: weaviate-config
+          env:
+            - name: AUTHENTICATION_APIKEY_ALLOWED_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: weaviate-api-key
+                  key: api-key
+          volumeMounts:
+            - name: weaviate-data
+              mountPath: /var/lib/weaviate
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /v1/.well-known/live
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /v1/.well-known/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: weaviate-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

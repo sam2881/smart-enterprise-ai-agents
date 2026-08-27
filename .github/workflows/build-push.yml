@@ -1,0 +1,102 @@
+name: Build & Push Images
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      # DAG files have their own pipeline (data-agent-cicd.yml)
+      - "dags/**"
+      - "spark_jobs/**"
+      - "sql/**"
+  workflow_dispatch:
+
+env:
+  REGION: ${{ secrets.CLOUD_RUN_REGION }}
+  AR_REPO: ${{ secrets.AR_REPO }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: .
+            dockerfile: backend/Dockerfile
+          - name: data-agent
+            context: agents/data_agent
+            dockerfile: agents/data_agent/Dockerfile
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+          - name: event-orchestrator
+            context: .
+            dockerfile: dockerfiles/Dockerfile.event-orchestrator
+          - name: incident-consumer
+            context: .
+            dockerfile: dockerfiles/Dockerfile.incident-consumer
+          - name: jira-consumer
+            context: .
+            dockerfile: dockerfiles/Dockerfile.jira-consumer
+          - name: pipeline-consumer
+            context: .
+            dockerfile: dockerfiles/Dockerfile.pipeline-consumer
+          - name: proactive-monitor
+            context: .
+            dockerfile: dockerfiles/Dockerfile.proactive-monitor
+          - name: post-mortem-agent
+            context: .
+            dockerfile: dockerfiles/Dockerfile.post-mortem-agent
+          - name: mcp-servicenow
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-servicenow
+          - name: mcp-jira
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-jira
+          - name: mcp-github
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-github
+          - name: mcp-airflow
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-airflow
+          - name: mcp-rag
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-rag
+          - name: mcp-gcs
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-gcs
+          - name: mcp-iceberg
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-iceberg
+          - name: mcp-llm
+            context: .
+            dockerfile: dockerfiles/Dockerfile.mcp-llm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & push ${{ matrix.name }}
+        run: |
+          IMAGE=${{ env.AR_REPO }}/${{ matrix.name }}
+          docker build \
+            -f ${{ matrix.dockerfile }} \
+            -t ${IMAGE}:${{ github.sha }} \
+            -t ${IMAGE}:latest \
+            ${{ matrix.context }}
+          docker push ${IMAGE}:${{ github.sha }}
+          docker push ${IMAGE}:latest
+
+      - name: Output image digest
+        run: |
+          echo "Pushed ${{ matrix.name }}:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

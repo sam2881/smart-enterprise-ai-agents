@@ -56,7 +56,7 @@ const ZONE_COLORS: Record<string, string> = {
   BRONZE: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
   SILVER: 'bg-slate-400/20 text-slate-300 border-slate-400/30',
   GOLD: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-  TRUSTED: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  LANDING: 'bg-gray-600/20 text-gray-400 border-gray-600/30',
 }
 
 const ASSET_TYPE_ICONS: Record<string, string> = {
@@ -195,7 +195,6 @@ export default function CatalogPage() {
                 <option value="BRONZE">Bronze</option>
                 <option value="SILVER">Silver</option>
                 <option value="GOLD">Gold</option>
-                <option value="TRUSTED">Trusted</option>
               </select>
 
               <select

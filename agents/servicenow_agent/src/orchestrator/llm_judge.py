@@ -39,6 +39,17 @@ from fastapi import FastAPI
 from anthropic import Anthropic
 import structlog
 
+try:
+    from agents.servicenow_agent.src.security import secure_llm_call, incident_plugin_chain
+    _JUDGE_CHAIN = incident_plugin_chain()
+    _SECURITY_ENABLED = True
+except ImportError:
+    _SECURITY_ENABLED = False
+    def secure_llm_call(chain=None):  # type: ignore[misc]
+        def _noop(func):
+            return func
+        return _noop
+
 from platform_services.protocols.a2a import (
     A2AClient,
     MessageType,
@@ -274,6 +285,7 @@ class LLMJudge:
             )
             await self._a2a_client.send(error_score.to_a2a())
 
+    @secure_llm_call(_JUDGE_CHAIN if _SECURITY_ENABLED else None)
     async def evaluate(
         self,
         request: JudgeEvaluateMessage

@@ -1,0 +1,113 @@
+{
+  "version": "1.1",
+  "description": "L1 SOP Registry — deterministic, low-risk incident patterns that can be auto-resolved without LLM involvement. Each SOP maps a known failure signature to a concrete fix action. P1/P2 and unknown patterns are always escalated to the AI workflow.",
+
+  "immediate_escalate_severities": ["P1", "P2", "1", "2"],
+
+  "immediate_escalate_patterns": [
+    "schema_mismatch",
+    "data_quality_fail",
+    "permission_denied",
+    "data_loss",
+    "security",
+    "unauthorized",
+    "corruption",
+    "database_migration"
+  ],
+
+  "sops": [
+    {
+      "id": "SOP-DAG-001",
+      "name": "DAG Timeout Auto-Retry",
+      "category": "dag_failure",
+      "description": "A DAG or task exceeded its execution timeout. L1 retries once with an extended timeout config. Safe because the root cause is transient (slow source query, network latency) and the action is idempotent.",
+      "classifications": ["airflow", "dag_failure", "timeout"],
+      "error_keywords": ["timeout", "timed out", "execution_timeout", "task timed out", "max_execution_time", "execution time limit"],
+      "max_l1_attempts": 2,
+      "action": "airflow_retry",
+      "action_config": {
+        "timeout_override": "extended",
+        "conf_key": "l1_retry",
+        "conf_reason": "SOP-DAG-001 L1 timeout retry"
+      },
+      "wait_seconds_before_retry": 30,
+      "verify_after_seconds": 120,
+      "escalate_on_failure": true,
+      "estimated_resolution_minutes": 6,
+      "sop_doc": "docs/runbooks/SOP-DAG-001.md"
+    },
+    {
+      "id": "SOP-DAG-002",
+      "name": "DAG OOM Scale-Up Retry",
+      "category": "dag_failure",
+      "description": "A Spark executor or Airflow worker was killed due to out-of-memory. L1 retries with higher memory config. Safe for P3/P4 since we only increase allocation, not change business logic.",
+      "classifications": ["airflow", "dag_failure", "memory_exhaustion"],
+      "error_keywords": ["out of memory", "oom", "memory limit", "killed", "memory exhausted", "cannot allocate", "java.lang.OutOfMemoryError", "worker lost"],
+      "max_l1_attempts": 1,
+      "action": "airflow_retry_with_config",
+      "action_config": {
+        "executor_memory": "4g",
+        "driver_memory": "2g",
+        "conf_key": "l1_oom_retry",
+        "conf_reason": "SOP-DAG-002 L1 OOM scale-up retry"
+      },
+      "wait_seconds_before_retry": 30,
+      "verify_after_seconds": 180,
+      "escalate_on_failure": true,
+      "estimated_resolution_minutes": 10,
+      "sop_doc": "docs/runbooks/SOP-DAG-002.md"
+    },
+    {
+      "id": "SOP-DAG-003",
+      "name": "Source Unavailable Retry",
+      "category": "connectivity_failure",
+      "description": "Source system (API, DB, GCS bucket) was momentarily unavailable. L1 waits 60s and retries once. Transient network blips resolve in seconds; if still down after retry, it's a sustained outage that needs AI triage.",
+      "classifications": ["airflow", "dag_failure", "connectivity_failure"],
+      "error_keywords": ["connection refused", "source unavailable", "unreachable", "connection timeout", "connection reset", "no route to host", "name or service not known", "temporary failure", "503", "service unavailable"],
+      "max_l1_attempts": 2,
+      "action": "wait_and_retry",
+      "action_config": {
+        "wait_seconds": 60,
+        "conf_key": "l1_connectivity_retry",
+        "conf_reason": "SOP-DAG-003 L1 connectivity retry after wait"
+      },
+      "wait_seconds_before_retry": 60,
+      "verify_after_seconds": 120,
+      "escalate_on_failure": true,
+      "estimated_resolution_minutes": 8,
+      "sop_doc": "docs/runbooks/SOP-DAG-003.md"
+    },
+    {
+      "id": "SOP-GCP-001",
+      "name": "GCP VM Terminated/Stopped Auto-Start",
+      "category": "infrastructure",
+      "description": "A GCP Compute VM was TERMINATED or STOPPED (preemption, manual stop, or spot reclaim). L1 starts it via Compute API. Safe because: idempotent, no config changes, preemption recovery is standard ops.",
+      "classifications": ["gcp", "infrastructure"],
+      "error_keywords": ["terminated", "stopped", "vm stopped", "instance stopped", "instance terminated", "preempted", "spot instance reclaimed", "compute instance"],
+      "max_l1_attempts": 1,
+      "action": "gcp_vm_start",
+      "action_config": {},
+      "wait_seconds_before_retry": 0,
+      "verify_after_seconds": 60,
+      "escalate_on_failure": true,
+      "estimated_resolution_minutes": 3,
+      "sop_doc": "docs/runbooks/SOP-GCP-001.md"
+    },
+    {
+      "id": "SOP-GCP-002",
+      "name": "GCP VM Suspended Resume",
+      "category": "infrastructure",
+      "description": "A GCP VM is in SUSPENDED state. L1 resumes it via Compute API start call (same API as start for suspended VMs in most regions).",
+      "classifications": ["gcp", "infrastructure"],
+      "error_keywords": ["suspended", "vm suspended", "instance suspended"],
+      "max_l1_attempts": 1,
+      "action": "gcp_vm_start",
+      "action_config": {},
+      "wait_seconds_before_retry": 0,
+      "verify_after_seconds": 60,
+      "escalate_on_failure": true,
+      "estimated_resolution_minutes": 3,
+      "sop_doc": "docs/runbooks/SOP-GCP-002.md"
+    }
+  ]
+}

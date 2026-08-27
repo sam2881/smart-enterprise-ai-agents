@@ -1,34 +1,40 @@
 /**
  * Pipeline Components - Barrel exports
  *
- * This file exports all pipeline-related components for easy importing.
+ * Only exports components that are actively imported and used.
  *
  * Usage:
- *   import { UnifiedPipelineForm, PipelineProgress, NLTransformInput } from '@/components/pipeline'
+ *   import { UnifiedPipelineForm, PipelineProgress } from '@/components/pipeline'
  */
 
+// Core form + progress
 export { UnifiedPipelineForm } from './UnifiedPipelineForm'
 export { PipelineProgress } from './PipelineProgress'
-export { default as NLTransformInput } from './NLTransformInput'
-export { default as DTSXMigrationForm } from './DTSXMigrationForm'
+
+// Source selection & config
 export { SourceTypeSelector } from './SourceTypeSelector'
 export {
   FileSourceConfigForm,
   DatabaseSourceConfigForm,
+  NoSQLSourceConfigForm,
   StreamingSourceConfigForm,
   APISourceConfigForm,
   EBCDICSourceConfigForm,
   DTSXSourceConfigForm,
+  LogsSourceConfigForm,
+  NestedSourceConfigForm,
+  SpecialSourceConfigForm,
 } from './SourceConfigForms'
+
+// Schema, transforms, target
+export { SchemaDefinitionPanel } from './SchemaDefinitionPanel'
+export { TransformationsPanel } from './TransformationsPanel'
+export { TargetConfigurationPanel } from './TargetConfigurationPanel'
+
+// NL + Gold zone
+export { default as NLTransformInput } from './NLTransformInput'
 export { GoldModelingSelector } from './GoldModelingSelector'
 export { JoinDependencyBuilder } from './JoinDependencyBuilder'
-export { SchemaInputPanel } from './SchemaInputPanel'
-export { ZoneIntentPanel } from './ZoneIntentPanel'
-export { ExecutionPolicyPanel } from './ExecutionPolicyPanel'
-export { GoldOperationalConfigPanel } from './GoldOperationalConfig'
-export { PatternSelector } from './PatternSelector'
-export { NestedSourceConfigForm } from './NestedSourceConfigForm'
-export { SpecialSourceConfigForm } from './SpecialSourceConfigForm'
 
 // Re-export canonical types
 export type {
@@ -51,12 +57,10 @@ export type {
   InputType,
   ColumnDefinition,
   DataType,
-  // Pattern & Contract types (Phase 1 - Gap Analysis)
   ContractType,
   PatternCode,
   PatternInfo,
   FeedType,
-  // Gold Zone types
   GoldModelingStrategy,
   GoldZoneConfig,
   DataVault2Config,
@@ -65,7 +69,6 @@ export type {
   FlatTableConfig,
   JoinDependency,
   JiraTicketMetadata,
-  // V2 Feed Group Config types
   V2FeedGroupConfig,
   V2FeedConfig,
   V2GoldModelConfig,

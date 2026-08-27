@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: ai-agent
+  labels:
+    app: neo4j
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          ports:
+            - name: bolt
+              containerPort: 7687
+            - name: http
+              containerPort: 7474
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-auth
+                  key: NEO4J_AUTH
+            - name: NEO4J_dbms_memory_heap_initial__size
+              value: "512m"
+            - name: NEO4J_dbms_memory_heap_max__size
+              value: "1G"
+            - name: NEO4J_dbms_memory_pagecache_size
+              value: "512m"
+            - name: NEO4J_dbms_security_procedures_unrestricted
+              value: "apoc.*,algo.*"
+          volumeMounts:
+            - name: neo4j-data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "1.5Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 30
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: neo4j-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

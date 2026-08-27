@@ -21,11 +21,14 @@ Workflow Phases:
 All failures route to handle_error for logging and cleanup.
 """
 
+import json
+import os
 from datetime import datetime
 from typing import Any, AsyncIterator, Dict, Literal, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
+from agents.data_agent.src.llm import get_llm_client
 
 import structlog
 
@@ -39,7 +42,7 @@ from src.models.apex_models import (
     SourceRegistry,
     SchemaVersion,
     ColumnDefinition,
-    SourceType,
+    SourceCategory,
     PipelineExecution,
     ExecutionStatus,
     AuditLog,
@@ -110,6 +113,9 @@ class APEXWorkflowState(TypedDict, total=False):
     deployment_status: Optional[str]
     git_commit_sha: Optional[str]
     pull_request_url: Optional[str]
+
+    # Legacy migration output (populated by extract_legacy_objects_node for dtsx_migration)
+    legacy_migration_output: Optional[Dict[str, Any]]
 
     # Error handling
     error_message: Optional[str]
@@ -288,7 +294,7 @@ def generate_artifacts_node(state: APEXWorkflowState) -> Dict[str, Any]:
             source = SourceRegistry(
                 source_id="default",
                 source_name=feed.feed_name,
-                source_type=SourceType.FILE,
+                source_type=SourceCategory.FILE,
             )
 
         # Build DAG ID from feed name
@@ -326,6 +332,14 @@ def generate_artifacts_node(state: APEXWorkflowState) -> Dict[str, Any]:
                 created_at=datetime.utcnow(),
                 is_active=True,
             )
+
+        # Inject legacy_migration_output into source_config so the generator
+        # can select the SP-variant template and build SP context vars.
+        legacy_migration_output = state.get("legacy_migration_output")
+        if legacy_migration_output:
+            if source.source_config is None:
+                source.source_config = {}
+            source.source_config["legacy_migration_output"] = legacy_migration_output
 
         config = APEXPipelineConfig(
             pipeline_id=feed.feed_id,
@@ -665,6 +679,46 @@ On merge to `main`:
         }
 
 
+def extract_legacy_objects_node(state: APEXWorkflowState) -> Dict[str, Any]:
+    """
+    Extract stored procedure definitions from the legacy source DB (or static .sql files),
+    build the dependency graph, and invoke the LLM to generate PySpark artifacts.
+
+    Only activated when input_type == "dtsx_migration".
+    On completion routes to resolve_pattern so the rest of the workflow continues normally.
+    """
+    logger.info("extract_legacy_objects_start", request_id=state["request_id"])
+    try:
+        from src.agents.legacy_migration_agent import LegacyMigrationAgent
+
+        result = LegacyMigrationAgent().run(state)
+
+        if result.get("error_message"):
+            return {
+                "current_phase": "error",
+                "error_message": result["error_message"],
+                "error_phase": "extract_legacy_objects",
+            }
+
+        return {
+            **result,
+            "audit_trail": state.get("audit_trail", []) + [{
+                "phase": "extract_legacy_objects",
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
+                "job_id": result.get("legacy_migration_output", {}).get("job_id"),
+                "objects_extracted": result.get("legacy_migration_output", {}).get("objects_extracted", 0),
+            }],
+        }
+    except Exception as exc:
+        logger.error("extract_legacy_objects_failed", error=str(exc), exc_info=True)
+        return {
+            "current_phase": "error",
+            "error_message": f"Legacy object extraction failed: {str(exc)}",
+            "error_phase": "extract_legacy_objects",
+        }
+
+
 def handle_error_node(state: APEXWorkflowState) -> Dict[str, Any]:
     """
     Handle errors and perform cleanup.
@@ -694,10 +748,14 @@ def handle_error_node(state: APEXWorkflowState) -> Dict[str, Any]:
 # =============================================================================
 
 
-def should_continue_after_normalize(state: APEXWorkflowState) -> Literal["resolve_pattern", "error"]:
-    """Route after normalization."""
+def should_continue_after_normalize(
+    state: APEXWorkflowState,
+) -> Literal["resolve_pattern", "extract_legacy_objects", "error"]:
+    """Route after normalization. DTSX migration gets SP extraction first."""
     if state.get("error_message"):
         return "error"
+    if state.get("input_type") == "dtsx_migration":
+        return "extract_legacy_objects"
     return "resolve_pattern"
 
 
@@ -778,6 +836,7 @@ def create_apex_workflow(checkpointer: Optional[MemorySaver] = None) -> StateGra
 
     # Add nodes
     workflow.add_node("normalize_input", normalize_input_node)
+    workflow.add_node("extract_legacy_objects", extract_legacy_objects_node)
     workflow.add_node("resolve_pattern", resolve_pattern_node)
     workflow.add_node("load_metadata", load_metadata_node)
     workflow.add_node("generate_artifacts", generate_artifacts_node)
@@ -794,6 +853,16 @@ def create_apex_workflow(checkpointer: Optional[MemorySaver] = None) -> StateGra
     workflow.add_conditional_edges(
         "normalize_input",
         should_continue_after_normalize,
+        {
+            "resolve_pattern": "resolve_pattern",
+            "extract_legacy_objects": "extract_legacy_objects",
+            "error": "handle_error",
+        }
+    )
+
+    workflow.add_conditional_edges(
+        "extract_legacy_objects",
+        lambda s: "error" if s.get("error_message") else "resolve_pattern",
         {
             "resolve_pattern": "resolve_pattern",
             "error": "handle_error",
@@ -876,24 +945,150 @@ def create_apex_workflow(checkpointer: Optional[MemorySaver] = None) -> StateGra
 # =============================================================================
 
 
+def _extract_json_from_text(text: str) -> str:
+    """Extract JSON from a response that may be wrapped in markdown code fences."""
+    import re
+    # Remove ```json ... ``` or ``` ... ``` fences
+    fence_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    if fence_match:
+        return fence_match.group(1).strip()
+    # Fallback: find the first { and last } to extract bare JSON object
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    return text.strip()
+
+
 def _convert_nl_to_request(raw_input: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert natural language input to structured request."""
-    # In production, this would use an LLM to parse NL
-    # For now, return a minimal structure
+    """
+    Convert natural language input to structured request using LLM.
+
+    CRITICAL: Natural language is NEVER executed directly.
+    NL → LLM → Structured Metadata → Execute
+
+    This function converts NL to the same structured format as UI input.
+    """
     nl_text = raw_input.get("natural_language", "")
-    return {
-        "feed": {
-            "feed_id": f"feed_{hash(nl_text) % 10000}",
-            "feed_name": "nl_generated_feed",
-            "source_id": "default",
-        },
-        "contract": {
-            "contract_id": f"contract_{hash(nl_text) % 10000}",
-            "contract_name": "nl_generated_contract",
-            "feed_id": f"feed_{hash(nl_text) % 10000}",
-        },
-        "nl_input": nl_text,
-    }
+
+    if not nl_text:
+        raise ValueError("Natural language description is required")
+
+    client = get_llm_client()
+
+    # Construct prompt for LLM
+    prompt = f"""You are an expert data engineer. Convert this natural language pipeline description to structured APEX format.
+
+Natural Language Input:
+"{nl_text}"
+
+Return a JSON object with this exact structure:
+{{
+  "feed": {{
+    "feed_name": "short_snake_case_name",
+    "domain": "domain_name (e.g., sales, marketing, finance)",
+    "description": "Brief description",
+    "schedule": "@daily | @hourly | @weekly",
+    "environment": "dev"
+  }},
+  "source": {{
+    "source_type": "file_csv | file_json | database_postgres | streaming_kafka | api_rest | etc",
+    "config": {{
+      // Type-specific configuration
+      // For file_csv: {{"gcs_path": "gs://...", "delimiter": ",", "header": true}}
+      // For database_postgres: {{"connection_string": "...", "query": "SELECT * FROM ..."}}
+      // For streaming_kafka: {{"topic": "...", "bootstrap_servers": "..."}}
+    }}
+  }},
+  "schema": {{
+    "columns": [
+      {{"name": "column_name", "type": "string | integer | bigint | float | double | decimal | boolean | date | timestamp", "nullable": true, "pk": false}}
+    ]
+  }},
+  "transformations": [
+    {{"transform_type": "rename | cast | derive | filter | aggregate | join | window | deduplicate", "config": {{...}}}}
+  ],
+  "target": {{
+    "target_zone": "bronze | silver | gold",
+    "bq_dataset": "dataset_name",
+    "bq_table": "table_name",
+    "write_mode": "append | overwrite | merge"
+  }},
+  "execution_policy": {{
+    "schedule_interval": "@daily",
+    "processing_mode": "batch | micro_batch | streaming",
+    "retry_count": 2
+  }},
+  "confidence": 0.0-1.0,
+  "reasoning": "Explain your interpretation"
+}}
+
+IMPORTANT RULES:
+1. Infer missing details logically (e.g., if source type mentioned is "CSV file", use "file_csv")
+2. Choose appropriate source_type from: file_csv, file_json, file_parquet, database_postgres, database_mysql, streaming_kafka, api_rest, etc.
+3. Set confidence score based on clarity (1.0 = very clear, 0.5 = ambiguous, 0.0 = cannot parse)
+4. Reject if confidence < 0.7
+5. Default to batch mode unless streaming is explicitly mentioned
+6. Use snake_case for all names
+7. Infer reasonable column types from context
+"""
+
+    try:
+        # Call LLM via provider-agnostic client
+        response_text = client.complete(
+            messages=[
+                {"role": "system", "content": "You are a data engineering expert that converts natural language to structured pipeline configurations. Always respond with valid JSON only."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            json_mode=True,
+        )
+
+        # Strip markdown code fences (small models like Ollama often wrap JSON)
+        response_text = _extract_json_from_text(response_text)
+
+        # Parse LLM response
+        result = json.loads(response_text)
+
+        # Validate confidence score
+        confidence = result.get("confidence", 0.0)
+        if confidence < 0.7:
+            raise ValueError(
+                f"LLM confidence too low ({confidence:.2f}). "
+                f"Reasoning: {result.get('reasoning', 'N/A')}. "
+                "Please provide a more detailed pipeline description."
+            )
+
+        logger.info(
+            "nl_conversion_success",
+            confidence=confidence,
+            reasoning=result.get("reasoning"),
+            source_type=result.get("source", {}).get("source_type"),
+        )
+
+        # Add metadata
+        result["nl_input"] = nl_text
+        result["created_by"] = raw_input.get("created_by", "nl_user")
+        result["jira_ticket"] = raw_input.get("jira_ticket")
+
+        # Generate IDs
+        feed_name = result["feed"]["feed_name"]
+        result["feed"]["feed_id"] = f"feed_{feed_name}"
+        result["contract"] = {
+            "contract_id": f"contract_{feed_name}",
+            "contract_name": f"{feed_name}_contract",
+            "feed_id": f"feed_{feed_name}",
+            "contract_type": "STANDARD",  # Default
+        }
+
+        return result
+
+    except json.JSONDecodeError as e:
+        logger.error("llm_json_parse_failed", error=str(e))
+        raise ValueError(f"LLM returned invalid JSON: {e}")
+    except Exception as e:
+        logger.error("nl_conversion_failed", error=str(e))
+        raise ValueError(f"Failed to convert natural language: {e}")
 
 
 def _convert_dtsx_to_request(raw_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -1047,5 +1242,4 @@ def run_apex_workflow_sync(
         )
 
 
-# Import SourceType for type checking
-from src.models.apex_models import SourceType
+# SourceCategory is imported at the top of the file from apex_models

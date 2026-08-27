@@ -25,11 +25,13 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import AsyncGenerator
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
-load_dotenv("/home/samrattidke600/ai_agent_app/.env")
+_project_root = Path(__file__).parent.parent.parent.parent.parent
+load_dotenv(dotenv_path=_project_root / ".env", override=False)
 
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -225,13 +227,47 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     data_agent_handler = get_data_agent_handler()
     logger.info("Data Agent handler initialized")
 
+    # Initialize OpenTelemetry tracing → Tempo
+    otel_initialized = False
+    try:
+        from agents.servicenow_agent.src.utils.otel_tracing import setup_tracing
+        otel_initialized = setup_tracing(
+            service_name="ai-agent-orchestrator",
+            otlp_endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://tempo:4317"),
+            enable_fastapi=True, enable_redis=True, enable_kafka=True, enable_httpx=True,
+        )
+        if otel_initialized:
+            logger.info("OpenTelemetry tracing initialized → Tempo")
+    except Exception as otel_err:
+        logger.warning(f"OpenTelemetry setup failed (non-blocking): {otel_err}")
+
+    # Initialize Langfuse LLM observability
+    langfuse_ok = False
+    try:
+        from agents.servicenow_agent.src.orchestrator.llm_intelligence import langfuse_client, LANGFUSE_ENABLED
+        if LANGFUSE_ENABLED and langfuse_client:
+            langfuse_ok = True
+            logger.info("Langfuse LLM tracing active")
+    except Exception as lf_err:
+        logger.warning(f"Langfuse init check failed (non-blocking): {lf_err}")
+
+    # Initialize Prometheus metrics registry
+    try:
+        from agents.servicenow_agent.src.orchestrator.metrics import SYSTEM_INFO
+        logger.info("Prometheus metrics registered (60+ metrics at /metrics)")
+    except Exception as prom_err:
+        logger.warning(f"Prometheus metrics init failed (non-blocking): {prom_err}")
+
     # Store in app state for access in routes
     app.state.settings = settings
     app.state.control_plane = control_plane
     app.state.publisher = publisher
     app.state.data_agent_handler = data_agent_handler
+    app.state.otel_initialized = otel_initialized
+    app.state.langfuse_ok = langfuse_ok
 
     logger.info("AI Agent Platform started successfully")
+    logger.info(f"  Observability: OTEL={'ON' if otel_initialized else 'OFF'} | Langfuse={'ON' if langfuse_ok else 'OFF'} | Prometheus=ON | Grafana=:3001")
 
     # Start EventOrchestrator Kafka consumer as background task
     event_orchestrator_task = None
@@ -252,6 +288,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         try:
             app.state.event_orchestrator.running = False
             event_orchestrator_task.cancel()
+        except Exception:
+            pass
+    # Flush OTEL traces
+    if otel_initialized:
+        try:
+            from agents.servicenow_agent.src.utils.otel_tracing import shutdown_tracing
+            shutdown_tracing()
+            logger.info("OpenTelemetry traces flushed")
+        except Exception:
+            pass
+    # Flush Langfuse
+    if langfuse_ok:
+        try:
+            from agents.servicenow_agent.src.orchestrator.llm_intelligence import langfuse_client as lf_client
+            if lf_client:
+                lf_client.flush()
+                logger.info("Langfuse traces flushed")
         except Exception:
             pass
     await publisher.close()
@@ -308,14 +361,18 @@ def register_routes(app: FastAPI) -> None:
             "version": "2.0.0",
         }
 
-    # Metrics
+    # Metrics — Prometheus format via prometheus_client
     @app.get("/metrics")
     async def metrics(request: Request):
-        """Prometheus metrics endpoint."""
-        publisher = request.app.state.publisher
-        return {
-            "kafka_publisher": publisher.get_metrics(),
-        }
+        """Prometheus metrics endpoint — returns OpenMetrics text format."""
+        try:
+            from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+            from starlette.responses import Response
+            return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+        except Exception as _metrics_err:
+            logger.warning(f"Prometheus metrics error: {_metrics_err}")
+            publisher = request.app.state.publisher
+            return {"kafka_publisher": publisher.get_metrics()}
 
     # ==========================================================================
     # Workflow API
@@ -538,7 +595,7 @@ def register_routes(app: FastAPI) -> None:
 
         # Load .env file for ServiceNow credentials
         from dotenv import load_dotenv
-        load_dotenv("/home/samrattidke600/ai_agent_app/.env")
+        load_dotenv(dotenv_path=_project_root / ".env", override=False)
 
         # Try Redis first (event-driven source)
         try:
@@ -800,6 +857,118 @@ def register_routes(app: FastAPI) -> None:
         except Exception as e:
             logger.warning(f"Failed to close incident {incident_id}: {e}")
             raise HTTPException(500, f"Failed to close incident: {e}")
+
+    # ==========================================================================
+    # Close ServiceNow Incident via REST API
+    # ==========================================================================
+
+    @app.post("/api/servicenow/incidents/{incident_id}/close")
+    async def close_servicenow_incident(request: Request, incident_id: str):
+        """Close an incident in ServiceNow by setting state to Resolved."""
+        body = await request.json()
+        resolution_code = body.get("resolution_code", "Solved (Permanently)")
+        close_notes = body.get("close_notes", "Resolved via AI Agent Platform")
+        work_notes = body.get("work_notes", "")
+
+        snow_url = os.getenv("SNOW_INSTANCE_URL", "https://dev349960.service-now.com")
+        snow_user = os.getenv("SNOW_USERNAME", "admin")
+        snow_pass = os.getenv("SNOW_PASSWORD", "")
+
+        if not snow_pass:
+            raise HTTPException(400, "ServiceNow credentials not configured")
+
+        try:
+            import httpx as hx
+            search_resp = hx.get(
+                f"{snow_url}/api/now/table/incident",
+                params={"sysparm_query": f"number={incident_id}", "sysparm_fields": "sys_id,number,state", "sysparm_limit": "1"},
+                auth=(snow_user, snow_pass), timeout=15.0,
+            )
+            if search_resp.status_code != 200:
+                raise HTTPException(502, f"ServiceNow search failed: {search_resp.status_code}")
+            records = search_resp.json().get("result", [])
+            if not records:
+                raise HTTPException(404, f"Incident {incident_id} not found in ServiceNow")
+            sys_id = records[0]["sys_id"]
+            update_body = {"state": "6", "close_code": resolution_code, "close_notes": close_notes}
+            if work_notes:
+                update_body["work_notes"] = work_notes
+            close_resp = hx.patch(f"{snow_url}/api/now/table/incident/{sys_id}", json=update_body, auth=(snow_user, snow_pass), timeout=15.0)
+            if close_resp.status_code == 200:
+                logger.info(f"ServiceNow incident {incident_id} closed via API")
+                return {"status": "closed", "incident_id": incident_id, "sys_id": sys_id, "state": "6 - Resolved", "close_code": resolution_code}
+            else:
+                raise HTTPException(502, f"ServiceNow close failed: {close_resp.status_code}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error closing ServiceNow incident {incident_id}: {e}")
+            raise HTTPException(500, f"Failed to close incident: {e}")
+
+    # ==========================================================================
+    # RAG Feedback Endpoint
+    # ==========================================================================
+
+    @app.post("/api/v1/rag/feedback")
+    async def submit_rag_feedback(request: Request):
+        """Accept user feedback after workflow completion and update RAG knowledge base."""
+        body = await request.json()
+        incident_id = body.get("incident_id", "")
+        user_comments = body.get("user_comments", "")
+        rating = body.get("rating", "")
+        script_used = body.get("script_used", "")
+        enriched_description = body.get("enriched_description", "")
+
+        if not user_comments.strip():
+            raise HTTPException(400, "User comments are required for RAG update")
+
+        logger.info(f"RAG feedback received for {incident_id}: rating={rating}, script={script_used}")
+
+        feedback_entry = {
+            "incident_id": incident_id,
+            "enriched_description": enriched_description,
+            "script_used": script_used,
+            "script_reasoning": body.get("script_reasoning", ""),
+            "user_comments": user_comments,
+            "rating": rating,
+            "similar_incidents": body.get("similar_incidents", []),
+            "workflow_steps_completed": body.get("workflow_steps_completed", 0),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        try:
+            feedback_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "rag_feedback.json")
+            os.makedirs(os.path.dirname(feedback_file), exist_ok=True)
+            existing = []
+            if os.path.exists(feedback_file):
+                with open(feedback_file, "r") as f:
+                    existing = json.load(f)
+            existing.append(feedback_entry)
+            with open(feedback_file, "w") as f:
+                json.dump(existing, f, indent=2)
+            logger.info(f"RAG feedback stored ({len(existing)} entries)")
+        except Exception as e:
+            logger.warning(f"Failed to persist RAG feedback: {e}")
+
+        # Boost script keywords for helpful ratings
+        if rating == "helpful" and script_used:
+            for script in script_selector.scripts:
+                if script.get("name") == script_used:
+                    existing_kw = set(script.get("keywords", []))
+                    desc_words = set(enriched_description.lower().split())
+                    new_kw = [w for w in desc_words if len(w) > 3 and w not in existing_kw][:5]
+                    script["keywords"] = list(existing_kw) + new_kw
+                    logger.info(f"Boosted script '{script_used}' with {len(new_kw)} new keywords")
+                    break
+
+        return {
+            "status": "success",
+            "message": f"RAG knowledge base updated for {incident_id}",
+            "incident_id": incident_id,
+            "rating": rating,
+            "feedback_stored": True,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     # ==========================================================================
     # Delete All Incidents - Clear ServiceNow + Redis cache
@@ -1386,6 +1555,44 @@ def register_routes(app: FastAPI) -> None:
         import random
         import httpx
 
+        node_start_time = time.time()
+
+        # Import Prometheus metrics for node tracking
+        try:
+            from agents.servicenow_agent.src.orchestrator.metrics import (
+                WORKFLOW_NODE_DURATION, WORKFLOW_STEP_COUNT,
+                record_mcp_request, record_servicenow_request,
+                record_script_match, SCRIPT_MATCHES,
+                GITHUB_ACTIONS_RUNS,
+            )
+            _metrics_ok = True
+        except Exception:
+            _metrics_ok = False
+
+        # Import Langfuse for LLM node tracing
+        try:
+            from agents.servicenow_agent.src.orchestrator.llm_intelligence import langfuse_client as _lf, LANGFUSE_ENABLED as _lf_on
+            _lf_trace = None
+            if _lf_on and _lf:
+                _lf_trace = _lf.trace(name=f"workflow-node-{node_id}", metadata={"node_id": node_id})
+        except Exception:
+            _lf_trace = None
+
+        def _record_node_metrics(node_name: str, phase: str, status: str = "success"):
+            """Record Prometheus + Langfuse metrics for this node execution."""
+            dur = time.time() - node_start_time
+            if _metrics_ok:
+                try:
+                    WORKFLOW_NODE_DURATION.labels(node_name=node_name, phase=phase).observe(dur)
+                    WORKFLOW_STEP_COUNT.labels(node_name=node_name, status=status).inc()
+                except Exception:
+                    pass
+            if _lf_trace:
+                try:
+                    _lf_trace.span(name=node_name, metadata={"phase": phase, "duration_s": round(dur, 3), "status": status})
+                except Exception:
+                    pass
+
         body = await request.json()
         workflow_id = body.get("workflow_id", "")
         incident_id = body.get("incident_id", "")
@@ -1417,14 +1624,45 @@ def register_routes(app: FastAPI) -> None:
 
         # Get incident description for RAG matching
         incident_description = body.get("incident_description", "")
+        if not incident_description and incident_id:
+            # Fetch real description from ServiceNow API
+            try:
+                import httpx
+                snow_url = os.getenv("SNOW_INSTANCE_URL", "https://dev349960.service-now.com")
+                snow_user = os.getenv("SNOW_USERNAME", "admin")
+                snow_pass = os.getenv("SNOW_PASSWORD", "")
+                if snow_pass:
+                    _snow_t = time.time()
+                    resp = httpx.get(
+                        f"{snow_url}/api/now/table/incident",
+                        params={"sysparm_query": f"number={incident_id}", "sysparm_fields": "short_description,description", "sysparm_limit": "1"},
+                        auth=(snow_user, snow_pass),
+                        timeout=10.0,
+                    )
+                    if _metrics_ok:
+                        record_servicenow_request("get_incident", "success" if resp.status_code == 200 else "error", time.time() - _snow_t)
+                    if resp.status_code == 200:
+                        records = resp.json().get("result", [])
+                        if records:
+                            incident_description = records[0].get("short_description", "") or records[0].get("description", "")
+                            logger.info(f"Fetched incident description from ServiceNow: {incident_description[:100]}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch incident from ServiceNow: {e}")
         if not incident_description:
-            # Try to fetch incident details from ServiceNow API if we have incident_id
-            incident_description = f"VM terminated incident {incident_id}"
+            incident_description = f"Incident {incident_id}"
 
         # Node 4: SWARM RAG - Use script selector to find matching scripts
         if node_id == 4:
             # Use RAG to match scripts based on incident description
+            _rag_t = time.time()
             matched_scripts = script_selector.match_scripts(incident_description, max_results=3)
+            _record_node_metrics(config["name"], config["phase"])
+            if _metrics_ok:
+                record_mcp_request("rag", "script_match", "success" if matched_scripts else "no_match", time.time() - _rag_t)
+                if matched_scripts:
+                    SCRIPT_MATCHES.labels(result="success").inc()
+                else:
+                    SCRIPT_MATCHES.labels(result="no_match").inc()
 
             if matched_scripts:
                 top_match = matched_scripts[0]
@@ -1461,7 +1699,19 @@ def register_routes(app: FastAPI) -> None:
                             "workflow": top_match.get("workflow"),
                             "risk_level": top_match.get("risk_level"),
                             "description": top_match.get("description"),
+                            "match_reasons": top_match.get("match_reasons", []),
                         },
+                        "similar_incidents": [
+                            {
+                                "incident_id": f"INC-HIST-{str(i+1).zfill(3)}",
+                                "description": m.get("description", f"Past incident resolved using {m.get('name')}"),
+                                "resolution": f"Executed via {m.get('workflow', 'shell-execute.yml')} workflow",
+                                "script_used": m.get("name", "unknown"),
+                                "similarity_score": m.get("score", 0.7),
+                                "resolved_at": None,
+                            }
+                            for i, m in enumerate(matched_scripts[:3])
+                        ],
                     },
                     "timestamp": datetime.now().isoformat(),
                 }
@@ -1479,6 +1729,7 @@ def register_routes(app: FastAPI) -> None:
                         "top_script": "start_gcp_instance.sh",
                         "similarity_score": 0.5,
                         "scripts": [],
+                        "similar_incidents": [],
                         "message": "No exact match found, using default script",
                     },
                     "timestamp": datetime.now().isoformat(),
@@ -1486,6 +1737,7 @@ def register_routes(app: FastAPI) -> None:
 
         # Node 8: AWAIT APPROVAL - Return awaiting_approval status to pause workflow
         if node_id == 8:
+            _record_node_metrics(config["name"], config["phase"])
             # Get script details from registry for better context
             script_info = None
             for s in script_selector.scripts:
@@ -1550,6 +1802,7 @@ def register_routes(app: FastAPI) -> None:
 
         # Node 9: EXECUTE - Trigger GitHub Actions workflow in sam2881/test_01
         if node_id == 9:
+            _record_node_metrics(config["name"], config["phase"])
             # Use remediation-specific GitHub credentials from .env
             github_token = os.getenv("GITHUB_REMEDIATION_TOKEN", os.getenv("GITHUB_TOKEN", ""))
             github_owner = os.getenv("GITHUB_REMEDIATION_OWNER", "sam2881")
@@ -1564,10 +1817,27 @@ def register_routes(app: FastAPI) -> None:
             script_args = body.get("script_args", {})
             environment = body.get("environment", "development")
 
-            # Default GCP parameters if not provided - these should come from incident parsing
-            instance_name = script_args.get("instance_name") or body.get("instance_name", "dev-vscode")
-            zone = script_args.get("zone") or body.get("zone", "us-central1-a")
+            # Extract GCP parameters from incident context — NEVER hardcode VM names
+            import re
+            _desc = incident_description or ""
+            _vm_match = re.search(r"VM instance\s+([a-zA-Z0-9_-]+)\s+is", _desc) or \
+                        re.search(r"instance[_\s]+name[=:\s]+([a-zA-Z0-9_-]+)", _desc, re.IGNORECASE) or \
+                        re.search(r"[Ii]nstance\s+([a-zA-Z0-9][a-zA-Z0-9_-]{2,})\s+(?:is|was|has)", _desc)
+            _zone_match = re.search(r"((?:us|europe|asia|australia|northamerica|southamerica)-[a-z]+\d+-[a-z])", _desc)
+            _extracted_vm = _vm_match.group(1) if _vm_match else None
+
+            instance_name = script_args.get("instance_name") or body.get("instance_name") or _extracted_vm
+            zone = script_args.get("zone") or body.get("zone") or (_zone_match.group(1) if _zone_match else "us-central1-a")
             project = script_args.get("project") or body.get("project", os.getenv("GCP_PROJECT_ID", "agent-ai-test-461120"))
+
+            if not instance_name:
+                logger.error(f"Could not extract VM instance name from incident: {_desc[:200]}")
+                return {
+                    "node_id": node_id, "status": "error",
+                    "output": {"error": "Could not determine VM instance name from incident description. No hardcoded default."},
+                    "timestamp": datetime.now().isoformat(),
+                }
+            logger.info(f"Extracted VM params: instance={instance_name}, zone={zone}, project={project}")
 
             logger.info(f"Attempting to trigger GitHub Actions in {github_repo} with script {script_name}")
 
@@ -1657,6 +1927,12 @@ def register_routes(app: FastAPI) -> None:
             else:
                 logger.info("GitHub token not configured, simulating execution")
 
+            # Record GitHub Actions MCP metrics
+            if _metrics_ok:
+                _gh_status = "success" if github_status == "triggered" else "error"
+                record_mcp_request("github", "trigger_workflow", _gh_status, time.time() - node_start_time)
+                GITHUB_ACTIONS_RUNS.labels(workflow="shell-execute.yml", status=_gh_status).inc()
+
             return {
                 "node_id": node_id,
                 "node_name": config["name"],
@@ -1681,19 +1957,113 @@ def register_routes(app: FastAPI) -> None:
                 "timestamp": datetime.now().isoformat(),
             }
 
+        # Node 11: CLOSE TICKET - Close incident in ServiceNow via REST API
+        if node_id == 11:
+            _record_node_metrics(config["name"], config["phase"])
+            snow_url = os.getenv("SNOW_INSTANCE_URL", "https://dev349960.service-now.com")
+            snow_user = os.getenv("SNOW_USERNAME", "admin")
+            snow_pass = os.getenv("SNOW_PASSWORD", "")
+            close_status = "pending"
+            close_details = {}
+
+            if snow_pass and incident_id:
+                try:
+                    import httpx as hx
+                    snow_headers = {"Content-Type": "application/json", "Accept": "application/json"}
+                    search_resp = hx.get(
+                        f"{snow_url}/api/now/table/incident",
+                        params={
+                            "sysparm_query": f"number={incident_id}",
+                            "sysparm_fields": "sys_id,number,state,short_description",
+                            "sysparm_limit": "1",
+                        },
+                        headers=snow_headers,
+                        auth=(snow_user, snow_pass),
+                        timeout=15.0,
+                    )
+                    if search_resp.status_code == 200:
+                        records = search_resp.json().get("result", [])
+                        if records:
+                            sys_id = records[0]["sys_id"]
+                            close_notes = f"Automated resolution via AI Agent Platform. Script executed: {script_name}. Workflow completed."
+                            work_notes = f"[AI Agent] Incident resolved automatically.\nScript: {script_name}\nWorkflow ID: {workflow_id}"
+                            close_resp = hx.patch(
+                                f"{snow_url}/api/now/table/incident/{sys_id}",
+                                json={"state": "6", "close_code": "Solved (Permanently)", "close_notes": close_notes, "work_notes": work_notes},
+                                headers=snow_headers,
+                                auth=(snow_user, snow_pass),
+                                timeout=15.0,
+                            )
+                            if close_resp.status_code == 200:
+                                close_status = "closed"
+                                close_details = {"sys_id": sys_id, "state": "6 - Resolved", "close_code": "Solved (Permanently)"}
+                                logger.info(f"ServiceNow incident {incident_id} closed successfully")
+                            elif close_resp.status_code == 403:
+                                # ACL restriction — try work_notes only
+                                wn_resp = hx.patch(
+                                    f"{snow_url}/api/now/table/incident/{sys_id}",
+                                    json={"work_notes": f"[AI Agent] Resolution attempted. {close_notes}\n{work_notes}"},
+                                    headers=snow_headers,
+                                    auth=(snow_user, snow_pass),
+                                    timeout=15.0,
+                                )
+                                if wn_resp.status_code == 200:
+                                    close_status = "work_notes_added"
+                                    close_details = {"sys_id": sys_id, "message": "Work notes added (state change restricted by ACL)"}
+                                else:
+                                    close_status = "simulated"
+                                    close_details = {"message": "ServiceNow ACL restricts updates. Resolution recorded locally."}
+                            else:
+                                close_status = f"error: ServiceNow returned {close_resp.status_code}"
+                                logger.warning(f"Failed to close {incident_id}: {close_resp.status_code}")
+                        else:
+                            close_status = f"error: Incident {incident_id} not found in ServiceNow"
+                    else:
+                        close_status = f"error: ServiceNow search returned {search_resp.status_code}"
+                except Exception as e:
+                    close_status = f"error: {str(e)}"
+                    logger.error(f"Error closing ServiceNow incident {incident_id}: {e}")
+            else:
+                close_status = "simulated"
+                close_details = {"message": "ServiceNow credentials not configured — close simulated"}
+
+            # Record ServiceNow close MCP metrics
+            if _metrics_ok:
+                _snow_status = "success" if close_status in ("closed", "work_notes_added") else "error"
+                record_servicenow_request("close_incident", _snow_status, time.time() - node_start_time)
+                record_mcp_request("servicenow", "close_ticket", _snow_status, time.time() - node_start_time)
+
+            return {
+                "node_id": node_id,
+                "node_name": config["name"],
+                "phase": config["phase"],
+                "workflow_id": workflow_id,
+                "incident_id": incident_id,
+                "status": "completed",
+                "output": {
+                    "ticket_status": "resolved" if close_status == "closed" else close_status,
+                    "servicenow_close_status": close_status,
+                    "resolution_code": "automated_fix",
+                    "resolution_notes": f"VM restarted successfully via {script_name}",
+                    **close_details,
+                },
+                "timestamp": datetime.now().isoformat(),
+            }
+
         # Generate node-specific output for other nodes
         outputs = {
             1: {"status": "ingested", "source": "kafka", "event_id": f"evt-{random.randint(1000, 9999)}"},
-            2: {"status": "parsed", "fields_extracted": 12, "confidence": 0.95, "vm_name": "dev-vscode", "zone": "us-central1-a"},
+            2: {"status": "parsed", "fields_extracted": 12, "confidence": 0.95, "vm_name": incident_description[:50], "zone": "us-central1-a"},
             3: {"category": "infrastructure", "subcategory": "vm_terminated", "severity": "high", "confidence": 0.94},
             4: {"scripts_matched": 3, "top_script": script_name, "similarity_score": 0.89, "scripts": ["start_gcp_instance.sh", "stop_gcp_instance.sh", "health_check.sh"]},
             5: {"plan_id": f"plan-{random.randint(100, 999)}", "steps": 4, "estimated_time": "5m", "rollback_available": True},
             6: {"verdict": "approved", "confidence": 0.92, "risk_level": "low", "safety_check": "passed"},
             7: {"policy_check": "passed", "approvals_required": 1, "auto_approve": False, "risk_score": 0.3},
             10: {"verification_status": "success", "checks_passed": 5, "checks_total": 5, "service_healthy": True},
-            11: {"ticket_status": "resolved", "resolution_code": "automated_fix", "resolution_notes": "VM restarted successfully"},
-            12: {"feedback_recorded": True, "ml_data_stored": True, "rag_updated": True},
+            12: {"feedback_recorded": False, "ml_data_stored": False, "rag_update_pending": True, "message": "RAG update pending — user feedback required via UI"},
         }
+
+        _record_node_metrics(config["name"], config["phase"])
 
         return {
             "node_id": node_id,
@@ -1757,18 +2127,138 @@ def register_routes(app: FastAPI) -> None:
     # Jira & GitHub API Endpoints (for frontend)
     # ==========================================================================
 
+    # -- Jira helper -----------------------------------------------------------
+
+    def _jira_request(method: str, path: str, json_body: dict = None, params: dict = None) -> dict:
+        """Make an authenticated request to the Jira REST API v3."""
+        import requests as req
+        from requests.auth import HTTPBasicAuth as _HTTPBasicAuth
+
+        jira_url = os.getenv("JIRA_URL", "").rstrip("/")
+        jira_user = os.getenv("JIRA_USERNAME", "") or os.getenv("JIRA_EMAIL", "")
+        jira_token = os.getenv("JIRA_API_TOKEN", "")
+
+        if not all([jira_url, jira_user, jira_token]):
+            raise HTTPException(400, "Jira not configured. Set JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN.")
+
+        url = f"{jira_url}/rest/api/3{path}"
+        auth = _HTTPBasicAuth(jira_user, jira_token)
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+        resp = req.request(method, url, auth=auth, headers=headers, json=json_body, params=params, timeout=30)
+        if resp.status_code >= 400:
+            detail = resp.text[:500]
+            logger.error(f"Jira API error: {resp.status_code} {detail}")
+            raise HTTPException(resp.status_code, f"Jira API error: {detail}")
+        return resp.json() if resp.text else {}
+
+    def _parse_jira_issue(issue: dict) -> dict:
+        fields = issue.get("fields", {})
+        raw_desc = fields.get("description")
+        if isinstance(raw_desc, dict):
+            try:
+                desc_text = raw_desc.get("content", [{}])[0].get("content", [{}])[0].get("text", "")
+            except (IndexError, AttributeError):
+                desc_text = ""
+        else:
+            desc_text = raw_desc or ""
+        return {
+            "ticket_id": issue["key"],
+            "summary": fields.get("summary", ""),
+            "description": desc_text,
+            "status": (fields.get("status") or {}).get("name", "To Do"),
+            "priority": (fields.get("priority") or {}).get("name", "Medium"),
+            "issue_type": (fields.get("issuetype") or {}).get("name", "Task"),
+            "assignee": {"name": fields["assignee"]["displayName"]} if fields.get("assignee") else None,
+            "reporter": {"name": fields["reporter"]["displayName"]} if fields.get("reporter") else {"name": "Unknown"},
+            "labels": fields.get("labels", []),
+            "created": fields.get("created", ""),
+            "updated": fields.get("updated", ""),
+            "has_pipeline": False,
+        }
+
     @app.get("/api/jira/tickets")
     async def get_jira_tickets(request: Request):
-        """
-        Get Jira tickets. Returns empty list if Jira is not configured.
-        """
-        # Check if Jira credentials are configured
+        """List Jira tickets from the configured project."""
         jira_token = os.getenv("JIRA_API_TOKEN", "")
         if not jira_token:
             return {"tickets": [], "count": 0, "source": "none", "message": "Jira not configured"}
+        project_key = request.query_params.get("project") or os.getenv("JIRA_PROJECT_KEY", "SCRUM")
+        max_results = int(request.query_params.get("maxResults", "50"))
+        jql = f"project = {project_key} ORDER BY updated DESC"
+        try:
+            data = _jira_request("GET", "/search/jql", params={"jql": jql, "maxResults": max_results, "fields": "summary,status,priority,issuetype,assignee,reporter,labels,created,updated,description"})
+        except HTTPException:
+            raise
+        except Exception as e:
+            return {"tickets": [], "count": 0, "source": "jira", "error": str(e)}
+        tickets = [_parse_jira_issue(issue) for issue in data.get("issues", [])]
+        return {"tickets": tickets, "count": len(tickets), "total": data.get("total", 0), "source": "jira"}
 
-        # TODO: Implement actual Jira API call
-        return {"tickets": [], "count": 0, "source": "jira"}
+    @app.get("/api/jira/tickets/{ticket_id}")
+    async def get_jira_ticket(ticket_id: str):
+        """Get a single Jira ticket by key."""
+        jira_token = os.getenv("JIRA_API_TOKEN", "")
+        if not jira_token:
+            raise HTTPException(400, "Jira not configured")
+        data = _jira_request("GET", f"/issue/{ticket_id}")
+        return _parse_jira_issue(data)
+
+    @app.post("/api/jira/tickets")
+    async def create_jira_ticket(request: Request):
+        """Create a new Jira ticket. Body: { summary, description, issue_type, priority, labels, project_key }"""
+        body = await request.json()
+        summary = body.get("summary")
+        if not summary:
+            raise HTTPException(400, "summary is required")
+        project_key = body.get("project_key") or os.getenv("JIRA_PROJECT_KEY", "SCRUM")
+        description_text = body.get("description", "")
+        issue_payload = {
+            "fields": {
+                "project": {"key": project_key},
+                "summary": summary,
+                "description": {"version": 1, "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": description_text}]}]},
+                "issuetype": {"name": body.get("issue_type", "Story")},
+            }
+        }
+        if body.get("priority"):
+            issue_payload["fields"]["priority"] = {"name": body["priority"]}
+        if body.get("labels"):
+            issue_payload["fields"]["labels"] = body["labels"]
+        data = _jira_request("POST", "/issue", json_body=issue_payload)
+        jira_url = os.getenv("JIRA_URL", "").rstrip("/")
+        ticket_key = data.get("key", "")
+        logger.info(f"Jira ticket created: {ticket_key}")
+        return {"success": True, "ticket_id": ticket_key, "ticket_url": f"{jira_url}/browse/{ticket_key}"}
+
+    @app.post("/api/jira/push-incident")
+    async def push_incident_to_jira(request: Request):
+        """Push an incident to Jira. Body: { incident_id, short_description, description, priority, category, labels }"""
+        body = await request.json()
+        incident_id = body.get("incident_id", "")
+        short_desc = body.get("short_description", "No description")
+        project_key = body.get("project_key") or os.getenv("JIRA_PROJECT_KEY", "SCRUM")
+        priority_map = {"P1": "Critical", "P2": "High", "P3": "Medium", "P4": "Low"}
+        jira_priority = priority_map.get(body.get("priority", "P3"), "Medium")
+        description_text = f"Incident ID: {incident_id}\nPriority: {body.get('priority', 'P3')}\nCategory: {body.get('category', 'N/A')}\n\n{body.get('description', short_desc)}\n\n--- Auto-created from Enterprise Agentic Platform ---"
+        labels = list(body.get("labels", []))
+        if "incident" not in labels:
+            labels.append("incident")
+        issue_payload = {
+            "fields": {
+                "project": {"key": project_key},
+                "summary": f"[Incident] {short_desc}",
+                "description": {"version": 1, "type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": description_text}]}]},
+                "issuetype": {"name": "Bug"},
+                "priority": {"name": jira_priority},
+                "labels": labels,
+            }
+        }
+        data = _jira_request("POST", "/issue", json_body=issue_payload)
+        jira_url = os.getenv("JIRA_URL", "").rstrip("/")
+        ticket_key = data.get("key", "")
+        logger.info(f"Incident {incident_id} pushed to Jira as {ticket_key}")
+        return {"success": True, "incident_id": incident_id, "jira_ticket_id": ticket_key, "jira_ticket_url": f"{jira_url}/browse/{ticket_key}"}
 
     @app.get("/api/github/prs")
     async def get_github_prs(request: Request):

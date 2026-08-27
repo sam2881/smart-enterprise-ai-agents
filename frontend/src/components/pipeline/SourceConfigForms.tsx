@@ -1,7 +1,7 @@
 /**
  * Source Configuration Forms
  *
- * Type-specific configuration forms for all 9 source categories.
+ * Type-specific configuration forms for all 11 source categories.
  * Each form displays the appropriate fields based on the selected source type.
  *
  * DARK THEME - Professional dark color scheme
@@ -12,10 +12,14 @@ import {
   SourceType,
   FileSourceConfig,
   DatabaseSourceConfig,
+  NoSQLSourceConfig,
   StreamingSourceConfig,
   APISourceConfig,
   EBCDICSourceConfig,
   DTSXSourceConfig,
+  LogsSourceConfig,
+  NestedSourceConfig,
+  SpecialSourceConfig,
   ExtractionMode,
 } from '@/types/pipeline-canonical'
 
@@ -893,6 +897,777 @@ export const DTSXSourceConfigForm: React.FC<DTSXSourceConfigFormProps> = ({
           <p>Merge Join</p>
         </div>
       </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// NoSQL Source Config Form
+// =============================================================================
+
+interface NoSQLSourceConfigFormProps {
+  config: Partial<NoSQLSourceConfig>
+  onChange: (config: Partial<NoSQLSourceConfig>) => void
+  sourceType?: SourceType
+  disabled?: boolean
+}
+
+export const NoSQLSourceConfigForm: React.FC<NoSQLSourceConfigFormProps> = ({
+  config,
+  onChange,
+  sourceType,
+  disabled = false,
+}) => {
+  const updateField = (field: keyof NoSQLSourceConfig, value: any) => {
+    onChange({ ...config, [field]: value })
+  }
+
+  const sourceTypeStr = sourceType?.toString() || ''
+  const isMongoDB = sourceTypeStr.includes('mongodb')
+  const isCassandra = sourceTypeStr.includes('cassandra')
+  const isDynamoDB = sourceTypeStr.includes('dynamodb')
+  const isElasticSearch = sourceTypeStr.includes('elasticsearch') || sourceTypeStr.includes('solr')
+  const isNeo4j = sourceTypeStr.includes('neo4j')
+  const isRedis = sourceTypeStr.includes('redis')
+  const isHBase = sourceTypeStr.includes('hbase')
+  const isCouchbase = sourceTypeStr.includes('couchbase')
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className={labelStyles}>
+          Connection String <span className="text-red-400">*</span>
+        </label>
+        <input
+          type="text"
+          value={config.connection_string || ''}
+          onChange={(e) => updateField('connection_string', e.target.value)}
+          disabled={disabled}
+          placeholder={
+            isMongoDB ? 'mongodb://user:pass@host:27017/database' :
+            isCassandra ? 'cassandra://host:9042/keyspace' :
+            isDynamoDB ? 'dynamodb://access_key:secret@region' :
+            isElasticSearch ? 'https://user:pass@host:9200' :
+            isNeo4j ? 'neo4j://host:7687' :
+            isRedis ? 'redis://host:6379' :
+            'connection-string'
+          }
+          className={inputStyles}
+        />
+      </div>
+
+      {/* MongoDB / Couchbase specific */}
+      {(isMongoDB || isCouchbase) && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelStyles}>Database Name</label>
+              <input
+                type="text"
+                value={config.database_name || ''}
+                onChange={(e) => updateField('database_name', e.target.value)}
+                disabled={disabled}
+                placeholder="my_database"
+                className={inputStyles}
+              />
+            </div>
+            <div>
+              <label className={labelStyles}>Collection Name</label>
+              <input
+                type="text"
+                value={config.collection_name || ''}
+                onChange={(e) => updateField('collection_name', e.target.value)}
+                disabled={disabled}
+                placeholder="my_collection"
+                className={inputStyles}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelStyles}>Query Filter (JSON)</label>
+            <textarea
+              value={config.query_filter || ''}
+              onChange={(e) => updateField('query_filter', e.target.value)}
+              disabled={disabled}
+              placeholder='{"status": "active", "created_at": {"$gte": "2024-01-01"}}'
+              rows={3}
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Read Preference</label>
+            <select
+              value={config.read_preference || 'primary'}
+              onChange={(e) => updateField('read_preference', e.target.value)}
+              disabled={disabled}
+              className={selectStyles}
+            >
+              <option value="primary">Primary</option>
+              <option value="primaryPreferred">Primary Preferred</option>
+              <option value="secondary">Secondary</option>
+              <option value="secondaryPreferred">Secondary Preferred</option>
+              <option value="nearest">Nearest</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {/* Cassandra / HBase specific */}
+      {(isCassandra || isHBase) && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelStyles}>Keyspace</label>
+              <input
+                type="text"
+                value={config.keyspace || ''}
+                onChange={(e) => updateField('keyspace', e.target.value)}
+                disabled={disabled}
+                placeholder="my_keyspace"
+                className={inputStyles}
+              />
+            </div>
+            <div>
+              <label className={labelStyles}>Table Name</label>
+              <input
+                type="text"
+                value={config.table_name || ''}
+                onChange={(e) => updateField('table_name', e.target.value)}
+                disabled={disabled}
+                placeholder="my_table"
+                className={inputStyles}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* DynamoDB specific */}
+      {isDynamoDB && (
+        <>
+          <div>
+            <label className={labelStyles}>Table Name</label>
+            <input
+              type="text"
+              value={config.table_name || ''}
+              onChange={(e) => updateField('table_name', e.target.value)}
+              disabled={disabled}
+              placeholder="my_dynamodb_table"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Query Filter (JSON)</label>
+            <textarea
+              value={config.query_filter || ''}
+              onChange={(e) => updateField('query_filter', e.target.value)}
+              disabled={disabled}
+              placeholder='{"KeyConditionExpression": "pk = :pk", "ExpressionAttributeValues": {":pk": {"S": "value"}}}'
+              rows={3}
+              className={inputStyles}
+            />
+          </div>
+        </>
+      )}
+
+      {/* ElasticSearch / Solr specific */}
+      {isElasticSearch && (
+        <>
+          <div>
+            <label className={labelStyles}>Index Name</label>
+            <input
+              type="text"
+              value={config.index_name || ''}
+              onChange={(e) => updateField('index_name', e.target.value)}
+              disabled={disabled}
+              placeholder="my_index"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Search Query (JSON)</label>
+            <textarea
+              value={config.search_query || ''}
+              onChange={(e) => updateField('search_query', e.target.value)}
+              disabled={disabled}
+              placeholder='{"query": {"match_all": {}}, "size": 10000}'
+              rows={3}
+              className={inputStyles}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Neo4j specific */}
+      {isNeo4j && (
+        <div>
+          <label className={labelStyles}>Cypher Query</label>
+          <textarea
+            value={config.cypher_query || ''}
+            onChange={(e) => updateField('cypher_query', e.target.value)}
+            disabled={disabled}
+            placeholder="MATCH (n:Person) RETURN n.name, n.age LIMIT 1000"
+            rows={4}
+            className={inputStyles}
+          />
+        </div>
+      )}
+
+      {/* Common options */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelStyles}>Extraction Mode</label>
+          <select
+            value={config.extraction_mode || 'full'}
+            onChange={(e) => updateField('extraction_mode', e.target.value as ExtractionMode)}
+            disabled={disabled}
+            className={selectStyles}
+          >
+            <option value="full">Full Extract</option>
+            <option value="incremental">Incremental</option>
+            <option value="cdc">Change Data Capture</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelStyles}>Batch Size</label>
+          <input
+            type="number"
+            value={config.batch_size || 1000}
+            onChange={(e) => updateField('batch_size', parseInt(e.target.value))}
+            disabled={disabled}
+            min={100}
+            max={100000}
+            className={inputStyles}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =============================================================================
+// Logs Source Config Form
+// =============================================================================
+
+interface LogsSourceConfigFormProps {
+  config: Partial<LogsSourceConfig>
+  onChange: (config: Partial<LogsSourceConfig>) => void
+  disabled?: boolean
+}
+
+export const LogsSourceConfigForm: React.FC<LogsSourceConfigFormProps> = ({
+  config,
+  onChange,
+  disabled = false,
+}) => {
+  const updateField = (field: keyof LogsSourceConfig, value: any) => {
+    onChange({ ...config, [field]: value })
+  }
+
+  const isGCS = config.log_source === 'gcs'
+  const isStackdriver = config.log_source === 'stackdriver'
+  const isElasticsearch = config.log_source === 'elasticsearch'
+  const isSplunk = config.log_source === 'splunk'
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className={labelStyles}>
+          Log Source <span className="text-red-400">*</span>
+        </label>
+        <select
+          value={config.log_source || 'gcs'}
+          onChange={(e) => updateField('log_source', e.target.value)}
+          disabled={disabled}
+          className={selectStyles}
+        >
+          <option value="gcs">GCS Log Files</option>
+          <option value="stackdriver">Google Cloud Logging (Stackdriver)</option>
+          <option value="elasticsearch">Elasticsearch</option>
+          <option value="splunk">Splunk</option>
+          <option value="datadog">Datadog</option>
+        </select>
+      </div>
+
+      {isGCS && (
+        <>
+          <div>
+            <label className={labelStyles}>Log Path</label>
+            <input
+              type="text"
+              value={config.log_path || ''}
+              onChange={(e) => updateField('log_path', e.target.value)}
+              disabled={disabled}
+              placeholder="gs://my-bucket/logs/application/"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>File Pattern</label>
+            <input
+              type="text"
+              value={config.log_pattern || ''}
+              onChange={(e) => updateField('log_pattern', e.target.value)}
+              disabled={disabled}
+              placeholder="*.log or app-*.log.gz"
+              className={inputStyles}
+            />
+          </div>
+        </>
+      )}
+
+      {isStackdriver && (
+        <>
+          <div>
+            <label className={labelStyles}>Project ID</label>
+            <input
+              type="text"
+              value={config.project_id || ''}
+              onChange={(e) => updateField('project_id', e.target.value)}
+              disabled={disabled}
+              placeholder="my-gcp-project"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Log Name</label>
+            <input
+              type="text"
+              value={config.log_name || ''}
+              onChange={(e) => updateField('log_name', e.target.value)}
+              disabled={disabled}
+              placeholder="projects/my-project/logs/my-log"
+              className={inputStyles}
+            />
+          </div>
+        </>
+      )}
+
+      {(isElasticsearch || isSplunk) && (
+        <div>
+          <label className={labelStyles}>Query</label>
+          <textarea
+            value={config.query || ''}
+            onChange={(e) => updateField('query', e.target.value)}
+            disabled={disabled}
+            placeholder={isElasticsearch ? '{"query": {"match_all": {}}}' : 'index=main sourcetype=application'}
+            rows={3}
+            className={inputStyles}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelStyles}>Start Time</label>
+          <input
+            type="datetime-local"
+            value={config.start_time || ''}
+            onChange={(e) => updateField('start_time', e.target.value)}
+            disabled={disabled}
+            className={inputStyles}
+          />
+        </div>
+        <div>
+          <label className={labelStyles}>End Time</label>
+          <input
+            type="datetime-local"
+            value={config.end_time || ''}
+            onChange={(e) => updateField('end_time', e.target.value)}
+            disabled={disabled}
+            className={inputStyles}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className={labelStyles}>Parse Format</label>
+        <select
+          value={config.parse_format || 'json'}
+          onChange={(e) => updateField('parse_format', e.target.value)}
+          disabled={disabled}
+          className={selectStyles}
+        >
+          <option value="json">JSON</option>
+          <option value="regex">Regex</option>
+          <option value="grok">Grok Pattern</option>
+          <option value="unstructured">Unstructured</option>
+        </select>
+      </div>
+
+      {config.parse_format === 'regex' && (
+        <div>
+          <label className={labelStyles}>Regex Pattern</label>
+          <input
+            type="text"
+            value={config.log_pattern || ''}
+            onChange={(e) => updateField('log_pattern', e.target.value)}
+            disabled={disabled}
+            placeholder="^(?<timestamp>\d{4}-\d{2}-\d{2}) (?<level>\w+) (?<message>.*)"
+            className={inputStyles}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// Nested Source Config Form
+// =============================================================================
+
+interface NestedSourceConfigFormProps {
+  config: Partial<NestedSourceConfig>
+  onChange: (config: Partial<NestedSourceConfig>) => void
+  disabled?: boolean
+}
+
+export const NestedSourceConfigForm: React.FC<NestedSourceConfigFormProps> = ({
+  config,
+  onChange,
+  disabled = false,
+}) => {
+  const updateField = (field: keyof NestedSourceConfig, value: any) => {
+    onChange({ ...config, [field]: value })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelStyles}>
+            Flatten Strategy <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={config.flatten_strategy || 'explode'}
+            onChange={(e) => updateField('flatten_strategy', e.target.value)}
+            disabled={disabled}
+            className={selectStyles}
+          >
+            <option value="explode">Explode (flatten to rows)</option>
+            <option value="struct">Keep as Struct</option>
+            <option value="json_string">Store as JSON String</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            How to handle nested objects
+          </p>
+        </div>
+        <div>
+          <label className={labelStyles}>
+            Array Handling <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={config.array_handling || 'explode'}
+            onChange={(e) => updateField('array_handling', e.target.value)}
+            disabled={disabled}
+            className={selectStyles}
+          >
+            <option value="explode">Explode (one row per element)</option>
+            <option value="collect">Collect (array column)</option>
+            <option value="first">First Element Only</option>
+            <option value="json_array">Store as JSON Array</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            How to handle arrays in data
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelStyles}>Max Depth</label>
+          <input
+            type="number"
+            value={config.max_depth || 10}
+            onChange={(e) => updateField('max_depth', parseInt(e.target.value))}
+            disabled={disabled}
+            min={1}
+            max={100}
+            className={inputStyles}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Maximum nesting depth to process
+          </p>
+        </div>
+        <div>
+          <label className={labelStyles}>Null Handling</label>
+          <select
+            value={config.null_handling || 'keep'}
+            onChange={(e) => updateField('null_handling', e.target.value)}
+            disabled={disabled}
+            className={selectStyles}
+          >
+            <option value="keep">Keep Nulls</option>
+            <option value="remove">Remove Null Fields</option>
+            <option value="default">Use Default Values</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={config.schema_inference ?? true}
+            onChange={(e) => updateField('schema_inference', e.target.checked)}
+            disabled={disabled}
+            className="h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500"
+          />
+          <span className={checkboxLabelStyles}>Enable Schema Inference</span>
+        </label>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={config.preserve_paths ?? false}
+            onChange={(e) => updateField('preserve_paths', e.target.checked)}
+            disabled={disabled}
+            className="h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500"
+          />
+          <span className={checkboxLabelStyles}>Preserve JSON Paths</span>
+        </label>
+      </div>
+
+      {config.schema_inference && (
+        <div>
+          <label className={labelStyles}>Schema Sample Size</label>
+          <input
+            type="number"
+            value={config.schema_sample_size || 100}
+            onChange={(e) => updateField('schema_sample_size', parseInt(e.target.value))}
+            disabled={disabled}
+            min={10}
+            max={10000}
+            className={inputStyles}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Number of records to sample for schema inference
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// Special Source Config Form
+// =============================================================================
+
+interface SpecialSourceConfigFormProps {
+  config: Partial<SpecialSourceConfig>
+  onChange: (config: Partial<SpecialSourceConfig>) => void
+  sourceType?: SourceType
+  disabled?: boolean
+}
+
+export const SpecialSourceConfigForm: React.FC<SpecialSourceConfigFormProps> = ({
+  config,
+  onChange,
+  sourceType,
+  disabled = false,
+}) => {
+  const updateField = (field: keyof SpecialSourceConfig, value: any) => {
+    onChange({ ...config, [field]: value })
+  }
+
+  const sourceTypeStr = sourceType?.toString() || ''
+  const isIoT = sourceTypeStr.includes('iot')
+  const isTimeseries = sourceTypeStr.includes('timeseries')
+  const isGeospatial = sourceTypeStr.includes('geospatial')
+  const isMLFeatures = sourceTypeStr.includes('ml_features')
+  const isOpenData = sourceTypeStr.includes('open_data')
+
+  return (
+    <div className="space-y-4">
+      {/* IoT-specific */}
+      {isIoT && (
+        <>
+          <div>
+            <label className={labelStyles}>Device Registry</label>
+            <input
+              type="text"
+              value={config.device_registry || ''}
+              onChange={(e) => updateField('device_registry', e.target.value)}
+              disabled={disabled}
+              placeholder="projects/my-project/locations/us-central1/registries/my-registry"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Protocol</label>
+            <select
+              value={config.protocol || 'mqtt'}
+              onChange={(e) => updateField('protocol', e.target.value)}
+              disabled={disabled}
+              className={selectStyles}
+            >
+              <option value="mqtt">MQTT</option>
+              <option value="http">HTTP</option>
+              <option value="coap">CoAP</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {/* Time-series-specific */}
+      {isTimeseries && (
+        <>
+          <div>
+            <label className={labelStyles}>Metric Name</label>
+            <input
+              type="text"
+              value={config.metric_name || ''}
+              onChange={(e) => updateField('metric_name', e.target.value)}
+              disabled={disabled}
+              placeholder="cpu_usage, memory_percent, request_count"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Aggregation Window</label>
+            <select
+              value={config.aggregation_window || '1h'}
+              onChange={(e) => updateField('aggregation_window', e.target.value)}
+              disabled={disabled}
+              className={selectStyles}
+            >
+              <option value="1m">1 Minute</option>
+              <option value="5m">5 Minutes</option>
+              <option value="15m">15 Minutes</option>
+              <option value="1h">1 Hour</option>
+              <option value="1d">1 Day</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {/* Geospatial-specific */}
+      {isGeospatial && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelStyles}>Geometry Column</label>
+              <input
+                type="text"
+                value={config.geometry_column || ''}
+                onChange={(e) => updateField('geometry_column', e.target.value)}
+                disabled={disabled}
+                placeholder="geometry"
+                className={inputStyles}
+              />
+            </div>
+            <div>
+              <label className={labelStyles}>Geometry Type</label>
+              <select
+                value={config.geometry_type || 'point'}
+                onChange={(e) => updateField('geometry_type', e.target.value)}
+                disabled={disabled}
+                className={selectStyles}
+              >
+                <option value="point">Point</option>
+                <option value="linestring">LineString</option>
+                <option value="polygon">Polygon</option>
+                <option value="multipolygon">MultiPolygon</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={labelStyles}>SRID (Spatial Reference ID)</label>
+            <input
+              type="number"
+              value={config.srid || 4326}
+              onChange={(e) => updateField('srid', parseInt(e.target.value))}
+              disabled={disabled}
+              placeholder="4326 (WGS 84)"
+              className={inputStyles}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              4326 = WGS 84 (GPS), 3857 = Web Mercator
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* ML Features-specific */}
+      {isMLFeatures && (
+        <>
+          <div>
+            <label className={labelStyles}>Feature Group</label>
+            <input
+              type="text"
+              value={config.feature_group || ''}
+              onChange={(e) => updateField('feature_group', e.target.value)}
+              disabled={disabled}
+              placeholder="customer_features"
+              className={inputStyles}
+            />
+          </div>
+          <div>
+            <label className={labelStyles}>Entity Columns</label>
+            <input
+              type="text"
+              value={config.entity_columns?.join(', ') || ''}
+              onChange={(e) => updateField('entity_columns', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+              disabled={disabled}
+              placeholder="customer_id, timestamp"
+              className={inputStyles}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Comma-separated list of entity/key columns
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Open Data-specific */}
+      {isOpenData && (
+        <>
+          <div>
+            <label className={labelStyles}>Dataset URL</label>
+            <input
+              type="url"
+              value={config.dataset_url || ''}
+              onChange={(e) => updateField('dataset_url', e.target.value)}
+              disabled={disabled}
+              placeholder="https://data.gov/api/dataset/..."
+              className={inputStyles}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelStyles}>API Key (if required)</label>
+              <input
+                type="password"
+                value={config.api_key || ''}
+                onChange={(e) => updateField('api_key', e.target.value)}
+                disabled={disabled}
+                placeholder="Optional API key"
+                className={inputStyles}
+              />
+            </div>
+            <div>
+              <label className={labelStyles}>Refresh Interval</label>
+              <select
+                value={config.refresh_interval || '@daily'}
+                onChange={(e) => updateField('refresh_interval', e.target.value)}
+                disabled={disabled}
+                className={selectStyles}
+              >
+                <option value="@hourly">Hourly</option>
+                <option value="@daily">Daily</option>
+                <option value="@weekly">Weekly</option>
+                <option value="@monthly">Monthly</option>
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Default fallback for unspecified types */}
+      {!isIoT && !isTimeseries && !isGeospatial && !isMLFeatures && !isOpenData && (
+        <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-lg text-gray-400 text-sm">
+          Select a specific source type to see configuration options.
+        </div>
+      )}
     </div>
   )
 }

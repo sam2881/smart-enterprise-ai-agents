@@ -31,9 +31,8 @@ States: NEW → RECEIVED → ENRICHED → JUDGED → PLAN_GENERATED →
 """
 import os
 import json
-import asyncio
 import uuid
-from typing import TypedDict, Optional, List, Dict, Any, Literal
+from typing import TypedDict, Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
 import structlog
@@ -50,7 +49,7 @@ except ImportError:
     MemorySaver = None
 
 # Internal imports
-from agents.servicenow_agent.src.control_plane import ApprovalRoute, ApprovalDecision
+from agents.servicenow_agent.src.control_plane import ApprovalRoute
 from agents.servicenow_agent.src.control_plane.policy_engine import PolicyEngine as ControlPlane
 from agents.servicenow_agent.src.rag import hybrid_search_engine, graph_scorer, feedback_optimizer
 try:
@@ -64,6 +63,7 @@ from agents.servicenow_agent.src.utils.slack_notifier import SlackNotifier
 from agents.servicenow_agent.src.governance.audit_logger import audit_logger, AuditEventType, RiskLevel
 from agents.servicenow_agent.src.streaming.kafka_producer import get_producer
 from agents.servicenow_agent.src.streaming.schemas import Topics
+from agents.servicenow_agent.src.agents.l1_support_agent import L1SupportAgent
 
 logger = structlog.get_logger()
 
@@ -615,6 +615,279 @@ def _extract_dag_id(parsed_context: Dict[str, Any]) -> Optional[str]:
 
 
 # =============================================================================
+# GCP VM REMEDIATION HELPER - Direct Compute API for VM operations
+# =============================================================================
+
+def _extract_vm_params(state: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """
+    Extract GCP VM parameters (instance_name, zone, project) from state.
+
+    Priority order:
+    1. state["extracted_params"] (from LLM classification)
+    2. Regex parsing from incident description
+    """
+    import re
+
+    extracted = state.get("extracted_params", {})
+    parsed = state.get("parsed_context", {})
+    description = parsed.get("description", "")
+    short_desc = parsed.get("short_description", "")
+    full_text = f"{short_desc} {description}"
+
+    # Get instance_name - from LLM params first, then regex
+    instance_name = extracted.get("instance_name")
+    if not instance_name:
+        # Pattern: "VM instance <name> is" or "VM '<name>'"
+        patterns = [
+            r"VM instance\s+([a-zA-Z0-9_-]+)\s+is",
+            r"VM\s*['\"]([a-zA-Z0-9_-]+)['\"]",
+            r"instance[_\s]+name[=:\s]+([a-zA-Z0-9_-]+)",
+            r"[Ii]nstance\s+([a-zA-Z0-9][a-zA-Z0-9_-]{2,})\s+(?:is|was|has)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, full_text)
+            if match:
+                instance_name = match.group(1)
+                break
+
+    # Get zone - from LLM params first, then regex
+    zone = extracted.get("zone")
+    if not zone:
+        # GCP zone format: us-central1-a, europe-west1-b, etc.
+        zone_pattern = r"((?:us|europe|asia|australia|southamerica|northamerica)-[a-z]+\d+-[a-z])"
+        match = re.search(zone_pattern, full_text)
+        if match:
+            zone = match.group(1)
+        # Also try "Zone: us-central1-a" from structured descriptions
+        if not zone:
+            zone_kv = re.search(r"[Zz]one[=:\s]+([a-z]+-[a-z]+\d+-[a-z])", full_text)
+            if zone_kv:
+                zone = zone_kv.group(1)
+
+    # Get project - from LLM params, env var, or regex
+    project = extracted.get("project") or os.getenv("GCP_PROJECT_ID", "")
+    if not project:
+        proj_pattern = r"project[=:\s]+([a-zA-Z0-9_-]+)"
+        match = re.search(proj_pattern, full_text, re.IGNORECASE)
+        if match:
+            project = match.group(1)
+
+    return {
+        "instance_name": instance_name,
+        "zone": zone,
+        "project": project,
+    }
+
+
+async def _execute_gcp_remediation(state: Dict[str, Any], plan: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute GCP VM remediation using the Compute API directly.
+
+    Handles:
+    1. TERMINATED/STOPPED VM → Start the instance
+    2. SUSPENDED VM → Resume the instance
+
+    Returns:
+        Dict with execution result including success status and VM state.
+    """
+    incident_id = state.get("incident_id", "")
+    vm_params = _extract_vm_params(state)
+
+    instance_name = vm_params.get("instance_name")
+    zone = vm_params.get("zone")
+    project = vm_params.get("project")
+
+    logger.info(
+        "gcp_remediation_starting",
+        incident_id=incident_id,
+        instance_name=instance_name,
+        zone=zone,
+        project=project,
+    )
+
+    if not instance_name:
+        return {
+            "success": False,
+            "error": "Could not extract VM instance name from incident",
+            "status": "failed",
+        }
+    if not zone:
+        return {
+            "success": False,
+            "error": f"Could not extract zone for VM '{instance_name}'",
+            "status": "failed",
+        }
+    if not project:
+        return {
+            "success": False,
+            "error": "GCP project ID not available (set GCP_PROJECT_ID env var)",
+            "status": "failed",
+        }
+
+    try:
+        from google.cloud import compute_v1
+
+        instances_client = compute_v1.InstancesClient()
+
+        # First, get current VM status
+        instance = instances_client.get(
+            project=project, zone=zone, instance=instance_name
+        )
+        current_status = instance.status
+        logger.info(
+            "gcp_vm_current_status",
+            instance=instance_name,
+            status=current_status,
+        )
+
+        if current_status == "RUNNING":
+            return {
+                "success": True,
+                "instance_name": instance_name,
+                "zone": zone,
+                "project": project,
+                "status": "already_running",
+                "message": f"VM '{instance_name}' is already RUNNING — no action needed.",
+                "conclusion": "success",
+                "exit_code": 0,
+            }
+
+        # Start the VM
+        logger.info("gcp_vm_starting", instance=instance_name, zone=zone)
+        operation = instances_client.start(
+            project=project, zone=zone, instance=instance_name
+        )
+
+        # Wait for the operation to complete (blocks up to ~120s)
+        operation_client = compute_v1.ZoneOperationsClient()
+        op_result = operation_client.wait(
+            project=project, zone=zone, operation=operation.name
+        )
+
+        if op_result.status == compute_v1.Operation.Status.DONE:
+            if op_result.error:
+                errors = "; ".join(
+                    e.message for e in (op_result.error.errors or [])
+                )
+                return {
+                    "success": False,
+                    "instance_name": instance_name,
+                    "zone": zone,
+                    "project": project,
+                    "error": f"GCP start operation failed: {errors}",
+                    "status": "failed",
+                    "conclusion": "failure",
+                    "exit_code": 1,
+                }
+
+            # Verify post-start
+            instance = instances_client.get(
+                project=project, zone=zone, instance=instance_name
+            )
+            new_status = instance.status
+            logger.info(
+                "gcp_vm_started",
+                instance=instance_name,
+                new_status=new_status,
+            )
+
+            return {
+                "success": new_status == "RUNNING",
+                "instance_name": instance_name,
+                "zone": zone,
+                "project": project,
+                "previous_status": current_status,
+                "current_status": new_status,
+                "status": "completed" if new_status == "RUNNING" else "partial",
+                "conclusion": "success" if new_status == "RUNNING" else "failure",
+                "exit_code": 0 if new_status == "RUNNING" else 1,
+                "message": f"VM '{instance_name}' transitioned from {current_status} to {new_status}.",
+            }
+        else:
+            return {
+                "success": False,
+                "instance_name": instance_name,
+                "error": f"Operation did not complete: status={op_result.status}",
+                "status": "failed",
+                "conclusion": "failure",
+                "exit_code": 1,
+            }
+
+    except ImportError:
+        logger.error("google_cloud_compute_not_installed")
+        return {
+            "success": False,
+            "error": "google-cloud-compute package not installed — cannot execute GCP remediation",
+            "status": "failed",
+        }
+    except Exception as e:
+        logger.error(
+            "gcp_remediation_error",
+            instance_name=instance_name,
+            error=str(e),
+            incident_id=incident_id,
+        )
+        return {
+            "success": False,
+            "instance_name": instance_name,
+            "error": str(e),
+            "status": "failed",
+            "conclusion": "failure",
+            "exit_code": 1,
+        }
+
+
+async def _verify_gcp_vm_status(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Verify that a GCP VM is actually RUNNING after remediation.
+
+    Returns dict with verified=True/False and current VM status.
+    """
+    vm_params = _extract_vm_params(state)
+    instance_name = vm_params.get("instance_name")
+    zone = vm_params.get("zone")
+    project = vm_params.get("project")
+
+    if not all([instance_name, zone, project]):
+        return {
+            "verified": False,
+            "reason": f"Missing VM params: instance={instance_name}, zone={zone}, project={project}",
+        }
+
+    try:
+        from google.cloud import compute_v1
+
+        instances_client = compute_v1.InstancesClient()
+        instance = instances_client.get(
+            project=project, zone=zone, instance=instance_name
+        )
+        status = instance.status
+
+        return {
+            "verified": status == "RUNNING",
+            "vm_status": status,
+            "instance_name": instance_name,
+            "zone": zone,
+            "project": project,
+            "reason": (
+                f"VM '{instance_name}' is {status}"
+                + (" — fix verified." if status == "RUNNING" else " — VM is NOT running, fix failed.")
+            ),
+        }
+
+    except ImportError:
+        return {
+            "verified": False,
+            "reason": "google-cloud-compute not installed — cannot verify VM status",
+        }
+    except Exception as e:
+        return {
+            "verified": False,
+            "reason": f"Failed to query GCP: {str(e)}",
+        }
+
+
+# =============================================================================
 # KAFKA EVENT PUBLISHING - All state transitions go through Kafka
 # =============================================================================
 
@@ -721,6 +994,9 @@ class WorkflowState(TypedDict):
     approval_reason: str
     approval_token: Optional[str]
 
+    # Phase 5b: Extracted Parameters (from classification + plan generation)
+    extracted_params: Dict[str, Any]
+
     # Phase 6: Execution
     execution_plan_id: str
     execution_status: str
@@ -734,6 +1010,14 @@ class WorkflowState(TypedDict):
     # Phase 8: Closure
     ticket_closed: bool
     resolution_summary: str
+
+    # L1 SOP triage (node_l1_triage, runs after classify)
+    l1_attempted: bool
+    l1_sop_id: Optional[str]
+    l1_sop_name: Optional[str]
+    l1_outcome: str          # "resolved" | "escalated" | "no_match" | "failed"
+    l1_resolved: bool
+    l1_attempt_notes: str
 
     # Workflow tracking
     current_step: str
@@ -1453,11 +1737,45 @@ async def node_execute(state: WorkflowState) -> WorkflowState:
 
             return state
 
-        # Non-Airflow: Trigger REAL GitHub Actions workflow
+        # Check if this is a GCP VM incident - use Compute API directly
+        desc_lower = state.get("parsed_context", {}).get("description", "").lower()
+        short_lower = state.get("parsed_context", {}).get("short_description", "").lower()
+        is_gcp_incident = (
+            classification == "gcp" or
+            action_type in ["gcp", "gcp_restart", "start_instance", "start_gcp_instance"] or
+            "vm" in short_lower or "instance" in short_lower or
+            "gcp" in short_lower or "compute" in short_lower or
+            "start_gcp" in plan.get("script_id", "").lower()
+        )
+
+        if is_gcp_incident:
+            # Execute via GCP Compute API directly (no GitHub Actions needed)
+            execution_result = await _execute_gcp_remediation(state, plan)
+            state["execution_status"] = execution_result.get("status", "unknown")
+            state["execution_output"] = execution_result
+
+            if execution_result.get("success"):
+                state["status"] = IncidentStatus.EXECUTED.value
+                logger.info(
+                    "gcp_remediation_success",
+                    incident_id=state.get("incident_id"),
+                    instance_name=execution_result.get("instance_name"),
+                    current_status=execution_result.get("current_status"),
+                )
+            else:
+                state["status"] = IncidentStatus.FAILED.value
+                state["errors"] = state.get("errors", []) + [
+                    f"GCP remediation failed: {execution_result.get('error', 'Unknown error')}"
+                ]
+
+            return state
+
+        # Non-Airflow, Non-GCP: Trigger REAL GitHub Actions workflow
         workflow_name = plan.get("workflow_name", "shell-execute.yml")
         script_path = plan.get("script_path", "")
 
-        # Prepare workflow inputs
+        # Prepare workflow inputs - include extracted_params for scripts that need them
+        extracted = state.get("extracted_params", {})
         workflow_inputs = {
             "incident_id": state.get("incident_id", ""),
             "script_path": script_path,
@@ -1465,8 +1783,11 @@ async def node_execute(state: WorkflowState) -> WorkflowState:
             "environment": plan.get("environment", "production"),
             "dry_run": str(plan.get("dry_run", False)).lower(),
             "correlation_id": state.get("correlation_id", ""),
-            "timeout_minutes": str(plan.get("estimated_duration_seconds", 300) // 60 + 5)
+            "timeout_minutes": str(plan.get("estimated_duration_seconds", 300) // 60 + 5),
         }
+        # Pass extracted parameters so scripts can use them (e.g., instance_name, zone)
+        if extracted:
+            workflow_inputs["extracted_params"] = json.dumps(extracted)
 
         # Dispatch workflow
         run_result = await github_actions.trigger_workflow(
@@ -1550,22 +1871,77 @@ async def node_execute(state: WorkflowState) -> WorkflowState:
 
 
 async def node_verify(state: WorkflowState) -> WorkflowState:
-    """Step 9: Verify fix was successful"""
+    """Step 9: Verify fix was successful - with real health checks for GCP/Airflow"""
     logger.info("workflow_step", step="verify", incident_id=state.get("incident_id"))
 
     state["current_step"] = "verify"
     state["step_history"] = state.get("step_history", []) + ["verify"]
 
     execution = state.get("execution_output", {})
+    classification = state.get("classification", "")
 
-    if execution.get("conclusion") == "success" or execution.get("exit_code") == 0:
-        # Additional verification - could run health checks here
-        state["fix_verified"] = True
-        state["verification_reason"] = f"Execution completed successfully. Run ID: {state.get('github_run_id')}"
-        state["status"] = IncidentStatus.VERIFIED.value
-    else:
+    # Determine if execution itself reported success
+    # Check multiple keys for compatibility across execution paths
+    exec_success = (
+        execution.get("conclusion") == "success" or
+        execution.get("exit_code") == 0 or
+        execution.get("success") is True  # GCP / Airflow direct paths
+    )
+
+    # Detect GCP incident type
+    desc_lower = state.get("parsed_context", {}).get("short_description", "").lower()
+    is_gcp = (
+        classification == "gcp" or
+        "vm" in desc_lower or "instance" in desc_lower or
+        "gcp" in desc_lower or "compute" in desc_lower
+    )
+
+    if is_gcp:
+        # GCP VM: ALWAYS run real health check regardless of exec_success
+        # This is the independent verification step
+        logger.info(
+            "gcp_verification_starting",
+            incident_id=state.get("incident_id"),
+            exec_success=exec_success,
+        )
+        gcp_check = await _verify_gcp_vm_status(state)
+
+        state["fix_verified"] = gcp_check.get("verified", False)
+        state["verification_reason"] = gcp_check.get("reason", "GCP verification returned no reason")
+        state["verification_details"] = gcp_check
+
+        if state["fix_verified"]:
+            logger.info(
+                "gcp_verification_passed",
+                instance=gcp_check.get("instance_name"),
+                status=gcp_check.get("vm_status"),
+            )
+        else:
+            logger.warning(
+                "gcp_verification_failed",
+                instance=gcp_check.get("instance_name"),
+                status=gcp_check.get("vm_status"),
+                reason=gcp_check.get("reason"),
+            )
+
+    elif not exec_success:
+        # Non-GCP and execution failed — no point verifying further
         state["fix_verified"] = False
-        state["verification_reason"] = execution.get("error", f"Execution failed with conclusion: {execution.get('conclusion')}")
+        state["verification_reason"] = execution.get(
+            "error",
+            f"Execution failed with conclusion: {execution.get('conclusion')}"
+        )
+
+    else:
+        # Non-GCP, execution succeeded: trust the result
+        state["fix_verified"] = True
+        state["verification_reason"] = (
+            f"Execution completed successfully. "
+            f"Run ID: {state.get('github_run_id', 'N/A')}"
+        )
+
+    if state.get("fix_verified"):
+        state["status"] = IncidentStatus.VERIFIED.value
 
     # Publish: incident.verified
     await publish_workflow_event(
@@ -1575,7 +1951,8 @@ async def node_verify(state: WorkflowState) -> WorkflowState:
         additional_data={
             "fix_verified": state.get("fix_verified", False),
             "verification_reason": state.get("verification_reason", ""),
-            "github_run_id": state.get("github_run_id")
+            "verification_details": state.get("verification_details", {}),
+            "github_run_id": state.get("github_run_id"),
         }
     )
 
@@ -1744,8 +2121,86 @@ async def node_feedback_loop(state: WorkflowState) -> WorkflowState:
 
 
 # =============================================================================
+# L1 SUPPORT NODE — SOP-based triage before AI workflow
+# =============================================================================
+
+async def node_l1_triage(state: WorkflowState) -> WorkflowState:
+    """
+    Step 3b: L1 SOP triage.
+
+    Runs immediately after node_classify. Attempts deterministic,
+    runbook-driven resolution for well-known failure patterns (DAG timeout,
+    OOM, source unavailable, GCP VM stopped) without invoking RAG or LLM.
+
+    Outcomes:
+      l1_resolved=True  → route_after_l1 sends to close_ticket (short-circuit)
+      l1_resolved=False → route_after_l1 sends to swarm_rag (existing AI path)
+
+    The existing ServiceNow ticket (opened by DataPipelineIncidentBridge) is
+    updated via the incident.l1_attempted Kafka event — same ticket, no duplicates.
+    """
+    logger.info("workflow_step", step="l1_triage", incident_id=state.get("incident_id"))
+
+    state["current_step"]  = "l1_triage"
+    state["step_history"]  = state.get("step_history", []) + ["l1_triage"]
+
+    # Initialise L1 defaults so WorkflowState keys always exist
+    state.setdefault("l1_attempted",     False)
+    state.setdefault("l1_sop_id",        "")
+    state.setdefault("l1_sop_name",      "")
+    state.setdefault("l1_outcome",       "no_match")
+    state.setdefault("l1_resolved",      False)
+    state.setdefault("l1_attempt_notes", "")
+
+    try:
+        agent  = L1SupportAgent()
+        result = await agent.execute(state)
+        state.update(result)
+    except Exception as exc:
+        logger.error("l1_triage_error", error=str(exc),
+                     incident_id=state.get("incident_id"))
+        state["l1_outcome"]       = "escalated"
+        state["l1_resolved"]      = False
+        state["l1_attempt_notes"] = f"L1 agent error — escalating to AI: {exc}"
+
+    logger.info(
+        "l1_triage_complete",
+        incident_id=state.get("incident_id"),
+        outcome=state.get("l1_outcome"),
+        sop_id=state.get("l1_sop_id", ""),
+        resolved=state.get("l1_resolved", False),
+    )
+
+    # Publish enriched event with L1 outcome so dashboards see it immediately
+    await publish_workflow_event(
+        topic=Topics.INCIDENT_ENRICHED,
+        state=state,
+        event_type="incident.l1_triaged",
+        additional_data={
+            "l1_outcome":       state.get("l1_outcome"),
+            "l1_sop_id":        state.get("l1_sop_id", ""),
+            "l1_resolved":      state.get("l1_resolved", False),
+            "l1_attempt_notes": state.get("l1_attempt_notes", ""),
+        }
+    )
+
+    return state
+
+
+# =============================================================================
 # CONDITIONAL ROUTING
 # =============================================================================
+
+def route_after_l1(state: WorkflowState) -> str:
+    """
+    Gate after L1 triage.
+      resolved → close_ticket  (skip entire AI workflow)
+      otherwise → swarm_rag    (existing 9-node AI path, unchanged)
+    """
+    if state.get("l1_resolved"):
+        return "close_ticket"
+    return "swarm_rag"
+
 
 def route_after_judge(state: WorkflowState) -> str:
     """Determine next step after judge evaluation"""
@@ -1834,6 +2289,7 @@ def build_v6_workflow():
     workflow.add_node("ingest", node_ingest)
     workflow.add_node("parse", node_parse)
     workflow.add_node("classify", node_classify)
+    workflow.add_node("l1_triage", node_l1_triage)
     workflow.add_node("swarm_rag", node_swarm_rag)
     workflow.add_node("generate_plan", node_generate_plan)
     workflow.add_node("judge_evaluation", node_judge_evaluation)
@@ -1851,7 +2307,15 @@ def build_v6_workflow():
     # Linear flow for initial steps
     workflow.add_edge("ingest", "parse")
     workflow.add_edge("parse", "classify")
-    workflow.add_edge("classify", "swarm_rag")
+    workflow.add_edge("classify", "l1_triage")
+    workflow.add_conditional_edges(
+        "l1_triage",
+        route_after_l1,
+        {
+            "close_ticket": "close_ticket",
+            "swarm_rag": "swarm_rag",
+        },
+    )
     workflow.add_edge("swarm_rag", "generate_plan")
     workflow.add_edge("generate_plan", "judge_evaluation")
 
@@ -2159,3 +2623,51 @@ class WorkflowOrchestrator:
 
 # Global instance
 workflow_orchestrator = WorkflowOrchestrator()
+
+
+# =============================================================================
+# MODULE-LEVEL WRAPPER FUNCTIONS (called by EventOrchestrator)
+# =============================================================================
+
+async def run_incident_workflow(
+    workflow_id: str,
+    incident_id: str,
+    incident_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Module-level wrapper to trigger the LangGraph incident workflow.
+
+    Called by EventOrchestrator._handle_incident_created() when a new
+    incident.created event is consumed from Kafka.
+    """
+    result = await workflow_orchestrator.run(
+        incident_id=incident_id,
+        raw_incident=incident_data,
+        metadata={"workflow_id": workflow_id}
+    )
+    return result
+
+
+async def resume_incident_workflow(
+    workflow_id: str,
+    from_state: str = "approved"
+) -> Dict[str, Any]:
+    """
+    Module-level wrapper to resume a paused LangGraph incident workflow.
+
+    Called by EventOrchestrator._handle_incident_approved() when an
+    incident.approved event is consumed from Kafka.
+    """
+    # Extract incident_id from workflow_id (format: incident-INC001-xxxx)
+    parts = workflow_id.split("-")
+    incident_id = parts[1] if len(parts) >= 2 else workflow_id
+
+    result = await workflow_orchestrator.resume(
+        incident_id=incident_id,
+        approval_decision={
+            "approved": from_state == "approved",
+            "approver": "event_orchestrator",
+            "reason": f"Resumed via Kafka event (state={from_state})"
+        }
+    )
+    return result

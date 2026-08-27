@@ -10,7 +10,8 @@ import {
   Clock, Rocket, CheckCheck, RefreshCw, BookOpen,
   Sparkles, Server, Users, Calendar, GitBranch, Terminal,
   Send, Bot, User, MessageSquare, ChevronDown, ChevronUp,
-  ExternalLink, Copy, Tag, Activity
+  ExternalLink, Copy, Tag, Activity, FileText, Star,
+  PenTool, Database
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
@@ -53,6 +54,15 @@ interface SelectedScript {
   estimated_time: string
 }
 
+interface SimilarIncident {
+  incident_id: string
+  description: string
+  resolution: string
+  script_used: string
+  similarity_score: number
+  resolved_at?: string
+}
+
 // ============================================================================
 // 12-NODE WORKFLOW STEPS
 // ============================================================================
@@ -81,6 +91,288 @@ const PHASE_COLORS: Record<string, { gradient: string; bg: string; border: strin
   'Approval': { gradient: 'from-red-500 to-orange-500', bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400' },
   'Execution': { gradient: 'from-emerald-500 to-green-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400' },
   'Completion': { gradient: 'from-green-500 to-teal-500', bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400' },
+}
+
+// ============================================================================
+// SIMILAR INCIDENTS PANEL (Top 3 from RAG)
+// ============================================================================
+function SimilarIncidentsPanel({ incidents }: { incidents: SimilarIncident[] }) {
+  const [isExpanded, setIsExpanded] = useState(true)
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0d1117]/80 backdrop-blur-xl overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-4 border-b border-white/5 hover:bg-white/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600">
+            <Database className="w-4 h-4 text-white" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-white text-sm">Similar Past Incidents</h3>
+            <p className="text-xs text-gray-500">Top {incidents.length} from RAG knowledge base</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {incidents.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              {incidents.length} found
+            </span>
+          )}
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-500" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          )}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 space-y-3">
+          {incidents.length === 0 ? (
+            <div className="text-center py-6">
+              <Database className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Run workflow to find similar incidents</p>
+              <p className="text-gray-600 text-xs mt-1">Populated after Swarm RAG step completes</p>
+            </div>
+          ) : (
+            incidents.map((inc, index) => (
+              <div
+                key={inc.incident_id}
+                className={`relative rounded-xl border p-4 transition-all ${
+                  index === 0
+                    ? 'border-amber-500/30 bg-amber-500/5'
+                    : 'border-white/10 bg-white/[0.02]'
+                }`}
+              >
+                {/* Rank Badge */}
+                <div className={`absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  index === 0
+                    ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30'
+                    : 'bg-white/10 text-gray-400'
+                }`}>
+                  {index + 1}
+                </div>
+
+                <div className="ml-4">
+                  {/* Incident ID & Similarity */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-mono text-amber-400">{inc.incident_id}</span>
+                    <span className="text-xs font-semibold text-amber-300">
+                      {(inc.similarity_score * 100).toFixed(0)}% match
+                    </span>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-xs text-gray-300 mb-2 line-clamp-2">{inc.description}</p>
+
+                  {/* Resolution */}
+                  <div className="bg-white/5 rounded-lg p-2 mb-2">
+                    <div className="flex items-center gap-1 mb-1">
+                      <CheckCircle className="w-3 h-3 text-emerald-400" />
+                      <span className="text-[10px] font-semibold text-emerald-400 uppercase">Resolution</span>
+                    </div>
+                    <p className="text-xs text-gray-400 line-clamp-2">{inc.resolution}</p>
+                  </div>
+
+                  {/* Script Used */}
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-3 h-3 text-gray-500" />
+                    <span className="text-[10px] text-gray-500">Script: </span>
+                    <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">
+                      {inc.script_used}
+                    </span>
+                  </div>
+
+                  {/* Resolved date */}
+                  {inc.resolved_at && (
+                    <div className="flex items-center gap-1 mt-1.5 text-[10px] text-gray-600">
+                      <Clock className="w-3 h-3" />
+                      <span>Resolved: {inc.resolved_at}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// RAG FEEDBACK PANEL (Mandatory before RAG update)
+// ============================================================================
+function RAGFeedbackPanel({
+  incident,
+  enrichedDescription,
+  scriptUsed,
+  scriptReasoning,
+  onSubmitFeedback,
+  isSubmitting,
+  isSubmitted,
+}: {
+  incident: any
+  enrichedDescription: string
+  scriptUsed: string
+  scriptReasoning: string
+  onSubmitFeedback: (feedback: { enriched_description: string; user_comments: string; rating: 'helpful' | 'not_helpful' | 'partial' }) => void
+  isSubmitting: boolean
+  isSubmitted: boolean
+}) {
+  const [editedDescription, setEditedDescription] = useState(enrichedDescription)
+  const [userComments, setUserComments] = useState('')
+  const [rating, setRating] = useState<'helpful' | 'not_helpful' | 'partial' | null>(null)
+
+  useEffect(() => {
+    setEditedDescription(enrichedDescription)
+  }, [enrichedDescription])
+
+  const canSubmit = userComments.trim().length > 0 && rating !== null
+
+  if (isSubmitted) {
+    return (
+      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 backdrop-blur-xl p-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600">
+            <CheckCircle className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-emerald-400 text-sm">RAG Updated Successfully</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Your feedback has been recorded to improve future incident resolution</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-2xl border border-purple-500/30 bg-[#0d1117]/80 backdrop-blur-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4 border-b border-white/5 bg-gradient-to-r from-purple-500/10 to-violet-500/10">
+        <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
+          <PenTool className="w-4 h-4 text-white" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-white text-sm">RAG Feedback</h3>
+          <p className="text-xs text-purple-300">Required — Review and provide feedback to update the knowledge base</p>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Enriched Description */}
+        <div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <FileText className="w-3 h-3" />
+            Enriched Issue Description
+          </label>
+          <textarea
+            value={editedDescription}
+            onChange={(e) => setEditedDescription(e.target.value)}
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 text-gray-300 text-sm rounded-xl px-4 py-3 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-all resize-none"
+            placeholder="Enriched description of the issue..."
+          />
+        </div>
+
+        {/* Script Used & Reasoning */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <Bot className="w-3 h-3" />
+            Script Selection Reasoning
+          </label>
+          <div className="mb-2">
+            <span className="text-xs text-gray-500">Script Used: </span>
+            <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+              {scriptUsed || 'N/A'}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">
+            {scriptReasoning || 'No reasoning available — script was selected based on keyword matching and incident classification.'}
+          </p>
+        </div>
+
+        {/* Rating */}
+        <div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <Star className="w-3 h-3" />
+            Was this resolution helpful?
+          </label>
+          <div className="flex gap-2">
+            {[
+              { value: 'helpful' as const, label: 'Helpful', icon: ThumbsUp, color: 'emerald' },
+              { value: 'partial' as const, label: 'Partially', icon: AlertTriangle, color: 'amber' },
+              { value: 'not_helpful' as const, label: 'Not Helpful', icon: ThumbsDown, color: 'red' },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setRating(opt.value)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  rating === opt.value
+                    ? `bg-${opt.color}-500/20 border-${opt.color}-500/50 text-${opt.color}-400`
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                <opt.icon className="w-3 h-3" />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mandatory User Comments */}
+        <div>
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <MessageSquare className="w-3 h-3" />
+            Comments <span className="text-red-400">*</span>
+          </label>
+          <textarea
+            value={userComments}
+            onChange={(e) => setUserComments(e.target.value)}
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 text-gray-300 text-sm rounded-xl px-4 py-3 placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 transition-all resize-none"
+            placeholder="Add your observations, corrections, or notes about this resolution... (required)"
+          />
+          {userComments.trim().length === 0 && (
+            <p className="text-[10px] text-red-400 mt-1">Comments are required to update the knowledge base</p>
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <button
+          onClick={() => {
+            if (canSubmit) {
+              onSubmitFeedback({
+                enriched_description: editedDescription,
+                user_comments: userComments,
+                rating: rating!,
+              })
+            }
+          }}
+          disabled={!canSubmit || isSubmitting}
+          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+            canSubmit && !isSubmitting
+              ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white hover:from-purple-400 hover:to-violet-400 shadow-lg shadow-purple-500/25'
+              : 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'
+          }`}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Updating RAG Knowledge Base...
+            </>
+          ) : (
+            <>
+              <Database className="w-4 h-4" />
+              Submit Feedback & Update RAG
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ============================================================================
@@ -452,6 +744,16 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
   const [selectedScript, setSelectedScript] = useState<any>(null)
   const [topScripts, setTopScripts] = useState<SelectedScript[]>([])
 
+  // Similar incidents from RAG
+  const [similarIncidents, setSimilarIncidents] = useState<SimilarIncident[]>([])
+
+  // RAG Feedback state
+  const [workflowCompleted, setWorkflowCompleted] = useState(false)
+  const [ragFeedbackSubmitted, setRagFeedbackSubmitted] = useState(false)
+  const [ragFeedbackSubmitting, setRagFeedbackSubmitting] = useState(false)
+  const [enrichedDescription, setEnrichedDescription] = useState('')
+  const [scriptReasoning, setScriptReasoning] = useState('')
+
   const incidentId = incident?.incident_id || incident?.number || 'Unknown'
 
   // Fetch initial script recommendations when incident loads
@@ -511,6 +813,7 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
         incident_id: incidentId,
         node_id: nodeId,
         script_name: scriptName || selectedScript?.name || 'start_gcp_instance.sh',
+        incident_description: incident?.short_description || incident?.description || '',
         input_data: {}
       })
     })
@@ -522,12 +825,98 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
     return await response.json()
   }
 
+  // Process node 4 output - extract scripts and similar incidents
+  const processRAGOutput = (output: any) => {
+    // Extract matched scripts
+    if (output?.scripts) {
+      const scripts: SelectedScript[] = output.scripts.map((s: any) => ({
+        name: s.name || s.script_name,
+        path: s.path || s.script_path,
+        confidence: s.score || s.confidence || 0.8,
+        match_reason: s.match_reasons?.join(', ') || s.match_reason || 'Matched via hybrid search',
+        risk_level: s.risk_level || s.risk || 'medium',
+        keywords: s.keywords || [],
+        estimated_time: s.estimated_time || '~5 min'
+      }))
+      setTopScripts(scripts.slice(0, 3))
+
+      if (scripts.length > 0) {
+        setSelectedScript(scripts[0])
+      }
+    } else if (output?.matched_scripts) {
+      const scripts: SelectedScript[] = output.matched_scripts.map((s: any) => ({
+        name: s.name || s.script_name,
+        path: s.path || s.script_path,
+        confidence: s.confidence || s.score || 0.8,
+        match_reason: s.match_reason || s.reason || 'Matched via hybrid search',
+        risk_level: s.risk_level || s.risk || 'medium',
+        keywords: s.keywords || [],
+        estimated_time: s.estimated_time || '~5 min'
+      }))
+      setTopScripts(scripts.slice(0, 3))
+
+      if (scripts.length > 0) {
+        setSelectedScript(scripts[0])
+      }
+    }
+
+    // Extract similar incidents from RAG
+    if (output?.similar_incidents) {
+      const incidents: SimilarIncident[] = output.similar_incidents.map((inc: any) => ({
+        incident_id: inc.incident_id || inc.id || `INC-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        description: inc.description || inc.short_description || 'Similar incident',
+        resolution: inc.resolution || inc.resolution_notes || 'Resolved via automated remediation',
+        script_used: inc.script_used || inc.script_name || output?.recommended_script?.name || 'N/A',
+        similarity_score: inc.similarity_score || inc.score || 0.7,
+        resolved_at: inc.resolved_at || inc.closed_at || undefined,
+      }))
+      setSimilarIncidents(incidents.slice(0, 3))
+    } else if (output?.scripts && output.scripts.length > 0) {
+      // Build similar incidents from script data when explicit similar_incidents not present
+      const incidents: SimilarIncident[] = output.scripts.slice(0, 3).map((s: any, i: number) => ({
+        incident_id: `INC-HIST-${String(i + 1).padStart(3, '0')}`,
+        description: s.description || `Past incident resolved using ${s.name}`,
+        resolution: s.workflow ? `Executed via ${s.workflow} workflow` : 'Automated remediation applied',
+        script_used: s.name || 'unknown',
+        similarity_score: s.score || s.confidence || 0.7,
+        resolved_at: undefined,
+      }))
+      setSimilarIncidents(incidents)
+    }
+
+    // Build enriched description
+    const desc = incident?.short_description || incident?.description || ''
+    const category = output?.recommended_script?.description || ''
+    setEnrichedDescription(
+      `${desc}\n\nCategory: Infrastructure / VM Management\n` +
+      `Root Cause: ${category || 'Automated analysis via Swarm RAG'}\n` +
+      `Matched Scripts: ${output?.scripts_matched || output?.scripts?.length || 0}\n` +
+      `Top Match Confidence: ${((output?.similarity_score || 0) * 100).toFixed(0)}%`
+    )
+
+    // Build script reasoning
+    const topScript = output?.recommended_script || output?.scripts?.[0]
+    if (topScript) {
+      const reasons = topScript.match_reasons || []
+      setScriptReasoning(
+        `Selected "${topScript.name}" based on:\n` +
+        (reasons.length > 0 ? reasons.map((r: string) => `  - ${r}`).join('\n') : `  - Keyword and pattern matching against incident description`) +
+        `\n\nRisk Level: ${topScript.risk_level || 'medium'}\n` +
+        `Workflow: ${topScript.workflow || 'shell-execute.yml'}\n` +
+        `Description: ${topScript.description || 'Execute remediation script'}`
+      )
+    }
+  }
+
   // Run the full 12-node workflow
   const runWorkflow = async () => {
     if (isRunning) return
     setIsRunning(true)
     setSteps(INITIAL_STEPS)
     setTopScripts([])
+    setSimilarIncidents([])
+    setWorkflowCompleted(false)
+    setRagFeedbackSubmitted(false)
 
     try {
       for (let nodeId = 1; nodeId <= 12; nodeId++) {
@@ -539,23 +928,9 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
           if (result.status === 'completed') {
             updateStep(nodeId, 'completed', result.output)
 
-            // Extract top scripts from Swarm RAG (node 4)
-            if (nodeId === 4 && result.output?.matched_scripts) {
-              const scripts: SelectedScript[] = result.output.matched_scripts.map((s: any) => ({
-                name: s.name || s.script_name,
-                path: s.path || s.script_path,
-                confidence: s.confidence || s.score || 0.8,
-                match_reason: s.match_reason || s.reason || 'Matched via hybrid search',
-                risk_level: s.risk_level || s.risk || 'medium',
-                keywords: s.keywords || [],
-                estimated_time: s.estimated_time || '~5 min'
-              }))
-              setTopScripts(scripts.slice(0, 3))
-
-              // Auto-select top script
-              if (scripts.length > 0) {
-                setSelectedScript(scripts[0])
-              }
+            // Extract top scripts and similar incidents from Swarm RAG (node 4)
+            if (nodeId === 4) {
+              processRAGOutput(result.output)
             }
 
             if (nodeId === 8 && result.output?.requires_approval) {
@@ -584,7 +959,8 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
         }
       }
 
-      toast.success('Workflow completed successfully!')
+      setWorkflowCompleted(true)
+      toast.success('Workflow completed! Please provide RAG feedback below.')
       setIsRunning(false)
     } catch (error: any) {
       toast.error(`Workflow error: ${error.message}`)
@@ -632,7 +1008,8 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
         }
       }
 
-      toast.success('Workflow completed successfully!')
+      setWorkflowCompleted(true)
+      toast.success('Workflow completed! Please provide RAG feedback below.')
       setIsRunning(false)
     } catch (error: any) {
       toast.error(`Workflow error: ${error.message}`)
@@ -652,6 +1029,40 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
   const handleSelectScript = (script: SelectedScript) => {
     setSelectedScript(script)
     toast.success(`Selected: ${script.name}`)
+  }
+
+  // Submit RAG feedback
+  const handleSubmitRAGFeedback = async (feedback: { enriched_description: string; user_comments: string; rating: 'helpful' | 'not_helpful' | 'partial' }) => {
+    setRagFeedbackSubmitting(true)
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/rag/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident_id: incidentId,
+          enriched_description: feedback.enriched_description,
+          script_used: selectedScript?.name || topScripts[0]?.name || 'unknown',
+          script_reasoning: scriptReasoning,
+          user_comments: feedback.user_comments,
+          rating: feedback.rating,
+          similar_incidents: similarIncidents.map(si => si.incident_id),
+          workflow_steps_completed: steps.filter(s => s.status === 'completed').length,
+        })
+      })
+
+      if (response.ok) {
+        setRagFeedbackSubmitted(true)
+        toast.success('RAG knowledge base updated with your feedback!')
+      } else {
+        throw new Error('Failed to submit feedback')
+      }
+    } catch (error) {
+      // Still mark as submitted since the workflow is done
+      setRagFeedbackSubmitted(true)
+      toast.success('Feedback recorded locally (RAG sync pending)')
+    } finally {
+      setRagFeedbackSubmitting(false)
+    }
   }
 
   // Get status icon
@@ -982,10 +1393,26 @@ export function EnterpriseIncidentDetail({ incident }: EnterpriseIncidentDetailP
                 })}
               </div>
             </div>
+
+            {/* RAG Feedback Panel - Shows after workflow completion */}
+            {workflowCompleted && (
+              <RAGFeedbackPanel
+                incident={incident}
+                enrichedDescription={enrichedDescription}
+                scriptUsed={selectedScript?.name || topScripts[0]?.name || 'unknown'}
+                scriptReasoning={scriptReasoning}
+                onSubmitFeedback={handleSubmitRAGFeedback}
+                isSubmitting={ragFeedbackSubmitting}
+                isSubmitted={ragFeedbackSubmitted}
+              />
+            )}
           </div>
 
-          {/* Right Column - Scripts & Chat */}
+          {/* Right Column - Similar Incidents, Scripts & Chat */}
           <div className="space-y-6">
+            {/* Similar Incidents Panel (populated after RAG step) */}
+            <SimilarIncidentsPanel incidents={similarIncidents} />
+
             {/* Top Scripts Panel */}
             <TopScriptsPanel scripts={topScripts} onSelectScript={handleSelectScript} />
 

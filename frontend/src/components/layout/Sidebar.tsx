@@ -26,6 +26,7 @@ import {
   Package,
   BookOpen,
   Layers,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -81,6 +82,7 @@ const navSections: NavSection[] = [
     items: [
       { name: 'Data Catalog', href: '/catalog', icon: BookOpen },
       { name: 'Data Products', href: '/data-products', icon: Package },
+      { name: 'Legacy Migration', href: '/migration', icon: ArrowRightLeft },
     ],
   },
 ]
@@ -106,7 +108,7 @@ export function Sidebar() {
         setExpandedSections(prev => [...prev, 'jira'])
       }
     }
-    if (pathname?.startsWith('/catalog') || pathname?.startsWith('/data-products')) {
+    if (pathname?.startsWith('/catalog') || pathname?.startsWith('/data-products') || pathname?.startsWith('/migration')) {
       if (!expandedSections.includes('governance')) {
         setExpandedSections(prev => [...prev, 'governance'])
       }

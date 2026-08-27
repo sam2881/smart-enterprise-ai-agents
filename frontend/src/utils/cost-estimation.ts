@@ -47,7 +47,7 @@ function estimateBigQueryStorage(
   if (!target) return { storage_gb: 0, cost_usd: 0 }
 
   // Estimate storage based on zones and row count
-  const zones = ['landing', 'bronze', 'silver', 'gold', 'trusted']
+  const zones = ['landing', 'bronze', 'silver', 'gold']
   const zonesUsed = zones.filter(z => z === target.target_zone).length || 3  // Default 3 zones
 
   const storageBytes = estimatedRowCount * avgRowSizeBytes * zonesUsed

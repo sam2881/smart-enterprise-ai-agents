@@ -83,7 +83,7 @@ class PIIDetector:
         PIIType.SSN: ['ssn', 'social_security', 'social_sec'],
         PIIType.EMAIL: ['email', 'e_mail', 'mail'],
         PIIType.PHONE: ['phone', 'tel', 'telephone', 'mobile', 'cell'],
-        PIIType.CREDIT_CARD: ['credit_card', 'cc', 'card_number'],
+        PIIType.CREDIT_CARD: ['credit_card', 'card_number'],
         PIIType.NAME: ['name', 'first_name', 'last_name', 'full_name'],
         PIIType.ADDRESS: ['address', 'street', 'city', 'state'],
         PIIType.DATE_OF_BIRTH: ['dob', 'date_of_birth', 'birth_date', 'birthdate'],
@@ -159,9 +159,12 @@ class PIIDetector:
 
     def _match_column_name(self, column_name: str) -> Optional[PIIType]:
         """Check if column name indicates PII."""
+        normalized = column_name.lower().replace('_', ' ').replace('-', ' ')
         for pii_type, indicators in self.COLUMN_NAME_INDICATORS.items():
-            if any(indicator in column_name for indicator in indicators):
-                return pii_type
+            for indicator in indicators:
+                indicator_normalized = indicator.replace('_', ' ')
+                if indicator_normalized in normalized:
+                    return pii_type
         return None
 
     def _match_patterns(self, sample_data: List[str]) -> Dict[PIIType, int]:

@@ -571,7 +571,6 @@ export default function DashboardPage() {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [apiUrl, setApiUrl] = useState('')
   const [dataSource, setDataSource] = useState<string>('')
 
   // Mock workflow executions for demo
@@ -581,32 +580,34 @@ export default function DashboardPage() {
   ])
 
   useEffect(() => {
-    setApiUrl(getApiBaseUrl())
-  }, [])
+    const apiUrl = getApiBaseUrl()
+    let isMounted = true
 
-  useEffect(() => {
     const fetchData = async () => {
-      if (!apiUrl) return
-
       try {
-        const incRes = await fetch(`${apiUrl}/api/incidents`)
-        if (incRes.ok) {
-          const incData = await incRes.json()
-          setIncidents(incData.incidents || [])
-          setDataSource(incData.source || 'unknown')
+        const res = await fetch(`${apiUrl}/api/incidents`)
+        if (!isMounted) return
+        if (res.ok) {
+          const data = await res.json()
+          setIncidents(data.incidents || [])
+          setDataSource(data.source || 'unknown')
         }
         setError(null)
-      } catch (err) {
-        setError(`Failed to connect to backend`)
+      } catch {
+        if (isMounted) setError('Failed to connect to backend')
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchData()
-    const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
-  }, [apiUrl])
+    // Poll once per minute instead of 30s to avoid refresh-loop perception
+    const interval = setInterval(fetchData, 60000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [])
 
   // Calculate stats
   const stats = {
@@ -756,7 +757,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Agent Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <AgentStatusCard
             name="IT Service Agent"
             description="ServiceNow incident automation"
@@ -784,6 +785,21 @@ export default function DashboardPage() {
               { label: 'In Progress', value: 0 },
               { label: 'Linked PRs', value: 0 },
               { label: 'Closed Today', value: 0 },
+            ]}
+          />
+
+          <AgentStatusCard
+            name="Observability"
+            description="Platform health & monitoring"
+            status="active"
+            icon={<Activity className="w-6 h-6 text-white" />}
+            color="green"
+            href="/observability"
+            stats={[
+              { label: 'Services Up', value: '12/12' },
+              { label: 'Active Agents', value: 4 },
+              { label: 'Kafka Events', value: '1.2k/hr' },
+              { label: 'LLM Traces', value: '1,847' },
             ]}
           />
         </div>

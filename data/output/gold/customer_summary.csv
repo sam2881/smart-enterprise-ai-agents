@@ -1,0 +1,6 @@
+customer_id,customer_name,total_orders,total_revenue,completed_orders,shipped_orders,pending_orders,_gold_ts
+CUST-101,Acme Corp,4,1209.82,3,0,1,2026-06-26T12:31:04.582979
+CUST-103,Gamma Inc,3,865.44,1,0,2,2026-06-26T12:31:04.582979
+CUST-105,Epsilon LLC,2,849.71,2,0,0,2026-06-26T12:31:04.582979
+CUST-102,Beta Ltd,3,761.82,2,1,0,2026-06-26T12:31:04.582979
+CUST-104,Delta Co,3,721.33,0,3,0,2026-06-26T12:31:04.582979

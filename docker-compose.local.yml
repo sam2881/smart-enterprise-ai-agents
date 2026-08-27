@@ -1,0 +1,289 @@
+# docker-compose.local.yml — Application services overlay
+#
+# Extends the base docker-compose.yml (infra) with all application containers.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#   or via: .\scripts\local-pipeline.ps1
+#
+# All external credentials (ANTHROPIC_API_KEY, SNOW_*, JIRA_*, GITHUB_*) are
+# read from .env — missing values cause graceful degradation, not hard crashes.
+
+x-app-env: &app-env
+  ENVIRONMENT: local
+  PYTHONPATH: /app
+  PYTHONUNBUFFERED: "1"
+
+  # ── Infra (Docker service names, not localhost) ──────────────────────────
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: admin123
+  POSTGRES_DB: agentdb
+  DATABASE_URL: postgresql://admin:admin123@postgres:5432/agentdb
+
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ""
+
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  KAFKA_CONSUMER_GROUP: ai-agent-local
+
+  NEO4J_HOST: neo4j
+  NEO4J_PORT: "7687"
+  NEO4J_USER: neo4j
+  NEO4J_PASSWORD: adminadmin
+
+  WEAVIATE_HOST: weaviate
+  WEAVIATE_PORT: "8080"
+  WEAVIATE_GRPC_PORT: "50051"
+
+  # ── Observability (Docker service names) ─────────────────────────────────
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_SERVICE_NAME: ai-agent-local
+  OTEL_ENABLED: "true"
+  OTEL_TRACES_SAMPLER: always_on
+  LANGFUSE_HOST: http://langfuse:3000
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local}
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local}
+
+  # ── GCP (stubbed — skips real GCS/BQ/Dataproc calls in local mode) ──────
+  GCP_PROJECT_ID: local-dev
+  GCP_REGION: us-central1
+  GCS_BUCKET_RAW: local-raw
+  GCS_BUCKET_BRONZE: local-bronze
+  GCS_BUCKET_SILVER: local-silver
+  GCS_BUCKET_GOLD: local-gold
+  GCS_BUCKET_TEMP: local-temp
+  BIGQUERY_DATASET: local_warehouse
+  DATAPROC_CLUSTER: local-cluster
+
+  # ── LLM keys (required — loaded from .env) ───────────────────────────────
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+  # ── External integrations (optional — blank = graceful skip) ─────────────
+  SNOW_INSTANCE_URL: ${SNOW_INSTANCE_URL:-}
+  SNOW_USERNAME: ${SNOW_USERNAME:-}
+  SNOW_PASSWORD: ${SNOW_PASSWORD:-}
+  SNOW_API_KEY: ${SNOW_API_KEY:-}
+  JIRA_URL: ${JIRA_URL:-}
+  JIRA_USERNAME: ${JIRA_USERNAME:-}
+  JIRA_API_TOKEN: ${JIRA_API_TOKEN:-}
+  JIRA_PROJECT_KEY: ${JIRA_PROJECT_KEY:-SCRUM}
+  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  GITHUB_REMEDIATION_TOKEN: ${GITHUB_REMEDIATION_TOKEN:-}
+  GITHUB_REMEDIATION_OWNER: ${GITHUB_REMEDIATION_OWNER:-local}
+  GITHUB_REMEDIATION_REPO: ${GITHUB_REMEDIATION_REPO:-local}
+  GITHUB_PIPELINES_TOKEN: ${GITHUB_PIPELINES_TOKEN:-}
+  GITHUB_PIPELINES_OWNER: ${GITHUB_PIPELINES_OWNER:-local}
+  GITHUB_PIPELINES_REPO: ${GITHUB_PIPELINES_REPO:-local}
+  SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+  SLACK_CHANNEL: ${SLACK_CHANNEL:-#local-alerts}
+
+  LOG_LEVEL: INFO
+  LOG_FORMAT: json
+
+services:
+
+  # ============================================================
+  # DB Migration — runs DDL once, exits 0, then app services start
+  # ============================================================
+  db-migrate:
+    image: postgres:15-alpine
+    container_name: agentic-db-migrate
+    restart: "no"
+    environment:
+      PGPASSWORD: admin123
+    volumes:
+      - ./agents/data_agent/ddl/apex:/ddl:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        echo '>>> Running APEX DDL migrations...';
+        for f in /ddl/*.sql; do
+          echo \"  applying $$f\";
+          psql -h postgres -U admin -d agentdb -f $$f || exit 1;
+        done;
+        echo '>>> Migrations complete.';
+      "
+
+  # ============================================================
+  # Backend API — FastAPI control plane (port 8000)
+  # ============================================================
+  backend-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ai-agent/backend:local
+    container_name: agentic-backend-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      weaviate:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  # ============================================================
+  # Data Agent API — pipeline generation (port 8001)
+  # ============================================================
+  data-agent:
+    build:
+      context: .
+      dockerfile: agents/data_agent/Dockerfile
+    image: ai-agent/data-agent:local
+    container_name: agentic-data-agent
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  # ============================================================
+  # Frontend — Next.js UI (port 3000 on host, 3001 in container)
+  # Grafana already occupies host port 3001 in docker-compose.yml
+  # ============================================================
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    image: ai-agent/frontend:local
+    container_name: agentic-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3001"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_DATA_AGENT_URL: http://localhost:8001
+      BACKEND_URL: http://backend-api:8000
+      NODE_ENV: production
+    depends_on:
+      backend-api:
+        condition: service_healthy
+      data-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  # ============================================================
+  # Event Orchestrator — main Kafka consumer / LangGraph trigger
+  # ============================================================
+  event-orchestrator:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.event-orchestrator
+    image: ai-agent/event-orchestrator:local
+    container_name: agentic-event-orchestrator
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ============================================================
+  # Incident Consumer — processes incident.* Kafka topics
+  # ============================================================
+  incident-consumer:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.incident-consumer
+    image: ai-agent/incident-consumer:local
+    container_name: agentic-incident-consumer
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+
+  # ============================================================
+  # Pipeline Consumer — bridges pipeline.failed → incident workflow
+  # ============================================================
+  pipeline-consumer:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.pipeline-consumer
+    image: ai-agent/pipeline-consumer:local
+    container_name: agentic-pipeline-consumer
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      data-agent:
+        condition: service_healthy
+
+  # ============================================================
+  # Test Runner — runs unit tests inside the backend image, exits
+  # ============================================================
+  test-runner:
+    image: ai-agent/backend:local
+    container_name: agentic-test-runner
+    restart: "no"
+    environment:
+      <<: *app-env
+      ENVIRONMENT: test
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        echo '>>> Running unit tests...';
+        python -m pytest tests/unit/ -v --tb=short -q 2>&1;
+        echo \">>> Exit: $$?\";
+      "
+    profiles:
+      - test
