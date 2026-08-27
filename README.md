@@ -6,6 +6,13 @@ An event-driven, multi-agent platform for **governed IT incident remediation** a
 
 > **Portfolio signal:** architecture thinking backed by runnable Python, TypeScript, SQL, Terraform, Docker, CI/CD, security controls, and operational workflows.
 
+## What Employers Can Evaluate
+
+- **Architecture:** two explicit LangGraph workflows connected through Kafka rather than an ad-hoc agent loop.
+- **Engineering:** FastAPI services, a Next.js operations UI, Pydantic contracts, Jinja2 generation, and PostgreSQL metadata.
+- **Production thinking:** human approval for consequential actions, PII controls, audit trails, retries, verification, and rollback-aware execution.
+- **Cloud delivery:** Docker, Terraform, GCP deployment scripts, observability, and testable local workflows.
+
 ## Why This Project Matters
 
 | Enterprise problem | Demonstrated solution |
