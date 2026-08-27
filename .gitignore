@@ -7,6 +7,8 @@
 gcp-key.json
 service-account*.json
 .env
+.env.local
+.env.*.local
 infrastructure/gcp-key.json
 .env.local
 .env.*.local
