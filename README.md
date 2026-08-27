@@ -47,6 +47,8 @@ The Data Pipeline Agent view gives teams a guided path from source metadata to g
 
 ![Data Agent pipeline operations](docs/assets/data-agent-pipeline.png)
 
+**Data layer standard:** `RAW` → `TRANSIENT` → `BRONZE` → `SILVER` → `GOLD`, with `GOLD` as the analytics-ready serving layer.
+
 ```mermaid
 flowchart LR
        A["ServiceNow / Jira / Data Sources"] --> B["MCP Integrations"]

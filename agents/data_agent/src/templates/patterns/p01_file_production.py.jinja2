@@ -63,7 +63,7 @@ from dag_utilities.common.dag_tasks import (
     load_snowflake_table,
     get_target_details,
     get_reporting_date_for_cz,
-    check_trusted_ge_status,
+    check_gold_ge_status,
     move_s3_multiple_objects,
     move_if_duplicate_Dir,
     extract_reporting_date_apps,
@@ -143,7 +143,7 @@ COLUMN_DELIMITER = "{{ column_delimiter | default(',') }}"
 ENCODING_DETAILS = "{{ encoding_details | default('utf-8') }}"
 RAW_VALIDATION_TYPE = "{{ raw_validation_type | default('Columncount') }}"
 RAW_CHECKPOINT_NAME = "{{ raw_checkpoint_name | default('') }}"
-TRUSTED_VALIDATION_TYPE = "{{ trusted_validation_type | default('datatype') }}"
+GOLD_VALIDATION_TYPE = "{{ gold_validation_type | default('datatype') }}"
 
 SPARK_JOBS_BUCKET = "{{ spark_jobs_bucket | default('apex-spark-jobs') }}"
 BUCKET_TEMPLATE = "{{ bucket_template | default('apex-{zone}-bucket') }}"
@@ -390,7 +390,7 @@ with DAG(
             dag_name=dag,
             tg_name="raw_to_refine",
             feed_name="{{ feed_task_group_name | default('feed_load') }}.",
-            spark_app_name=str(FEED_ID) + "-refined-" + str(uuid.uuid4()),
+            spark_app_name=str(FEED_ID) + "-silver-" + str(uuid.uuid4()),
             spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/raw_to_refine_v2.py",
             exec_size="{{ exec_size | default('medium') }}",
             spark_args=[
@@ -401,7 +401,7 @@ with DAG(
                 pg_conn_info["pg_port"],
                 pg_conn_info.get("pg_extra", ""),
                 "{{ raw_schema_name | default('cstone_native') }}",
-                "{{ refined_schema_name | default('cstone_refined') }}",
+                "{{ silver_schema_name | default('cstone_silver') }}",
                 "{{ table_name | default('') }}",
                 "{{ '{{ dag_run.start_date }}' }}",
                 str(FEED_ID),
@@ -418,31 +418,31 @@ with DAG(
             ],
         )
 
-{% if enable_trusted_validation | default(true) %}
-        is_trusted_validation = BranchPythonOperator(
-            task_id="is_trusted_validation",
+{% if enable_gold_validation | default(true) %}
+        is_gold_validation = BranchPythonOperator(
+            task_id="is_gold_validation",
             python_callable=check_flag,
             op_kwargs={
                 **_BASE_KWARGS,
-                "flag_name": "is_trusted_validation",
+                "flag_name": "is_gold_validation",
             },
         )
-        not_trusted_validation = EmptyOperator(task_id="not_trusted_validation")
+        not_gold_validation = EmptyOperator(task_id="not_gold_validation")
 
-        semantic_validation_trusted = get_spark_tg_wrapper_v2(
+        semantic_validation_gold = get_spark_tg_wrapper_v2(
             dag_name=dag,
-            tg_name="semantic_validation_trusted",
+            tg_name="semantic_validation_gold",
             feed_name="{{ feed_task_group_name | default('feed_load') }}.",
-            spark_app_name=str(FEED_ID) + "-trusted-ge-" + str(uuid.uuid4()),
-            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/semantic_validator_trusted.py",
+            spark_app_name=str(FEED_ID) + "-gold-ge-" + str(uuid.uuid4()),
+            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/semantic_validator_gold.py",
             exec_size="{{ exec_size | default('medium') }}",
             extra_task_id="check_result",
-            extra_func=check_trusted_ge_status,
+            extra_func=check_gold_ge_status,
             extra_args={
                 "feed_id": FEED_ID,
                 "conn_id": POSTGRES_CONN_ID,
-                "success_branch": "{{ feed_task_group_name | default('feed_load') }}.refine_to_trusted.combined-spark",
-                "fail_branch": "{{ feed_task_group_name | default('feed_load') }}.trusted_rejected_audit_log",
+                "success_branch": "{{ feed_task_group_name | default('feed_load') }}.silver_to_gold.combined-spark",
+                "fail_branch": "{{ feed_task_group_name | default('feed_load') }}.gold_rejected_audit_log",
                 "email_to": email_recipient,
             },
             spark_args=[
@@ -453,17 +453,17 @@ with DAG(
                 pg_conn_info["pg_port"],
                 pg_conn_info.get("pg_extra", ""),
                 str(FEED_ID),
-                TRUSTED_VALIDATION_TYPE,
+                GOLD_VALIDATION_TYPE,
             ],
         )
 {% endif %}
 
-        refine_to_trusted = get_spark_tg_wrapper_v2(
+        silver_to_gold = get_spark_tg_wrapper_v2(
             dag_name=dag,
-            tg_name="refine_to_trusted",
+            tg_name="silver_to_gold",
             feed_name="{{ feed_task_group_name | default('feed_load') }}.",
-            spark_app_name=str(FEED_ID) + "-trusted-" + str(uuid.uuid4()),
-            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/refine_to_trusted.py",
+            spark_app_name=str(FEED_ID) + "-gold-" + str(uuid.uuid4()),
+            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/silver_to_gold.py",
             exec_size="{{ exec_size | default('medium') }}",
             extra_task_id="get_reporting_date_for_cz",
             extra_func=get_reporting_date_for_cz,
@@ -472,8 +472,8 @@ with DAG(
 {% if use_trino | default(false) %}
                 "trino_conn_id": TRINO_CONN_ID,
 {% endif %}
-                "trusted_schema_name": "{{ trusted_schema_name | default('cstone_trusted') }}",
-                "trusted_table_name": "{{ trusted_table_name | default('') }}",
+                "gold_schema_name": "{{ gold_schema_name | default('cstone_gold') }}",
+                "gold_table_name": "{{ gold_table_name | default('') }}",
                 "success_branch": "{{ feed_task_group_name | default('feed_load') }}.get_feed_target_details",
                 "fail_branch": "check_duplicate_file",
             },
@@ -484,8 +484,8 @@ with DAG(
                 pg_conn_info["pg_pw"],
                 pg_conn_info["pg_port"],
                 pg_conn_info.get("pg_extra", ""),
-                "{{ refined_schema_name | default('cstone_refined') }}",
-                "{{ trusted_schema_name | default('cstone_trusted') }}",
+                "{{ silver_schema_name | default('cstone_silver') }}",
+                "{{ gold_schema_name | default('cstone_gold') }}",
                 "{{ table_name | default('') }}",
                 str(FEED_ID),
             ],
@@ -528,29 +528,29 @@ with DAG(
             },
         )
 
-        trusted_rejected_audit = PythonOperator(
-            task_id="trusted_rejected_audit_log",
+        gold_rejected_audit = PythonOperator(
+            task_id="gold_rejected_audit_log",
             python_callable=platform_audit_log,
             op_kwargs={
                 **_BASE_KWARGS,
                 "file_run_id": 0,
-                "status": "trusted_rejected",
-                "zone": "trusted",
+                "status": "gold_rejected",
+                "zone": "gold",
             },
         )
 {% endif %}
 
         # ── Feed TaskGroup internal dependencies ──
         get_run_id >> schema_validation >> raw_to_refine
-{% if enable_trusted_validation | default(true) %}
-        raw_to_refine >> is_trusted_validation
-        is_trusted_validation >> semantic_validation_trusted >> refine_to_trusted
-        is_trusted_validation >> not_trusted_validation >> refine_to_trusted
+{% if enable_gold_validation | default(true) %}
+        raw_to_refine >> is_gold_validation
+        is_gold_validation >> semantic_validation_gold >> silver_to_gold
+        is_gold_validation >> not_gold_validation >> silver_to_gold
 {% else %}
-        raw_to_refine >> refine_to_trusted
+        raw_to_refine >> silver_to_gold
 {% endif %}
 {% if include_consumption | default(false) %}
-        refine_to_trusted >> get_feed_target
+        silver_to_gold >> get_feed_target
 {% endif %}
 
     # ── Duplicate File Check (production pattern) ──

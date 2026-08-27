@@ -85,7 +85,7 @@ SINGLE_FEED_METADATA = {
     ],
 
     # Zones
-    "zones": ["transient", "raw", "refined", "gold", "consumption"],
+    "zones": ["transient", "raw", "silver", "gold", "consumption"],
     "zone_configs": [],
 
     # Transforms and quality
@@ -128,8 +128,8 @@ SINGLE_FEED_METADATA = {
     # Zone targets
     "raw_dataset": "raw",
     "raw_table": "fraud_detection_daily_raw",
-    "refined_dataset": "refined",
-    "refined_table": "fraud_detection_daily",
+    "silver_dataset": "silver",
+    "silver_table": "fraud_detection_daily",
     "gold_dataset": "gold",
     "gold_table": "fraud_detection_daily",
     "consumption_dataset": "consumption",
@@ -189,7 +189,7 @@ GROUP_FEED_METADATA = {
             "encoding": "EBCDIC",
             "include_consumption": True,
             "raw_table": "fraud_transaction_detail_raw",
-            "refined_table": "fraud_transaction_detail",
+            "silver_table": "fraud_transaction_detail",
             "gold_table": "fraud_transaction_detail",
             "consumption_table": "fraud_transaction_summary",
         },
@@ -204,7 +204,7 @@ GROUP_FEED_METADATA = {
             "encoding": "UTF-8",
             "include_consumption": False,
             "raw_table": "fraud_account_master_raw",
-            "refined_table": "fraud_account_master",
+            "silver_table": "fraud_account_master",
             "gold_table": "fraud_account_master",
             "consumption_table": "",
         },

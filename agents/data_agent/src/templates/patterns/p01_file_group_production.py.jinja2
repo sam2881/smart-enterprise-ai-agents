@@ -51,7 +51,7 @@ from dag_utilities.common.dag_tasks import (
     send_notification_file_count,
     get_target_details,
     get_reporting_date_for_cz,
-    check_trusted_ge_status,
+    check_gold_ge_status,
     move_s3_multiple_objects,
 {% if check_business_date | default(false) %}
     dag_is_posting_date,
@@ -289,7 +289,7 @@ with DAG(
             dag_name=dag,
             tg_name="raw_to_refine",
             feed_name="feed_{{ feed.feed_id }}.",
-            spark_app_name=str({{ feed.feed_id }}) + "-refined-" + str(uuid.uuid4()),
+            spark_app_name=str({{ feed.feed_id }}) + "-silver-" + str(uuid.uuid4()),
             spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/raw_to_refine_v2.py",
             exec_size="{{ exec_size | default('medium') }}",
             spark_args=[
@@ -303,12 +303,12 @@ with DAG(
             ],
         )
 
-        refine_to_trusted_{{ feed.feed_id }} = get_spark_tg_wrapper_v2(
+        silver_to_gold_{{ feed.feed_id }} = get_spark_tg_wrapper_v2(
             dag_name=dag,
-            tg_name="refine_to_trusted",
+            tg_name="silver_to_gold",
             feed_name="feed_{{ feed.feed_id }}.",
-            spark_app_name=str({{ feed.feed_id }}) + "-trusted-" + str(uuid.uuid4()),
-            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/refine_to_trusted.py",
+            spark_app_name=str({{ feed.feed_id }}) + "-gold-" + str(uuid.uuid4()),
+            spark_app_file_name=PYSPARK_SCRIPT_PATH + "common/silver_to_gold.py",
             exec_size="{{ exec_size | default('medium') }}",
             spark_args=[
                 pg_conn_info["pg_host"],
@@ -356,11 +356,11 @@ with DAG(
 
         # Feed-level task dependencies
         feed_init_{{ feed.feed_id }} >> feed_s2t_{{ feed.feed_id }}
-        feed_s2t_{{ feed.feed_id }} >> schema_val_{{ feed.feed_id }} >> raw_to_refine_{{ feed.feed_id }} >> refine_to_trusted_{{ feed.feed_id }}
+        feed_s2t_{{ feed.feed_id }} >> schema_val_{{ feed.feed_id }} >> raw_to_refine_{{ feed.feed_id }} >> silver_to_gold_{{ feed.feed_id }}
 {% if feed.include_consumption | default(false) %}
-        refine_to_trusted_{{ feed.feed_id }} >> cz_tg_{{ feed.feed_id }} >> feed_archive_{{ feed.feed_id }}
+        silver_to_gold_{{ feed.feed_id }} >> cz_tg_{{ feed.feed_id }} >> feed_archive_{{ feed.feed_id }}
 {% else %}
-        refine_to_trusted_{{ feed.feed_id }} >> feed_archive_{{ feed.feed_id }}
+        silver_to_gold_{{ feed.feed_id }} >> feed_archive_{{ feed.feed_id }}
 {% endif %}
         feed_archive_{{ feed.feed_id }} >> feed_audit_{{ feed.feed_id }}
 

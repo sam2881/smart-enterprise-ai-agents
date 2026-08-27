@@ -230,7 +230,7 @@ class DeterministicDAGGenerator:
 
         zone_levels = [z.get("zone_level", z.get("zone", "")) for z in zones]
         if not zone_levels:
-            zone_levels = ["transient", "raw", "refined", "gold", "consumption"]
+            zone_levels = ["transient", "raw", "silver", "gold", "consumption"]
 
         return {
             # Identity
@@ -305,8 +305,8 @@ class DeterministicDAGGenerator:
             # Zone targets
             "raw_dataset": feed.get("raw_dataset", "raw"),
             "raw_table": feed.get("raw_table", f"{feed_name}_raw"),
-            "refined_dataset": feed.get("refined_dataset", "refined"),
-            "refined_table": feed.get("refined_table", feed_name),
+            "silver_dataset": feed.get("silver_dataset", "silver"),
+            "silver_table": feed.get("silver_table", feed_name),
             "gold_dataset": feed.get("gold_dataset", "gold"),
             "gold_table": feed.get("gold_table", feed_name),
             "consumption_dataset": feed.get("consumption_dataset", "consumption"),

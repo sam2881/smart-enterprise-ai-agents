@@ -519,7 +519,7 @@ class MetadataClient:
         if conn is None:
             return [
                 self._default_zone_config(feed_id, zone)
-                for zone in ["transient", "raw", "refined", "gold", "consumption"]
+                for zone in ["transient", "raw", "silver", "gold", "consumption"]
             ]
 
         cursor = conn.cursor()
@@ -530,7 +530,7 @@ class MetadataClient:
             ORDER BY CASE zone_level
                 WHEN 'transient' THEN 1
                 WHEN 'raw' THEN 2
-                WHEN 'refined' THEN 3
+                WHEN 'silver' THEN 3
                 WHEN 'gold' THEN 4
                 WHEN 'consumption' THEN 5
                 ELSE 6

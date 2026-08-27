@@ -49,7 +49,7 @@ from .dag_tasks import (
     get_environment_recipients,
     # Production-aligned functions (from common.dag_utilities import *)
     load_conn_info,
-    check_trusted_ge_status,
+    check_gold_ge_status,
     get_reporting_date_for_cz,
     get_table_run_id,
     move_s3_multiple_objects,
@@ -137,7 +137,7 @@ __all__ = [
     "get_environment_recipients",
     # Production-aligned functions (from common.dag_utilities import *)
     "load_conn_info",
-    "check_trusted_ge_status",
+    "check_gold_ge_status",
     "get_reporting_date_for_cz",
     "get_table_run_id",
     "move_s3_multiple_objects",

@@ -106,13 +106,13 @@ INPUTPARAM = {
                         "table": "{{ feed.target_table }}_raw",
                         "partition_column": "ingestion_date",
                     },
-                    "refined": {
-                        "dataset": "{{ refined_dataset | default('refined') }}",
+                    "silver": {
+                        "dataset": "{{ silver_dataset | default('silver') }}",
                         "table": "{{ feed.target_table }}",
                         "partition_column": "ingestion_date",
                     },
-                    "trusted": {
-                        "dataset": "{{ trusted_dataset | default('trusted') }}",
+                    "gold": {
+                        "dataset": "{{ gold_dataset | default('gold') }}",
                         "table": "{{ feed.target_table }}",
                         {% if feed.data_vault_type == 'satellite' %}
                         "write_mode": "merge",
@@ -228,8 +228,8 @@ def generate_execution_plan(**context) -> Dict[str, Any]:
                 "quality_threshold": feed_config.get("quality_threshold", 0.95),
                 "expectations_by_zone": {
                     "raw": contract_metadata.get("raw_expectations", []),
-                    "refined": contract_metadata.get("refined_expectations", []),
-                    "trusted": contract_metadata.get("trusted_expectations", []),
+                    "silver": contract_metadata.get("silver_expectations", []),
+                    "gold": contract_metadata.get("gold_expectations", []),
                 },
             },
 
@@ -518,7 +518,7 @@ with DAG(
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # PROCESS EACH FEED: TRANSIENT → RAW → REFINED → TRUSTED
+    # PROCESS EACH FEED: TRANSIENT → RAW → SILVER → GOLD
     # ─────────────────────────────────────────────────────────────────────────
 
     with TaskGroup(group_id="process_feeds") as feeds_group:
@@ -549,38 +549,38 @@ with DAG(
             )
 
             # ───────────────────────────────────────────────────────────────
-            # RAW → REFINED
+            # RAW → SILVER
             # ───────────────────────────────────────────────────────────────
 
-            raw_to_refined_{{ feed.feed_id }} = DataprocSubmitJobOperator(
-                task_id="raw_to_refined",
-                job=get_zone_transform_job("refined", {{ feed.feed_id }}),
+            raw_to_silver_{{ feed.feed_id }} = DataprocSubmitJobOperator(
+                task_id="raw_to_silver",
+                job=get_zone_transform_job("silver", {{ feed.feed_id }}),
                 region=SPARK_JOB_CONFIG["region"],
                 project_id=SPARK_JOB_CONFIG["project_id"],
             )
 
-            refined_ge_validation_{{ feed.feed_id }} = PythonOperator(
-                task_id="refined_ge_validation",
+            silver_ge_validation_{{ feed.feed_id }} = PythonOperator(
+                task_id="silver_ge_validation",
                 python_callable=run_ge_validation,
-                op_kwargs={"zone": "refined", "feed_id": {{ feed.feed_id }}},
+                op_kwargs={"zone": "silver", "feed_id": {{ feed.feed_id }}},
                 provide_context=True,
             )
 
             # ───────────────────────────────────────────────────────────────
-            # REFINED → TRUSTED
+            # SILVER → GOLD
             # ───────────────────────────────────────────────────────────────
 
-            refined_to_trusted_{{ feed.feed_id }} = DataprocSubmitJobOperator(
-                task_id="refined_to_trusted",
-                job=get_zone_transform_job("trusted", {{ feed.feed_id }}),
+            silver_to_gold_{{ feed.feed_id }} = DataprocSubmitJobOperator(
+                task_id="silver_to_gold",
+                job=get_zone_transform_job("gold", {{ feed.feed_id }}),
                 region=SPARK_JOB_CONFIG["region"],
                 project_id=SPARK_JOB_CONFIG["project_id"],
             )
 
-            trusted_ge_validation_{{ feed.feed_id }} = PythonOperator(
-                task_id="trusted_ge_validation",
+            gold_ge_validation_{{ feed.feed_id }} = PythonOperator(
+                task_id="gold_ge_validation",
                 python_callable=run_ge_validation,
-                op_kwargs={"zone": "trusted", "feed_id": {{ feed.feed_id }}},
+                op_kwargs={"zone": "gold", "feed_id": {{ feed.feed_id }}},
                 provide_context=True,
             )
 
@@ -601,10 +601,10 @@ with DAG(
             (
                 transient_to_raw_{{ feed.feed_id }}
                 >> raw_ge_validation_{{ feed.feed_id }}
-                >> raw_to_refined_{{ feed.feed_id }}
-                >> refined_ge_validation_{{ feed.feed_id }}
-                >> refined_to_trusted_{{ feed.feed_id }}
-                >> trusted_ge_validation_{{ feed.feed_id }}
+                >> raw_to_silver_{{ feed.feed_id }}
+                >> silver_ge_validation_{{ feed.feed_id }}
+                >> silver_to_gold_{{ feed.feed_id }}
+                >> gold_ge_validation_{{ feed.feed_id }}
                 >> collect_metrics_{{ feed.feed_id }}
             )
 

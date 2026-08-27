@@ -36,7 +36,7 @@ class ZoneType(str, Enum):
     """Production zone types. GOLD is the final/business-ready layer."""
     TRANSIENT = "transient"  # Temporary landing zone
     RAW = "raw"  # Raw ingested data (immutable)
-    REFINED = "refined"  # Cleaned/validated data
+    SILVER = "silver"  # Cleaned/validated data
     GOLD = "gold"  # Business-ready data (final layer)
     CONSUMPTION = "consumption"  # Analytics/reporting layer (Data Vault)
 
@@ -179,7 +179,7 @@ class FeedDetails(BaseModel):
     target_dataset: str = Field(..., max_length=100, description="BigQuery dataset")
     target_table: str = Field(..., max_length=100, description="BigQuery table")
     target_zones: List[ZoneType] = Field(
-        default_factory=lambda: [ZoneType.RAW, ZoneType.REFINED],
+        default_factory=lambda: [ZoneType.RAW, ZoneType.SILVER],
         description="Zones this feed populates"
     )
 
@@ -447,7 +447,7 @@ class FeedInputParam(BaseModel):
     # Zone-specific config
     zones: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict,
-        description="Zone-specific configuration: {'raw': {...}, 'refined': {...}}"
+        description="Zone-specific configuration: {'raw': {...}, 'silver': {...}}"
     )
 
     # Validation config
@@ -610,7 +610,7 @@ class GeneratePipelineRequest(BaseModel):
     include_ge_validation: bool = True
     include_data_vault: bool = False
     target_zones: List[ZoneType] = Field(
-        default_factory=lambda: [ZoneType.RAW, ZoneType.REFINED, ZoneType.GOLD]
+        default_factory=lambda: [ZoneType.RAW, ZoneType.SILVER, ZoneType.GOLD]
     )
 
     # Created by

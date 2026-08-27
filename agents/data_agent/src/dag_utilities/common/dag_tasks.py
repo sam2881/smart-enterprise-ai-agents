@@ -1984,7 +1984,6 @@ def check_gold_ge_status(
 
 
 # Backward-compat alias — remove once all DAGs migrated
-check_trusted_ge_status = check_gold_ge_status
 
 
 def get_reporting_date_for_cz(
@@ -1996,10 +1995,6 @@ def get_reporting_date_for_cz(
     gold_table_name: str = "",
     success_branch: str = "get_feed_target_details",
     fail_branch: str = "check_duplicate_file",
-    # backward-compat aliases
-    trusted_catalog: str = "",
-    trusted_schema_name: str = "",
-    trusted_table_name: str = "",
     **context,
 ) -> str:
     """
@@ -2008,10 +2003,9 @@ def get_reporting_date_for_cz(
     Queries the gold table for the latest reporting date.
     Production pattern: extra_func after refine_to_gold Spark job.
     """
-    # Support old callers that pass trusted_* args
-    catalog = gold_catalog or trusted_catalog
-    schema_name = gold_schema_name or trusted_schema_name
-    table_name = gold_table_name or trusted_table_name
+    catalog = gold_catalog
+    schema_name = gold_schema_name
+    table_name = gold_table_name
 
     ti = context.get("ti")
     reporting_date = None
@@ -2290,7 +2284,7 @@ __all__ = [
     "dag_group_failure",
     # Production-Aligned Functions (from common.dag_utilities import *)
     "load_conn_info",
-    "check_trusted_ge_status",
+    "check_gold_ge_status",
     "get_reporting_date_for_cz",
     "get_table_run_id",
     "move_s3_multiple_objects",

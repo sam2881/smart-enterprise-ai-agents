@@ -113,7 +113,7 @@ audit = AuditLogger(metadata)
 contract_gate = ContractGate(metadata)
 
 # Zone configuration (5-zone mandatory architecture)
-ZONES = {{ zones | default(['transient', 'raw', 'refined', 'trusted', 'consumption']) | tojson }}
+ZONES = {{ zones | default(['transient', 'raw', 'silver', 'gold', 'consumption']) | tojson }}
 
 # Schedule configuration (per-environment)
 SCHEDULES = {{ schedule | default({'dev': '@daily', 'qa': '@daily', 'prod': '@daily'}) | tojson }}
@@ -552,7 +552,7 @@ with DAG(
     # ─────────────────────────────────────────────────────────────────────────
     process_zones_start = EmptyOperator(task_id="process_zones")
 
-    {% for zone in zones | default(['transient', 'raw', 'refined', 'trusted', 'consumption']) %}
+    {% for zone in zones | default(['transient', 'raw', 'silver', 'gold', 'consumption']) %}
     with TaskGroup(group_id="zone_{{ zone }}") as zone_{{ zone }}_group:
         process_{{ zone }} = PythonOperator(
             task_id="process",
@@ -600,7 +600,7 @@ with DAG(
     contract_gate_task >> [process_zones_start, skip_contract_failed]
 
     # Zone processing chain (sequential by default)
-    {% set zone_list = zones | default(['transient', 'raw', 'refined', 'trusted', 'consumption']) %}
+    {% set zone_list = zones | default(['transient', 'raw', 'silver', 'gold', 'consumption']) %}
     process_zones_start >> zone_{{ zone_list[0] }}_group
 
     {% for i in range(1, zone_list | length) %}

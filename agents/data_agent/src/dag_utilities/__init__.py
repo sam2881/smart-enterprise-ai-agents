@@ -66,7 +66,7 @@ from .common.dag_tasks import (
     move_to_rejected, send_notification_file_count,
     get_group_run_id, group_audit_log, get_environment_recipients,
     # Production-aligned functions
-    load_conn_info, check_trusted_ge_status, get_reporting_date_for_cz,
+    load_conn_info, check_gold_ge_status, get_reporting_date_for_cz,
     get_table_run_id, move_s3_multiple_objects, move_if_duplicate_Dir,
     snowflake_check_result, rejected_file_email,
     extract_reporting_date_apps, source_table_load_success,
@@ -150,7 +150,7 @@ __all__ = [
     "get_environment_recipients",
     # Production-aligned functions
     "load_conn_info",
-    "check_trusted_ge_status",
+    "check_gold_ge_status",
     "get_reporting_date_for_cz",
     "get_table_run_id",
     "move_s3_multiple_objects",

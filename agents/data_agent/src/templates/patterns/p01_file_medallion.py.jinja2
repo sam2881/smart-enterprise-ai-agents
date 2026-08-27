@@ -101,16 +101,16 @@ INPUTPARAM = {
                         "partition_column": "ingestion_date",
                         "clustering_columns": {{ clustering_columns | default([]) | tojson }},
                     },
-                    "refined": {
-                        "dataset": "{{ refined_dataset | default('refined') }}",
-                        "table": "{{ refined_table | default(feed_name) }}",
+                    "silver": {
+                        "dataset": "{{ silver_dataset | default('silver') }}",
+                        "table": "{{ silver_table | default(feed_name) }}",
                         "partition_column": "ingestion_date",
-                        "write_mode": "{{ refined_write_mode | default('append') }}",
+                        "write_mode": "{{ silver_write_mode | default('append') }}",
                     },
-                    "trusted": {
-                        "dataset": "{{ trusted_dataset | default('trusted') }}",
-                        "table": "{{ trusted_table | default(feed_name) }}",
-                        "write_mode": "{{ trusted_write_mode | default('merge') }}",
+                    "gold": {
+                        "dataset": "{{ gold_dataset | default('gold') }}",
+                        "table": "{{ gold_table | default(feed_name) }}",
+                        "write_mode": "{{ gold_write_mode | default('merge') }}",
                     },
                     {% if include_consumption %}
                     "consumption": {
@@ -215,8 +215,8 @@ def generate_execution_plan(**context) -> Dict[str, Any]:
             "quality_threshold": feed_input.get("quality_threshold", 0.95),
             "expectations_by_zone": {
                 "raw": contract_metadata.get("raw_expectations", []),
-                "refined": contract_metadata.get("refined_expectations", []),
-                "trusted": contract_metadata.get("trusted_expectations", []),
+                "silver": contract_metadata.get("silver_expectations", []),
+                "gold": contract_metadata.get("gold_expectations", []),
             },
         },
 
@@ -580,55 +580,55 @@ with DAG(
         raw_transform >> raw_ge_validation
 
     # ─────────────────────────────────────────────────────────────────────────
-    # RAW → REFINED (Cleaning, deduplication)
+    # RAW → SILVER (Cleaning, deduplication)
     # ─────────────────────────────────────────────────────────────────────────
 
-    with TaskGroup(group_id="raw_to_refined") as refined_group:
+    with TaskGroup(group_id="raw_to_silver") as silver_group:
 
-        refined_transform = DataprocSubmitJobOperator(
-            task_id="transform_to_refined",
-            job=get_zone_spark_job("refined"),
+        silver_transform = DataprocSubmitJobOperator(
+            task_id="transform_to_silver",
+            job=get_zone_spark_job("silver"),
             region=SPARK_JOB_CONFIG["region"],
             project_id=SPARK_JOB_CONFIG["project_id"],
         )
 
-        refined_ge_validation = PythonOperator(
-            task_id="refined_ge_validation",
+        silver_ge_validation = PythonOperator(
+            task_id="silver_ge_validation",
             python_callable=run_ge_validation,
-            op_kwargs={"zone": "refined"},
+            op_kwargs={"zone": "silver"},
             provide_context=True,
         )
 
-        refined_transform >> refined_ge_validation
+        silver_transform >> silver_ge_validation
 
     # ─────────────────────────────────────────────────────────────────────────
-    # REFINED → TRUSTED (Business rules, joins)
+    # SILVER → GOLD (Business rules, joins)
     # ─────────────────────────────────────────────────────────────────────────
 
-    with TaskGroup(group_id="refined_to_trusted") as trusted_group:
+    with TaskGroup(group_id="silver_to_gold") as gold_group:
 
-        trusted_transform = DataprocSubmitJobOperator(
-            task_id="transform_to_trusted",
-            job=get_zone_spark_job("trusted"),
+        gold_transform = DataprocSubmitJobOperator(
+            task_id="transform_to_gold",
+            job=get_zone_spark_job("gold"),
             region=SPARK_JOB_CONFIG["region"],
             project_id=SPARK_JOB_CONFIG["project_id"],
         )
 
-        trusted_ge_validation = PythonOperator(
-            task_id="trusted_ge_validation",
+        gold_ge_validation = PythonOperator(
+            task_id="gold_ge_validation",
             python_callable=run_ge_validation,
-            op_kwargs={"zone": "trusted"},
+            op_kwargs={"zone": "gold"},
             provide_context=True,
         )
 
-        trusted_transform >> trusted_ge_validation
+        gold_transform >> gold_ge_validation
 
     {% if include_consumption %}
     # ─────────────────────────────────────────────────────────────────────────
-    # TRUSTED → CONSUMPTION (Analytics layer - optional)
+    # GOLD → CONSUMPTION (Analytics layer - optional)
     # ─────────────────────────────────────────────────────────────────────────
 
-    with TaskGroup(group_id="trusted_to_consumption") as consumption_group:
+    with TaskGroup(group_id="gold_to_consumption") as consumption_group:
 
         consumption_transform = DataprocSubmitJobOperator(
             task_id="transform_to_consumption",
@@ -711,11 +711,11 @@ with DAG(
 
     # 5-Zone medallion flow
     {% if include_consumption %}
-    transient_group >> raw_group >> refined_group >> trusted_group >> consumption_group
+    transient_group >> raw_group >> silver_group >> gold_group >> consumption_group
     consumption_group >> collect_metrics
     {% else %}
-    transient_group >> raw_group >> refined_group >> trusted_group
-    trusted_group >> collect_metrics
+    transient_group >> raw_group >> silver_group >> gold_group
+    gold_group >> collect_metrics
     {% endif %}
 
     # Completion flow
@@ -725,7 +725,7 @@ with DAG(
     [skip_no_files, skip_contract_failed] >> end_success
 
     # Error handling
-    [transient_group, raw_group, refined_group, trusted_group] >> end_failure
+    [transient_group, raw_group, silver_group, gold_group] >> end_failure
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -736,7 +736,7 @@ __APEX_METADATA__ = {
     "pattern_code": "P01",
     "pattern_name": "File Medallion Pipeline (5-Zone)",
     "contract_type": "{{ contract_type | default('STANDARD') }}",
-    "zones": ["transient", "raw", "refined", "trusted"{% if include_consumption %}, "consumption"{% endif %}],
+    "zones": ["transient", "raw", "silver", "gold"{% if include_consumption %}, "consumption"{% endif %}],
     "supports_incremental": True,
     "supports_cdc": False,
     "supports_scd2": False,

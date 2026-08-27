@@ -95,7 +95,7 @@ class ZoneProcessor:
     """
 
     # Zone transition order — gold is the final medallion layer (replaces trusted)
-    ZONE_ORDER = ["transient", "raw", "refined", "gold", "consumption"]
+    ZONE_ORDER = ["transient", "raw", "silver", "gold", "consumption"]
 
     def __init__(self, config: ZoneProcessorConfig):
         """
@@ -404,7 +404,7 @@ class ZoneProcessor:
                 .withColumn("_source_file", F.input_file_name())
             )
 
-        elif zone == "refined":
+        elif zone == "silver":
             # Refined: Data cleaning, deduplication, standardization
             # Apply type casting from schema
             schema = zone_config.get("schema", {})
@@ -667,7 +667,7 @@ class StandaloneMetadataClient:
             "zone_level": zone,
             "dataset_name": f"{zone}_data",
             "table_name": f"feed_{feed_id}_{zone}",
-            "write_mode": "append" if zone in ["transient", "raw", "refined"] else "merge",  # gold and consumption use merge
+            "write_mode": "append" if zone in ["transient", "raw", "silver"] else "merge",  # gold and consumption use merge
             "partition_config": {"columns": ["_batch_id"]},
             "clustering_columns": [],
             "schema": {"columns": []},
@@ -794,7 +794,7 @@ def main():
     parser = argparse.ArgumentParser(description="APEX Zone Processor")
     parser.add_argument("--feed-id", type=int, required=True, help="Feed ID")
     parser.add_argument("--zone", type=str, required=True,
-                        choices=["transient", "raw", "refined", "gold", "consumption"],
+                        choices=["transient", "raw", "silver", "gold", "consumption"],
                         help="Zone to process")
     parser.add_argument("--batch-id", type=str, required=True, help="Batch ID (YYYYMMDD)")
     parser.add_argument("--metadata-url", type=str, required=True, help="Metadata database URL")

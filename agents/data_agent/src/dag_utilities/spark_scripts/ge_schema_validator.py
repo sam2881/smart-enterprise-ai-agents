@@ -335,7 +335,7 @@ def build_ge_expectations(
     Zone-specific GE profiles (production pattern):
         TRANSIENT  = none (raw landing, as-is)
         RAW        = schema (7 checks: column exists, count, set match, row count)
-        REFINED    = type+null (11 checks: exists + type cast + nullability)
+        SILVER    = type+null (11 checks: exists + type cast + nullability)
         GOLD       = full quality (14+ checks: all schema + all quality_rules)
     """
     if zone == "transient":
@@ -345,8 +345,8 @@ def build_ge_expectations(
     if zone == "raw":
         return _build_raw_schema_expectations(schema)
 
-    if zone == "refined":
-        return _build_refined_expectations(schema, rules)
+    if zone == "silver":
+        return _build_silver_expectations(schema, rules)
 
     # gold / consumption — full data quality
     return _build_gold_quality_expectations(schema, rules)
@@ -426,12 +426,12 @@ def _build_raw_schema_expectations(
     return expectations
 
 
-def _build_refined_expectations(
+def _build_silver_expectations(
     schema: Dict[str, Any],
     rules: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
-    REFINED ZONE: Type checks + nullability (11 checks).
+    SILVER ZONE: Type checks + nullability (11 checks).
 
     Bridge between raw (structure) and gold (quality).
     """
@@ -445,7 +445,7 @@ def _build_refined_expectations(
         expectations.append({
             "expectation_type": "expect_column_to_exist",
             "kwargs": {"column": col_name},
-            "meta": {"source": "schema", "severity": "ERROR", "zone_profile": "refined"},
+            "meta": {"source": "schema", "severity": "ERROR", "zone_profile": "silver"},
         })
 
         col_type = col.get("type") or col.get("data_type", "")
@@ -456,7 +456,7 @@ def _build_refined_expectations(
                 "meta": {
                     "source": "schema",
                     "severity": "ERROR",
-                    "zone_profile": "refined",
+                    "zone_profile": "silver",
                     "description": f"Column '{col_name}' must be castable to {col_type}",
                 },
             })
@@ -466,10 +466,10 @@ def _build_refined_expectations(
             expectations.append({
                 "expectation_type": "expect_column_values_to_not_be_null",
                 "kwargs": {"column": col_name},
-                "meta": {"source": "schema", "severity": "ERROR", "zone_profile": "refined"},
+                "meta": {"source": "schema", "severity": "ERROR", "zone_profile": "silver"},
             })
 
-    logger.info("REFINED ZONE: Built %d expectations", len(expectations))
+    logger.info("SILVER ZONE: Built %d expectations", len(expectations))
     return expectations
 
 

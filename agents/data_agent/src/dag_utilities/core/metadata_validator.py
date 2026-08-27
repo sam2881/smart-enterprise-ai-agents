@@ -95,7 +95,7 @@ class MetadataValidator:
 
     VALID_CONTRACT_TYPES = ["STANDARD", "SCD2", "DATA_VAULT", "STAR_SCHEMA"]
 
-    REQUIRED_ZONES = ["transient", "raw", "refined", "gold", "consumption"]
+    REQUIRED_ZONES = ["transient", "raw", "silver", "gold", "consumption"]
 
     def __init__(self, metadata_client: Any):
         """

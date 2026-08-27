@@ -10,7 +10,7 @@ Execution Plan Structure:
     "feed_id": 1001,
     "source_type": "file_csv",
     "source_category": "FILE",
-    "zones": ["transient", "raw", "refined", "gold", "consumption"],
+    "zones": ["transient", "raw", "silver", "gold", "consumption"],
     "validations": {"schema": true, "semantic": true, "referential": true},
     "load_mode": "incremental",
     "delete_mode": "monthly",
@@ -177,7 +177,7 @@ class ExecutionPlanBuilder:
     Produces deterministic plans with checksum verification.
     """
 
-    ZONE_ORDER = ["transient", "raw", "refined", "gold", "consumption"]
+    ZONE_ORDER = ["transient", "raw", "silver", "gold", "consumption"]
 
     def __init__(self, metadata_client: Any):
         """
@@ -301,7 +301,7 @@ class ExecutionPlanBuilder:
         zone_map = {z.get("zone_level"): z for z in zones}
         transform_map = {}
         for t in transforms:
-            zone = t.get("zone_level", "refined")
+            zone = t.get("zone_level", "silver")
             if zone not in transform_map:
                 transform_map[zone] = []
             transform_map[zone].append(t.get("transform_type", "unknown"))
@@ -312,7 +312,7 @@ class ExecutionPlanBuilder:
             # Default validation config based on zone
             validation = ValidationConfig(
                 schema=(zone_level != "transient"),
-                semantic=(zone_level in ["refined", "gold", "consumption"]),
+                semantic=(zone_level in ["silver", "gold", "consumption"]),
                 referential=(zone_level in ["gold", "consumption"]),
             )
 

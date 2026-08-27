@@ -115,7 +115,7 @@ CONTRACT_CUSTOMIZATIONS: Dict[str, Dict[str, Any]] = {
         "history_tracking": False,
         "data_vault_enabled": False,
         "scd_type": None,
-        "trusted_write_mode": "merge",
+        "gold_write_mode": "merge",
         "consumption_write_mode": "overwrite",
     },
     "SCD2": {
@@ -123,7 +123,7 @@ CONTRACT_CUSTOMIZATIONS: Dict[str, Dict[str, Any]] = {
         "history_tracking": True,
         "data_vault_enabled": False,
         "scd_type": "type2",
-        "trusted_write_mode": "merge",
+        "gold_write_mode": "merge",
         "consumption_write_mode": "merge",
     },
     "DATA_VAULT": {
@@ -131,7 +131,7 @@ CONTRACT_CUSTOMIZATIONS: Dict[str, Dict[str, Any]] = {
         "history_tracking": True,
         "data_vault_enabled": True,
         "scd_type": None,
-        "trusted_write_mode": "merge",
+        "gold_write_mode": "merge",
         "consumption_write_mode": "merge",
     },
     "STAR_SCHEMA": {
@@ -139,7 +139,7 @@ CONTRACT_CUSTOMIZATIONS: Dict[str, Dict[str, Any]] = {
         "history_tracking": False,
         "data_vault_enabled": False,
         "scd_type": None,
-        "trusted_write_mode": "overwrite",
+        "gold_write_mode": "overwrite",
         "consumption_write_mode": "overwrite",
     },
 }

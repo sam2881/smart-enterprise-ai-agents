@@ -362,7 +362,7 @@ def build_zone_gcs_paths(
     Returns:
         Dict with input_path and output_path GCS URIs
     """
-    zone_order = ["transient", "raw", "refined", "gold", "consumption"]
+    zone_order = ["transient", "raw", "silver", "gold", "consumption"]
     zone_lower = zone.lower()
 
     # Determine input zone (previous in chain)

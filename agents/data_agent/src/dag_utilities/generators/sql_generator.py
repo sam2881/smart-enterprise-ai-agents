@@ -404,7 +404,7 @@ INSERT INTO zone_configurations (
     ) -> GeneratedSQL:
         """Generate SQL for quality_rules table."""
         rule_id = rule.get("rule_id")
-        zone_level = rule.get("zone_level", "refined")
+        zone_level = rule.get("zone_level", "silver")
         rule_name = rule.get("rule_name", f"rule_{rule_id}")
         rule_type = rule.get("rule_type", "not_null")
         column_name = rule.get("column_name", "")
@@ -452,7 +452,7 @@ INSERT INTO quality_rules (
     ) -> GeneratedSQL:
         """Generate SQL for transform_definitions table."""
         transform_id = transform.get("transform_id")
-        zone_level = transform.get("zone_level", "refined")
+        zone_level = transform.get("zone_level", "silver")
         transform_type = transform.get("transform_type", "custom")
         sequence_order = transform.get("sequence_order", 1)
         config = json.dumps(transform.get("config", {}))
